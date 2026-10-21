@@ -167,9 +167,19 @@ EthioBridge incorporates comprehensive enterprise-grade hardening:
 ### 2. AI Microservice & Payments Integrity
 - **Internal Microservice Token**: AI service endpoints (e.g., feedback ingestion) secured via `X-Internal-Token`.
 - **Fairness Benchmark Disclaimers**: Synthetic fairness metrics explicitly marked as illustrative benchmarks.
-- **Simulated Gateway Safeguards**: All wallet top-ups, milestone escrows, and payouts explicitly labeled as `[SIMULATED - SANDBOX]` pending live bank API licenses.
+- **Chapa Payment Gateway & Escrow Lifecycle**:
+  - Live sandbox integration with official Chapa hosted checkout API (`https://api.chapa.co/v1/transaction/initialize`).
+  - Strict milestone escrow flow: Seeker authorizes payment -> Chapa checkout session -> Verification callback (`GET /api/v1/payments/chapa/verify/{txRef}`) -> Milestone transitions to `FUNDED`.
+  - Escrow Release: After provider submits deliverables, seeker verifies and releases payment. Platform retains 10% platform fee and credits 90% net payout to provider wallet.
+  - Connects Monetization: Provider connects purchases generate Chapa checkout links. Tokens are strictly credited only upon verified payment confirmation (`POST /api/v1/monetization/connects/verify/{txRef}`).
+  - Auto Email Sanitization: Sanitizes non-standard domain test emails to compliant TLDs during Chapa initialization.
 
-### 3. Frontend UX & Interactivity
+### 3. Identity Verification & KYC
+- **National ID & Document Verification**: Users upload national ID / passport / business license images via safe file upload.
+- **Admin Review Queue**: System administrators review submitted identity documents with multi-criteria validation, approving or rejecting with feedback.
+- **Verified Trust Badges**: Blue verified badges displayed across provider profiles, search results, and seeker listings upon approval.
+
+### 4. Frontend UX & Interactivity
 - **Toast Notification System**: Modern, accessible notification toasts replacing browser `alert()` and `prompt()`, styled in Dahlia brand colors.
 - **Auth Interceptors**: Automatic Bearer token attachment, seamless auto-logout on `401 Unauthorized`, and error toasts on `403 Forbidden` / `429 Too Many Requests`.
 - **SEO & Crawler Optimization**:
@@ -177,7 +187,7 @@ EthioBridge incorporates comprehensive enterprise-grade hardening:
   - Schema.org `EmploymentAgency` JSON-LD structured data.
   - Public `robots.txt` and `sitemap.xml`.
 
-### 4. Continuous Integration (CI/CD)
+### 5. Continuous Integration (CI/CD)
 - GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push and pull request to `main`:
   - **Backend**: Maven test & package with JDK 21.
   - **AI Service**: Python 3.11 linting & pytest test suite.
