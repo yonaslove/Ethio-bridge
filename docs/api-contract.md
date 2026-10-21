@@ -47,6 +47,16 @@ Response:
 Error codes: `VALIDATION_ERROR` (400), `UNAUTHENTICATED` (401), `FORBIDDEN` (403),
 `NOT_FOUND` (404), `CONFLICT` (409), `UNPROCESSABLE` (422), `AI_UNAVAILABLE` (503, service degraded).
 
+## 1.1 Payment & Escrow Endpoints (Chapa / Telebirr)
+
+- `GET /api/v1/payments/methods`: List active Ethiopian payment gateway rails (Chapa, Telebirr, CBE Birr).
+- `POST /api/v1/payments/chapa/initialize`: Initialize hosted Chapa checkout session for escrow milestone funding or connects top-up.
+  - Body: `{ "amount": 2500.00, "contractId": "...", "milestoneId": "...", "purpose": "ESCROW_MILESTONE" }`
+  - Returns: `{ "status": "success", "checkoutUrl": "https://checkout.chapa.co/...", "txRef": "CHP-..." }`
+- `GET /api/v1/payments/chapa/verify/{txRef}`: Verify transaction status with Chapa API, update escrow milestone to `FUNDED`.
+- `POST /api/v1/monetization/connects/topup`: Initialize connects token purchase via Chapa (returns checkout link without premature crediting).
+- `POST /api/v1/monetization/connects/verify/{txRef}`: Verify Chapa payment completion and credit connects balance.
+
 ### Authorization rule
 
 A request that reads or mutates a resource the caller does not own returns `403`, never `200`
