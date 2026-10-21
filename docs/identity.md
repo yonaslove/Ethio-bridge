@@ -58,12 +58,23 @@ Validation performed on every request: **issuer, signature, expiry, audience, an
 - Attaches the access token as `Authorization: Bearer` to backend calls.
 - Handles silent renew and logout.
 
-## 7. User provisioning
+## 7. User provisioning & Role Management
 
-On first authenticated request, the backend upserts an `app_user` row keyed by `sub`, copying
-`email` and `full_name`. Roles stay in Keycloak and are never persisted as the source of truth.
+- **Keycloak Mode:** On first authenticated request, the backend upserts an `app_user` row keyed by `sub`, copying `email` and `full_name`. Realm roles from `realm_access.roles` are synchronized to the user's roles.
+- **Standalone / Direct Mode:** Roles are persisted in the `app_user_role` relational table (Flyway migration `V8__user_roles_and_fts.sql`), associated via `@ElementCollection` on `AppUser`. Users can be assigned `SEEKER`, `PROVIDER`, or `ADMIN`.
 
-## 8. Required tests
+## 8. Standalone Authentication & Session Controls
+
+To support seamless development, evaluation pipelines, and local environments without mandatory Keycloak redirection:
+- **Endpoints:**
+  - `POST /api/v1/auth/register` — Registers user with password policy check and role assignment.
+  - `POST /api/v1/auth/login` — Issues direct bearer session token, tracked in `ACTIVE_SESSIONS`.
+  - `POST /api/v1/auth/logout` — Server-side session invalidation removing token from `ACTIVE_SESSIONS`.
+- **Password Policy:** Minimum 8 characters, requiring at least one uppercase letter, one lowercase letter, and one digit.
+- **Login Rate Limiter:** Sliding-window limiter tracking failed attempts by IP and email (maximum 5 failed attempts per 15-minute window before temporary lockout).
+- **Client Auto-Logout Interceptor:** Angular HTTP interceptor (`authInterceptor`) automatically clears state and redirects to login on `401 Unauthorized` responses.
+
+## 9. Required tests
 
 - Expired token → `401`.
 - Missing token on protected route → `401`.
@@ -71,8 +82,10 @@ On first authenticated request, the backend upserts an `app_user` row keyed by `
 - Valid token with wrong/missing audience → `401`.
 - Valid token with correct role → `200`.
 - Tampered signature → `401`.
+- Logout invalidation → subsequent request with token → `401`.
+- Login rate limit exceeded (> 5 bad attempts) → `429 Too Many Requests`.
 
-## 9. No passwords in the marketplace
+## 10. Credential Storage
 
-Keycloak owns credentials. The application database stores no passwords and implements no
-separate password system.
+- In **Keycloak Mode**, Keycloak owns credentials; the application database stores no passwords.
+- In **Standalone Mode**, credentials are authenticated against BCrypt hashes stored in `app_user.password_hash` with rigorous salt rounds and rate limiting.

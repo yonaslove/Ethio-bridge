@@ -5,7 +5,12 @@ Internal contract between the Spring Boot backend and the FastAPI AI service.
 - **Base path:** `/ai/v1`
 - **Auth:** internal only. The service is not published to the host in production compose and is
   reachable only on the internal Docker network. A shared secret header `X-Internal-Token` is
-  required.
+  required on all endpoints except `GET /health` and `GET /evaluation`. Verification **fails
+  closed**: if `INTERNAL_TOKEN` is unset or blank the protected endpoints return `500` rather than
+  allowing anonymous access.
+- **CORS:** browser access is limited to `ALLOWED_ORIGINS` (comma-separated, defaults to
+  `http://localhost:4200,http://127.0.0.1:4200`) for the read-only evaluation view. Credentials are
+  not allowed.
 - **Statelessness:** the AI service does **not** access PostgreSQL. The backend supplies all
   candidate profiles in the request. See [decisions.md](decisions.md) D1.
 

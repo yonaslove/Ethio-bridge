@@ -85,3 +85,20 @@
 
 On push/PR: build backend + run tests, build ai-service + pytest, build frontend + tests, run Flyway
 on a Testcontainers Postgres. Fail the pipeline on any red.
+
+## 11. Implemented tests (current)
+
+These exist in the repo today (the catalogs in §3–§8 are still the target for full coverage):
+
+| Area | Location | Command | Covers |
+| --- | --- | --- | --- |
+| Backend | `backend/src/test/java/com/ethiobridge/config/AudienceValidatorTest.java` | `cd backend && ./mvnw test` (Windows: `mvnw.cmd test`) | Audience validation accepts the expected audience and rejects `account`-only or wrong audiences |
+| Backend | `backend/src/test/java/com/ethiobridge/service/MatchingServiceTest.java` | same | Keyword ranking order, AI-failure fallback (`degraded: true`), 100-candidate pool cap, owner-only access to candidates |
+| AI | `ai-service/tests/test_api.py` | `cd ai-service && pytest` | Health, `X-Internal-Token` enforcement (401), analyze listing/profile, match ranking, explanation factors and weights, determinism, `k` handling |
+| Frontend | `frontend/src/app/services/auth.service.spec.ts` | `cd frontend && npm test` | Session restore, login persistence, logout clears storage, role helpers, auth headers |
+| Frontend | `frontend/src/app/services/api.service.spec.ts` | same | Candidate request URL/headers, evaluation call to the AI service, anonymous vs authenticated headers |
+
+Still to add: Spring `@WebMvcTest` authorization slices, Flyway/Testcontainers integration tests,
+backend↔AI contract schema tests, route-guard and explanation-rendering component tests, Playwright
+end-to-end. See §3–§8 for the full catalog.
+

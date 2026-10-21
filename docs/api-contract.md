@@ -3,7 +3,11 @@
 Contract between the Angular frontend and the Spring Boot backend.
 
 - **Base path:** `/api/v1`
-- **Auth:** every endpoint except `GET /api/v1/health` requires `Authorization: Bearer <JWT>`.
+- **Auth:** `Authorization: Bearer <JWT>` is required for every endpoint except:
+  - `GET /api/v1/health`
+  - public reads: `GET /listings`, `GET /listings/{id}`, `GET /providers`, `GET /providers/{id}`,
+    `GET /providers/{id}/reviews`, `GET /skills`, `GET /categories`, `GET /locations`
+  - `/api/v1/auth/**`, OpenAPI docs and `/actuator/**`
 - **Content type:** `application/json`.
 - **Transport:** JSON over HTTPS.
 
@@ -117,6 +121,7 @@ with hidden data. Ownership is checked in the service layer, not only by role.
 | --- | --- | --- | --- |
 | POST | `/listings` | SEEKER | Create listing |
 | GET | `/listings?type=&status=&categoryId=&locationId=&q=` | any | Browse/search listings |
+| GET | `/listings/my` | authenticated | Listings owned by the current user (not paged) |
 | GET | `/listings/{id}` | any | Listing detail |
 | PUT | `/listings/{id}` | owner | Update listing |
 | POST | `/listings/{id}/publish` | owner | Move DRAFT → OPEN |
