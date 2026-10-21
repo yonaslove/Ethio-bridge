@@ -38,6 +38,20 @@
   - Apply → `201`, `SUBMITTED`.
   - Duplicate apply → `409`.
   - Invalid transition → `422`.
+
+## 4. Payment Escrow & Connects Verification Test Cases
+
+- **Escrow Funding via Chapa:**
+  - Seeker authorizes milestone funding → `POST /api/v1/payments/chapa/initialize` returns hosted `checkout_url`.
+  - Transaction stored with `INITIATED` status.
+  - Return callback verified via `GET /api/v1/payments/chapa/verify/{txRef}`.
+  - Milestone transitions to `FUNDED`, recording `fundedAt`.
+  - Provider deliverable submitted → `DELIVERED`.
+  - Seeker inspects and approves → `RELEASED`, transferring 90% net payout and recording 10% platform fee.
+- **Connects Purchase with Chapa:**
+  - Provider initiates package purchase → returns Chapa checkout link.
+  - Connects balance remains unchanged until payment verified on Chapa.
+  - Verification endpoint `POST /api/v1/monetization/connects/verify/{txRef}` credits tokens only upon verified success.
   - Withdraw own → `WITHDRAWN`.
 - **Migrations**
   - Clean DB initializes to current schema.
