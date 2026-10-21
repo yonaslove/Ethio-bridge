@@ -5,8 +5,10 @@ import com.ethiobridge.entity.ContractMilestone;
 import com.ethiobridge.entity.PaymentTransaction;
 import com.ethiobridge.entity.PlatformRevenue;
 import com.ethiobridge.entity.ProviderProfile;
+import com.ethiobridge.repository.AppUserRepository;
 import com.ethiobridge.repository.ContractMilestoneRepository;
 import com.ethiobridge.repository.ContractRepository;
+import com.ethiobridge.repository.ListingRepository;
 import com.ethiobridge.repository.PaymentTransactionRepository;
 import com.ethiobridge.repository.PlatformRevenueRepository;
 import com.ethiobridge.repository.ProviderProfileRepository;
@@ -52,6 +54,12 @@ public class ChapaPaymentTest {
     @Mock
     private ProviderProfileRepository providerProfileRepository;
 
+    @Mock
+    private AppUserRepository appUserRepository;
+
+    @Mock
+    private ListingRepository listingRepository;
+
     private PaymentService paymentService;
     private ContractService contractService;
     private MonetizationService monetizationService;
@@ -63,7 +71,25 @@ public class ChapaPaymentTest {
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService(paymentRepository, auditLogService);
+        paymentService = new PaymentService(
+                paymentRepository,
+                auditLogService,
+                appUserRepository,
+                milestoneRepository,
+                contractRepository,
+                providerProfileRepository,
+                revenueRepository,
+                notificationService
+        );
+
+        monetizationService = new MonetizationService(
+                revenueRepository,
+                providerProfileRepository,
+                listingRepository,
+                notificationService,
+                auditLogService,
+                paymentService
+        );
 
         contractService = new ContractService(
                 contractRepository,
@@ -72,16 +98,8 @@ public class ChapaPaymentTest {
                 null, // DisputeRepository
                 notificationService,
                 auditLogService,
-                null, // AppUserRepository
-                null  // MonetizationService
-        );
-
-        monetizationService = new MonetizationService(
-                revenueRepository,
-                providerProfileRepository,
-                null, // ListingRepository
-                notificationService,
-                auditLogService
+                appUserRepository,
+                monetizationService
         );
 
         lenient().when(paymentRepository.save(any(PaymentTransaction.class)))

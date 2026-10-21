@@ -125,10 +125,6 @@ public class MonetizationService {
     public Map<String, Object> verifyConnectsTopup(UUID providerUserId, String txRef) {
         return paymentService.verifyChapaPayment(txRef);
     }
-        result.put("paymentMethod", paymentMethod);
-        result.put("referenceId", ref);
-        return result;
-    }
 
     public Map<String, Object> promoteListingToFeatured(UUID seekerUserId, UUID listingId, String paymentMethod) {
         Listing listing = listingRepository.findById(listingId)
