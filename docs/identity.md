@@ -48,6 +48,26 @@ Add a hardcoded audience mapper on `ethiobridge-frontend` that injects `ethiobri
 - Method security maps realm roles to authorities with prefix `ROLE_` (`ROLE_SEEKER`, etc.).
 - CORS: allow only `APP_CORS_ALLOWED_ORIGINS` (the Angular origin).
 
+## 6. Multi-Criteria National ID & AI Verification Engine
+
+EthioBridge validates national identity submissions across 4 automated compliance criteria:
+
+1. **Document Schema & Checksum Verification:**
+   - `FAYDA_NATIONAL_ID`: Official National ID Program format (`FAN-XXXX-XXXX-ET`).
+   - `PASSPORT`: Ethiopian passport sequence (`EP` followed by 7 digits).
+   - `KEBELE_ID`: City administration / regional code schema.
+   - `DRIVERS_LICENSE` & `BUSINESS_LICENSE`: Valid commercial registry format.
+2. **Document Image Authenticity:**
+   - Validates presence of clear high-resolution document photo/scan with readable text.
+3. **Name Match & Account Consistency:**
+   - Multi-token name consistency check against Keycloak/PostgreSQL registered account.
+4. **Ethiopian Telecom Identity:**
+   - Validates Ethio Telecom (`+251 9...`) or Safaricom Ethiopia (`+251 7...`) active mobile carrier ranges.
+
+### AI Authenticity Scoring:
+- **0–100% Trust Score** (`ai_score`), verdict badge (`RECOMMENDED_APPROVE`, `MANUAL_REVIEW_REQUIRED`, `SUSPICIOUS_ANOMALY`), and explainable multi-criteria breakdown.
+- Admin review modal in Governance Console allows document inspection and one-click verified badge issuance.
+
 Validation performed on every request: **issuer, signature, expiry, audience, and role**.
 
 ## 6. Angular client
