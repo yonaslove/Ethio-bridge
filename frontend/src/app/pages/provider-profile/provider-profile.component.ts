@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -284,8 +284,38 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
             <button type="button" class="btn-close" (click)="closeQuizModal()">✕</button>
           </div>
 
+          <!-- Disqualified View -->
+          <div *ngIf="quizDisqualified" class="modal-body result-body" style="text-align: center; padding: 2rem 1.5rem;">
+            <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🚫</div>
+            <h3 style="color: #DC2626; font-weight: 800; font-size: 1.35rem; margin-bottom: 0.5rem;">
+              {{ i18n.translate('Assessment Disqualified', 'ፈተናው ተሰርዟል') }}
+            </h3>
+            <p style="color: #64748B; font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem;">
+              {{ i18n.translate('EthioBridge anti-cheat protocol detected multiple window defocus or tab switches. To ensure integrity and protect platform clients, verified badges require an uninterrupted test session.', 'የታማኝነት ቁጥጥር ሥርዓት መስኮት መቀየርን ወይም ከገጹ መውጣትን አግኝቷል። ባጆች ትክክለኛ እንዲሆኑና ደንበኞችን ለመጠበቅ ፈተናውን ሳይቋረጥ ማጠናቀቅ ግዴታ ነው።') }}
+            </p>
+            <button type="button" class="btn btn-secondary w-full" (click)="closeQuizModal()">
+              {{ i18n.translate('Close Assessment', 'ዝጋ') }}
+            </button>
+          </div>
+
           <!-- In-Progress Quiz View -->
-          <div *ngIf="!quizResult && activeQuiz" class="modal-body">
+          <div *ngIf="!quizResult && !quizDisqualified && activeQuiz" class="modal-body">
+            <!-- Anti-Cheat Status & Countdown Bar -->
+            <div class="anti-cheat-status-bar">
+              <div class="shield-badge">
+                <span class="shield-icon">🛡️</span>
+                <span>{{ i18n.translate('Anti-Cheat Active: Copy & Tab Lock', 'የታማኝነት ቁጥጥር: መስኮት መቀየር የተከለከለ') }}</span>
+              </div>
+              <div class="timer-badge" [class.timer-urgent]="questionTimeRemaining <= 10">
+                ⏱️ {{ questionTimeRemaining }}s
+              </div>
+            </div>
+
+            <div *ngIf="tabSwitchWarnings > 0" class="anti-cheat-warning-alert">
+              ⚠️ <strong>{{ i18n.translate('Integrity Alert:', 'ማስጠንቀቂያ:') }}</strong>
+              {{ i18n.translate('Tab switch or defocus detected (' + tabSwitchWarnings + '/2). Leaving this tab again will automatically disqualify your assessment!', 'የመስኮት መቀየር ታይቷል! ይህን ገጽ እንደገና ለቀው ከወጡ ፈተናው ወዲያው ይሰረዛል!') }}
+            </div>
+
             <div class="quiz-meta-bar">
               <span>⏱️ {{ i18n.translate('Passing Score: ' + activeQuiz.passingScore + '%', 'ማለፊያ ነጥብ: ' + activeQuiz.passingScore + '%') }}</span>
               <span>Question {{ currentQuestionIndex + 1 }} of {{ activeQuiz.questions?.length }}</span>
@@ -295,7 +325,11 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
               <div class="quiz-progress-fill" [style.width.%]="((currentQuestionIndex + 1) / (activeQuiz.questions?.length || 1)) * 100"></div>
             </div>
 
-            <div class="question-box" *ngIf="activeQuiz.questions?.[currentQuestionIndex] as curQ">
+            <div class="question-box protected-content"
+                 *ngIf="activeQuiz.questions?.[currentQuestionIndex] as curQ"
+                 (copy)="$event.preventDefault()"
+                 (cut)="$event.preventDefault()"
+                 (contextmenu)="$event.preventDefault()">
               <h4 class="question-text">{{ curQ.question }}</h4>
               <div class="options-group">
                 <label *ngFor="let opt of curQ.options; let optIdx = index"
@@ -312,8 +346,8 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
             </div>
           </div>
 
-          <div *ngIf="!quizResult && activeQuiz" class="modal-footer">
-            <button type="button" class="btn btn-secondary btn-sm" *ngIf="currentQuestionIndex > 0" (click)="currentQuestionIndex = currentQuestionIndex - 1">
+          <div *ngIf="!quizResult && !quizDisqualified && activeQuiz" class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" *ngIf="currentQuestionIndex > 0" (click)="goToPrevQuestion()">
               ← {{ i18n.translate('Previous', 'ወደ ኋላ') }}
             </button>
             <button type="button" class="btn btn-outline btn-sm" (click)="closeQuizModal()">
@@ -323,7 +357,7 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
                     *ngIf="currentQuestionIndex < ((activeQuiz.questions?.length || 0) - 1)"
                     class="btn btn-primary btn-sm"
                     [disabled]="selectedAnswers[activeQuiz.questions[currentQuestionIndex].id] === undefined"
-                    (click)="currentQuestionIndex = currentQuestionIndex + 1">
+                    (click)="goToNextQuestion()">
               {{ i18n.translate('Next Question', 'ቀጣይ ጥያቄ') }} →
             </button>
             <button type="button"
@@ -663,6 +697,59 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
     .option-card input[type="radio"] {
       margin-top: 0.2rem;
     }
+    .protected-content {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+    .anti-cheat-status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      padding: 0.5rem 0.85rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+    }
+    .shield-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #334155;
+    }
+    .timer-badge {
+      background: #E2E8F0;
+      color: #0F172A;
+      font-size: 0.8rem;
+      font-weight: 800;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+      transition: all 0.2s ease;
+    }
+    .timer-badge.timer-urgent {
+      background: #FEE2E2;
+      color: #DC2626;
+      animation: timerPulse 0.9s infinite alternate;
+    }
+    @keyframes timerPulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
+    .anti-cheat-warning-alert {
+      background: #FFFBEB;
+      border: 1px solid #FCD34D;
+      color: #92400E;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.785rem;
+      line-height: 1.4;
+      margin-bottom: 0.75rem;
+    }
     @media (max-width: 900px) {
       .profile-layout, .grid-cols-2, .grid-cols-3 {
         grid-template-columns: 1fr;
@@ -670,7 +757,7 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
     }
   `]
 })
-export class ProviderProfileComponent implements OnInit {
+export class ProviderProfileComponent implements OnInit, OnDestroy {
   profile?: ProviderProfile;
   locations: Location[] = [];
   catalogSkills: Skill[] = [];
@@ -703,7 +790,7 @@ export class ProviderProfileComponent implements OnInit {
     return 200;
   }
 
-  // Skill Assessment Quiz Properties
+  // Skill Assessment Quiz & Anti-Cheat Properties
   showQuizModal = false;
   activeQuiz: any = null;
   currentQuestionIndex = 0;
@@ -711,6 +798,92 @@ export class ProviderProfileComponent implements OnInit {
   submittingQuiz = false;
   quizResult: any = null;
   availableAssessments: any[] = [];
+
+  // Anti-Cheat: Timer & Tab Focus Tracking
+  questionTimeRemaining = 45;
+  timerInterval: any = null;
+  tabSwitchWarnings = 0;
+  quizDisqualified = false;
+
+  @HostListener('window:blur')
+  onWindowBlur(): void {
+    this.handleTabSwitchViolation();
+  }
+
+  @HostListener('document:visibilitychange')
+  onVisibilityChange(): void {
+    if (document.hidden) {
+      this.handleTabSwitchViolation();
+    }
+  }
+
+  handleTabSwitchViolation(): void {
+    if (!this.showQuizModal || !this.activeQuiz || this.quizResult || this.quizDisqualified) {
+      return;
+    }
+    this.tabSwitchWarnings++;
+    if (this.tabSwitchWarnings === 1) {
+      this.toastService.warning(
+        '⚠️ Anti-Cheat Warning: Tab switch / window defocus detected! Leaving the assessment tab again will automatically disqualify your test.',
+        'Integrity Monitor'
+      );
+    } else if (this.tabSwitchWarnings >= 2) {
+      this.quizDisqualified = true;
+      this.stopQuestionTimer();
+      this.toastService.error(
+        '🚫 Assessment Disqualified: You left the quiz window multiple times. Assessment terminated for integrity reasons.',
+        'Academic Integrity'
+      );
+    }
+  }
+
+  startQuestionTimer(): void {
+    this.stopQuestionTimer();
+    this.questionTimeRemaining = 45;
+    this.timerInterval = setInterval(() => {
+      if (this.questionTimeRemaining > 0) {
+        this.questionTimeRemaining--;
+      } else {
+        this.onQuestionTimeout();
+      }
+    }, 1000);
+  }
+
+  stopQuestionTimer(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  onQuestionTimeout(): void {
+    this.stopQuestionTimer();
+    if (this.currentQuestionIndex < ((this.activeQuiz?.questions?.length || 0) - 1)) {
+      this.toastService.info('⏳ Time expired for question. Advancing to next...', 'Timer');
+      this.goToNextQuestion();
+    } else {
+      this.toastService.info('⏳ Time expired for final question. Submitting assessment...', 'Timer');
+      this.submitQuizAnswers();
+    }
+  }
+
+  goToNextQuestion(): void {
+    if (this.currentQuestionIndex < ((this.activeQuiz?.questions?.length || 0) - 1)) {
+      this.currentQuestionIndex++;
+      this.startQuestionTimer();
+    }
+  }
+
+  goToPrevQuestion(): void {
+    if (this.currentQuestionIndex > 0) {
+      this.currentQuestionIndex--;
+      this.startQuestionTimer();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.stopQuestionTimer();
+  }
 
   constructor(
     private apiService: ApiService,
@@ -913,7 +1086,10 @@ export class ProviderProfileComponent implements OnInit {
         this.currentQuestionIndex = 0;
         this.selectedAnswers = {};
         this.quizResult = null;
+        this.tabSwitchWarnings = 0;
+        this.quizDisqualified = false;
         this.showQuizModal = true;
+        this.startQuestionTimer();
       },
       error: () => {
         this.toastService.error('Could not load quiz questions.');
@@ -927,6 +1103,7 @@ export class ProviderProfileComponent implements OnInit {
 
   submitQuizAnswers(): void {
     if (!this.activeQuiz || this.submittingQuiz) return;
+    this.stopQuestionTimer();
     this.submittingQuiz = true;
 
     this.apiService.submitAssessment(this.activeQuiz.id, this.selectedAnswers).subscribe({
@@ -948,10 +1125,13 @@ export class ProviderProfileComponent implements OnInit {
   }
 
   closeQuizModal(): void {
+    this.stopQuestionTimer();
     this.showQuizModal = false;
     this.activeQuiz = null;
     this.quizResult = null;
     this.selectedAnswers = {};
     this.currentQuestionIndex = 0;
+    this.tabSwitchWarnings = 0;
+    this.quizDisqualified = false;
   }
 }
