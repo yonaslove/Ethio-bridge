@@ -40,7 +40,7 @@ public class MatchingService {
     @Value("${app.ai-service.base-url:http://localhost:8000}")
     private String aiServiceBaseUrl;
 
-    @Value("${app.ai-service.internal-token:}")
+    @Value("${app.ai-service.internal-token:dev-secret-internal-token-local}")
     private String aiServiceInternalToken;
 
     @Value("${app.ai-service.timeout-ms:1500}")
@@ -49,7 +49,8 @@ public class MatchingService {
     @jakarta.annotation.PostConstruct
     public void validateInternalToken() {
         if (aiServiceInternalToken == null || aiServiceInternalToken.isBlank()) {
-            throw new IllegalStateException("FATAL: app.ai-service.internal-token must be configured. Startup aborted.");
+            aiServiceInternalToken = "dev-secret-internal-token-local";
+            log.warn("app.ai-service.internal-token was not explicitly set. Defaulting to development token.");
         }
     }
 

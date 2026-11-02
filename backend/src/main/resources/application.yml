@@ -35,7 +35,7 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}
   ai-service:
     base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
-    internal-token: ${AI_SERVICE_INTERNAL_TOKEN:}
+    internal-token: ${AI_SERVICE_INTERNAL_TOKEN:dev-secret-internal-token-local}
     timeout-ms: 1500
 
 eureka:
