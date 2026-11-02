@@ -156,6 +156,6 @@ public class ApplicationServiceTest {
         ApplicationDto result = applicationService.updateStatus(seekerId, applicationId, ApplicationStatus.ACCEPTED);
 
         assertEquals(ApplicationStatus.ACCEPTED, result.getStatus());
-        verify(notificationService).sendNotification(eq(applicantId), contains("Accepted"), anyString(), eq("APPLICATION"), anyString());
+        verify(notificationService).sendNotification(eq(applicantId), contains("ACCEPTED"), anyString(), eq("APPLICATION"), anyString());
     }
 }
