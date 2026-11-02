@@ -36,8 +36,10 @@ public class ContractController {
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Map<String, Object> body, Authentication auth) {
         AppUser user = userService.getOrCreateCurrentUser(auth);
-        UUID listingId = UUID.fromString(body.get("listingId").toString());
-        UUID applicationId = UUID.fromString(body.get("applicationId").toString());
+        UUID listingId = (body.get("listingId") != null && !body.get("listingId").toString().isBlank() && !"null".equalsIgnoreCase(body.get("listingId").toString()))
+                ? UUID.fromString(body.get("listingId").toString()) : null;
+        UUID applicationId = (body.get("applicationId") != null && !body.get("applicationId").toString().isBlank() && !"null".equalsIgnoreCase(body.get("applicationId").toString()))
+                ? UUID.fromString(body.get("applicationId").toString()) : null;
         UUID providerUserId = UUID.fromString(body.get("providerUserId").toString());
         String title = (String) body.get("title");
         String terms = (String) body.getOrDefault("terms", "");

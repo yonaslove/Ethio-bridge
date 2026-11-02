@@ -74,7 +74,14 @@ import { I18nService } from '../../services/i18n.service';
                 <a *ngIf="selectedThread.listingId" [routerLink]="['/listings', selectedThread.listingId]" class="btn btn-outline btn-sm">
                   {{ i18n.translate('View Associated Listing', 'የተያያዘውን ስራ ይመልከቱ') }}
                 </a>
-                <a [routerLink]="['/contracts']" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                <button
+                  type="button"
+                  (click)="openOfferModal()"
+                  class="btn btn-primary btn-sm"
+                  style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                  📄 {{ i18n.translate('Send Job Offer / Contract', 'የስራ ውል ላክ') }}
+                </button>
+                <a [routerLink]="['/contracts']" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem;">
                   💳 {{ i18n.translate('Escrow Contracts', 'የእስክሮው ውሎች') }}
                 </a>
               </div>
@@ -86,7 +93,22 @@ import { I18nService } from '../../services/i18n.service';
                    class="message-bubble-wrapper"
                    [class.outgoing]="isMyMessage(m)">
                 <div class="message-bubble" [class.bubble-out]="isMyMessage(m)">
-                  <div class="bubble-content">{{ m.content }}</div>
+                  <!-- Contract Offer Interactive Card -->
+                  <div *ngIf="isContractOffer(m)" class="contract-offer-card">
+                    <div class="offer-card-header">
+                      <span class="offer-badge">📜 {{ i18n.translate('Official Escrow Job Offer', 'ይፋዊ የእስክሮው ስራ ውል') }}</span>
+                      <span class="offer-amount">{{ getOfferData(m)?.amount | number:'1.2-2' }} ETB</span>
+                    </div>
+                    <h4 class="offer-title">{{ getOfferData(m)?.title }}</h4>
+                    <p class="offer-desc">{{ getOfferPlainContent(m) }}</p>
+                    <div class="offer-actions">
+                      <a routerLink="/contracts" class="btn btn-primary btn-sm">
+                        💳 {{ i18n.translate('View & Fund via Chapa', 'በቻፓ ይመልከቱ እና ይክፈሉ') }}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div *ngIf="!isContractOffer(m)" class="bubble-content">{{ m.content }}</div>
                   <div class="bubble-meta">
                     <span>{{ m.createdAt | date:'shortTime' }}</span>
                     <span *ngIf="isMyMessage(m)" class="read-status" [title]="(m.read || m.isRead) ? 'Read' : 'Delivered'">
@@ -131,6 +153,57 @@ import { I18nService } from '../../services/i18n.service';
             </div>
           </ng-template>
         </main>
+      </div>
+
+      <!-- Send Job Offer / Contract Modal -->
+      <div *ngIf="showOfferModal" class="modal-backdrop">
+        <div class="offer-modal-card">
+          <div class="modal-header">
+            <h3>📄 {{ i18n.translate('Create & Send Escrow Contract Offer', 'የእስክሮው ስራ ውል ይፍጠሩ እና ይላኩ') }}</h3>
+            <button type="button" class="btn-close" (click)="closeOfferModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-sub">
+              {{ i18n.translate('Send a formal escrow-backed agreement to ' + (selectedThread?.otherUserName || 'candidate') + '. Once agreed, funds are held securely under Ethiopian escrow rails.', 'ለ' + (selectedThread?.otherUserName || 'ባለሙያው') + ' ይፋዊ የእስክሮው ስምምነት ይላኩ። ገንዘቡ በእስክሮው የተጠበቀ ነው።') }}
+            </p>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+              <label style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                {{ i18n.translate('Contract / Job Title', 'የስራው ርዕስ') }} *
+              </label>
+              <input type="text" [(ngModel)]="offerForm.title" class="form-control" placeholder="e.g. Mobile Application Development" />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+              <label style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                {{ i18n.translate('Total Contract Amount (ETB)', 'አጠቃላይ ክፍያ (በብር)') }} *
+              </label>
+              <input type="number" [(ngModel)]="offerForm.totalAmount" class="form-control" placeholder="e.g. 5000" min="50" />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+              <label style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                {{ i18n.translate('Initial Milestone Title', 'የመጀመሪያው ምዕራፍ ርዕስ') }}
+              </label>
+              <input type="text" [(ngModel)]="offerForm.milestoneTitle" class="form-control" placeholder="e.g. Milestone 1: Core Setup & Prototype" />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                {{ i18n.translate('Terms of Engagement & Deliverables', 'የስራው ዝርዝር እና መስፈርቶች') }}
+              </label>
+              <textarea [(ngModel)]="offerForm.terms" class="form-control" rows="3" placeholder="Outline specific deliverables, milestones, and expected deadline..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeOfferModal()">
+              {{ i18n.translate('Cancel', 'ይቅር') }}
+            </button>
+            <button type="button" class="btn btn-primary" (click)="submitOffer()" [disabled]="submittingOffer || !offerForm.title.trim() || !offerForm.totalAmount">
+              {{ submittingOffer ? i18n.translate('Sending Offer...', 'በመላክ ላይ...') : i18n.translate('Send Official Contract Offer', 'ይፋዊ ውል ላክ') }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -434,6 +507,102 @@ import { I18nService } from '../../services/i18n.service';
       font-size: 3rem;
       margin-bottom: 1rem;
     }
+    .contract-offer-card {
+      background: #F0FDF4;
+      border: 1px solid #86EFAC;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      color: #14532D;
+      text-align: left;
+    }
+    .offer-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .offer-badge {
+      font-weight: 700;
+      font-size: 0.75rem;
+      background: #DCFCE7;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      color: #15803D;
+    }
+    .offer-amount {
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: #166534;
+    }
+    .offer-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0 0 0.4rem 0;
+      color: #064E3B;
+    }
+    .offer-desc {
+      font-size: 0.85rem;
+      color: #1F2937;
+      margin-bottom: 0.75rem;
+      line-height: 1.4;
+    }
+    .offer-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+    .offer-modal-card {
+      background: #FFFFFF;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 520px;
+      padding: 1.75rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin: 0;
+      color: var(--color-charcoal);
+    }
+    .modal-sub {
+      font-size: 0.85rem;
+      color: var(--color-slate);
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .btn-close {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: var(--color-slate);
+    }
   `]
 })
 export class MessagesComponent implements OnInit, OnDestroy {
@@ -588,5 +757,83 @@ export class MessagesComponent implements OnInit, OnDestroy {
   isMyMessage(msg: any): boolean {
     const user = this.authService.currentUser;
     return user ? (msg.senderUserId === user.userId || msg.senderUserId === (user as any).id) : false;
+  }
+
+  showOfferModal = false;
+  submittingOffer = false;
+  offerForm = {
+    title: '',
+    totalAmount: 1500,
+    milestoneTitle: '',
+    terms: ''
+  };
+
+  openOfferModal(): void {
+    if (!this.selectedThread) return;
+    this.offerForm = {
+      title: `Contract: ${this.selectedThread.subject || 'Direct Service Agreement'}`,
+      totalAmount: 2500,
+      milestoneTitle: 'Milestone 1: Project Setup & Prototype',
+      terms: 'Agreed deliverables and project scope as discussed in chat. Payout is released upon client milestone approval.'
+    };
+    this.showOfferModal = true;
+  }
+
+  closeOfferModal(): void {
+    this.showOfferModal = false;
+  }
+
+  submitOffer(): void {
+    if (!this.selectedThread || !this.offerForm.title.trim() || !this.offerForm.totalAmount || this.submittingOffer) return;
+
+    this.submittingOffer = true;
+    const payload = {
+      title: this.offerForm.title.trim(),
+      totalAmount: this.offerForm.totalAmount,
+      terms: this.offerForm.terms,
+      milestones: [
+        {
+          title: this.offerForm.milestoneTitle.trim() || 'Milestone 1: Deliverables',
+          description: this.offerForm.terms,
+          amount: this.offerForm.totalAmount
+        }
+      ]
+    };
+
+    this.apiService.sendOfferInThread(this.selectedThread.id, payload).subscribe({
+      next: (res) => {
+        this.submittingOffer = false;
+        this.showOfferModal = false;
+        if (res?.message) {
+          this.messages.push(res.message);
+          this.scrollToBottom();
+        }
+      },
+      error: () => {
+        this.submittingOffer = false;
+      }
+    });
+  }
+
+  isContractOffer(msg: any): boolean {
+    return !!(msg?.content && msg.content.includes('[CONTRACT_OFFER:'));
+  }
+
+  getOfferData(msg: any): any {
+    try {
+      if (!msg?.content) return null;
+      const match = msg.content.match(/\[CONTRACT_OFFER:(\{.*?\})\]/);
+      if (match && match[1]) {
+        return JSON.parse(match[1]);
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  getOfferPlainContent(msg: any): string {
+    if (!msg?.content) return '';
+    return msg.content.replace(/\[CONTRACT_OFFER:\{.*?\}\]/, '').trim();
   }
 }

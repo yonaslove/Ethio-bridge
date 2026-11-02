@@ -13,10 +13,10 @@ public class Contract {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "listing_id", nullable = false)
+    @Column(name = "listing_id")
     private UUID listingId;
 
-    @Column(name = "application_id", nullable = false)
+    @Column(name = "application_id")
     private UUID applicationId;
 
     @Column(name = "seeker_user_id", nullable = false)

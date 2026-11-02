@@ -25,12 +25,13 @@ describe('MessagesComponent', () => {
 
   beforeEach(async () => {
     apiServiceSpy = jasmine.createSpyObj('ApiService', [
-      'getMessageThreads',
+      'getMyThreads',
       'getThreadMessages',
-      'sendMessageToThread',
+      'sendMessage',
+      'sendOfferInThread',
       'createOrGetThread'
     ]);
-    apiServiceSpy.getMessageThreads.and.returnValue(of([mockThread as any]));
+    apiServiceSpy.getMyThreads.and.returnValue(of([mockThread as any]));
     apiServiceSpy.getThreadMessages.and.returnValue(of([]));
 
     await TestBed.configureTestingModule({
@@ -70,9 +71,9 @@ describe('MessagesComponent', () => {
   });
 
   it('should clear new message input after send', () => {
-    component.activeThread = mockThread as any;
-    component.newMessage = 'Test message';
-    apiServiceSpy.sendMessageToThread.and.returnValue(of({
+    component.selectedThread = mockThread as any;
+    component.newMessageText = 'Test message';
+    apiServiceSpy.sendMessage.and.returnValue(of({
       id: 'msg-1',
       threadId: 'thread-1',
       senderUserId: 'user-1',
@@ -80,9 +81,9 @@ describe('MessagesComponent', () => {
       createdAt: new Date().toISOString()
     } as any));
 
-    component.sendMessage();
+    component.sendCurrentMessage();
 
-    expect(apiServiceSpy.sendMessageToThread).toHaveBeenCalledWith('thread-1', 'Test message');
-    expect(component.newMessage).toBe('');
+    expect(apiServiceSpy.sendMessage).toHaveBeenCalledWith('thread-1', 'Test message');
+    expect(component.newMessageText).toBe('');
   });
 });

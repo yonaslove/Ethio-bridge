@@ -1,16 +1,19 @@
 package com.ethiobridge.service;
 
 import com.ethiobridge.entity.AppUser;
+import com.ethiobridge.entity.Contract;
 import com.ethiobridge.entity.Message;
 import com.ethiobridge.entity.MessageThread;
 import com.ethiobridge.repository.AppUserRepository;
 import com.ethiobridge.repository.MessageRepository;
 import com.ethiobridge.repository.MessageThreadRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -22,15 +25,18 @@ public class MessagingService {
     private final MessageRepository messageRepository;
     private final AppUserRepository userRepository;
     private final NotificationService notificationService;
+    private final ContractService contractService;
 
     public MessagingService(MessageThreadRepository threadRepository,
                             MessageRepository messageRepository,
                             AppUserRepository userRepository,
-                            NotificationService notificationService) {
+                            NotificationService notificationService,
+                            @Lazy ContractService contractService) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.contractService = contractService;
     }
 
     public MessageThread getOrCreateThread(UUID currentUserId, UUID recipientUserId, UUID listingId, String subject) {
@@ -145,5 +151,42 @@ public class MessagingService {
     @Transactional(readOnly = true)
     public long getUnreadCount(UUID userId) {
         return messageRepository.countUnreadByRecipient(userId);
+    }
+
+    public Map<String, Object> createOfferInThread(UUID threadId, UUID senderUserId, Map<String, Object> req) {
+        MessageThread thread = threadRepository.findById(threadId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found"));
+
+        if (!thread.getParticipant1UserId().equals(senderUserId) && !thread.getParticipant2UserId().equals(senderUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to thread");
+        }
+
+        UUID providerUserId = thread.getParticipant1UserId().equals(senderUserId) ? thread.getParticipant2UserId() : thread.getParticipant1UserId();
+
+        UUID listingId = thread.getListingId();
+        if (req.get("listingId") != null && !req.get("listingId").toString().isBlank() && !"null".equalsIgnoreCase(req.get("listingId").toString())) {
+            listingId = UUID.fromString(req.get("listingId").toString());
+        }
+
+        UUID applicationId = thread.getApplicationId();
+        if (req.get("applicationId") != null && !req.get("applicationId").toString().isBlank() && !"null".equalsIgnoreCase(req.get("applicationId").toString())) {
+            applicationId = UUID.fromString(req.get("applicationId").toString());
+        }
+
+        String title = (String) req.getOrDefault("title", "Project Contract Agreement");
+        String terms = (String) req.getOrDefault("terms", "Deliverables and milestones as agreed in chat discussion.");
+        BigDecimal totalAmount = new BigDecimal(req.getOrDefault("totalAmount", "1000.00").toString());
+
+        List<Map<String, Object>> milestones = (List<Map<String, Object>>) req.get("milestones");
+
+        Contract contract = contractService.createContract(senderUserId, listingId, applicationId, providerUserId, title, terms, totalAmount, milestones);
+
+        String offerContent = "[CONTRACT_OFFER:{\"contractId\":\"" + contract.getId() + "\",\"title\":\"" + title.replace("\"", "\\\"") + "\",\"amount\":" + totalAmount + "}] I have sent you an official escrow contract offer for \"" + title + "\" (" + totalAmount + " ETB). Please review and proceed to escrow funding.";
+        Message offerMsg = sendMessage(threadId, senderUserId, offerContent);
+
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("contract", contract);
+        resp.put("message", offerMsg);
+        return resp;
     }
 }

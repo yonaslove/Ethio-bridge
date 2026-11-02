@@ -59,6 +59,16 @@ public class MessagingController {
         return ResponseEntity.ok(msg);
     }
 
+    @PostMapping("/threads/{id}/offer")
+    public ResponseEntity<Map<String, Object>> createOfferInThread(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> req,
+            Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        Map<String, Object> result = messagingService.createOfferInThread(id, user.getId(), req);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount(Authentication auth) {
         AppUser user = userService.getOrCreateCurrentUser(auth);

@@ -301,6 +301,10 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/messages/threads/${threadId}`, { content }, { headers: this.getHeaders() });
   }
 
+  sendOfferInThread(threadId: string, offerPayload: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/messages/threads/${threadId}/offer`, offerPayload, { headers: this.getHeaders() });
+  }
+
   createOrGetThread(recipientUserId: string, listingId?: string, subject?: string): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/messages/threads`, { recipientUserId, listingId, subject }, { headers: this.getHeaders() });
   }
