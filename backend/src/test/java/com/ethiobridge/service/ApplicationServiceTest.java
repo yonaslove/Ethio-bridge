@@ -99,7 +99,7 @@ public class ApplicationServiceTest {
         when(appUserRepository.findById(applicantId)).thenReturn(Optional.of(applicant));
 
         CreateApplicationRequest req = new CreateApplicationRequest();
-        req.setCoverLetter("I have 4 years of Flutter experience.");
+        req.setCoverNote("I have 4 years of Flutter experience.");
         req.setProposedRate(new BigDecimal("15000"));
 
         ApplicationDto dto = applicationService.applyToListing(applicantId, listingId, req);
@@ -129,7 +129,7 @@ public class ApplicationServiceTest {
         when(applicationRepository.findByListingIdAndApplicantUserId(listingId, applicantId)).thenReturn(Optional.empty());
 
         CreateApplicationRequest req = new CreateApplicationRequest();
-        req.setCoverLetter("Cover letter");
+        req.setCoverNote("Cover letter");
 
         assertThrows(ResponseStatusException.class, () -> applicationService.applyToListing(applicantId, listingId, req));
     }
@@ -142,8 +142,11 @@ public class ApplicationServiceTest {
         listing.setOwnerUserId(seekerId);
         listing.setTitle("UI Design Gig");
 
-        Application app = new Application(listingId, applicantId, "Cover letter", new BigDecimal("5000"));
+        Application app = new Application();
         app.setId(applicationId);
+        app.setApplicantUserId(applicantId);
+        app.setCoverNote("Cover letter");
+        app.setProposedRate(new BigDecimal("5000"));
         app.setStatus(ApplicationStatus.OFFERED);
         app.setListing(listing);
 

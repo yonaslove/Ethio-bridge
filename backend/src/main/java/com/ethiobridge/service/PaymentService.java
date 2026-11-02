@@ -126,19 +126,24 @@ public class PaymentService {
 
         if (purpose != null && purpose.startsWith("CONNECTS_TOPUP")) {
             returnUrl = "http://localhost:4200/profile/provider?chapa_connects=1&tx_ref=" + ref;
-            title = "EthioBridge Connects Top-Up";
+            title = "EB Connects";
             desc = "Token purchase for job applications";
         } else if (milestoneId != null) {
             returnUrl = "http://localhost:4200/contracts?chapa_milestone=1&tx_ref=" + ref + "&milestone_id=" + milestoneId;
-            title = "EthioBridge Escrow Deposit";
+            title = "EB Escrow";
             desc = "Milestone escrow protection deposit";
         } else {
             returnUrl = "http://localhost:4200/contracts?chapa_payment=1&tx_ref=" + ref;
-            title = "EthioBridge Payment";
+            title = "EthioBridge";
             desc = "Service payment";
         }
 
-        String checkoutUrl = "https://checkout.chapa.co/checkout/test-payment/" + ref;
+        // Chapa customization.title has a strict maximum limit of 16 characters
+        if (title != null && title.length() > 16) {
+            title = title.substring(0, 16);
+        }
+
+        String checkoutUrl = returnUrl + (returnUrl.contains("?") ? "&" : "?") + "simulated=1";
         String mode = "SANDBOX_SIMULATED";
         String message = "Hosted Link [SIMULATED - CHAPA SANDBOX]";
 

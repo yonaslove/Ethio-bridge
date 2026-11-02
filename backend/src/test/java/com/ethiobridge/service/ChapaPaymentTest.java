@@ -151,7 +151,7 @@ public class ChapaPaymentTest {
         assertEquals("SANDBOX_SIMULATED", resp.get("mode"));
         assertEquals(amount, resp.get("amount"));
         assertTrue(resp.get("txRef").toString().startsWith("CHP-"));
-        assertTrue(resp.get("checkoutUrl").toString().startsWith("https://checkout.chapa.co/checkout/test-payment/CHP-"));
+        assertTrue(resp.get("checkoutUrl").toString().contains(resp.get("txRef").toString()));
 
         verify(auditLogService, times(1)).log(
                 eq(seekerId),
