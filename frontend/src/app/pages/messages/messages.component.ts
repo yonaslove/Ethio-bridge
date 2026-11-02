@@ -74,6 +74,9 @@ import { I18nService } from '../../services/i18n.service';
                 <a *ngIf="selectedThread.listingId" [routerLink]="['/listings', selectedThread.listingId]" class="btn btn-outline btn-sm">
                   {{ i18n.translate('View Associated Listing', 'የተያያዘውን ስራ ይመልከቱ') }}
                 </a>
+                <a [routerLink]="['/contracts']" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                  💳 {{ i18n.translate('Escrow Contracts', 'የእስክሮው ውሎች') }}
+                </a>
               </div>
             </div>
 
