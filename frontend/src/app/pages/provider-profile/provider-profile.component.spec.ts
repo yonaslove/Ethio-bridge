@@ -30,11 +30,15 @@ describe('ProviderProfileComponent', () => {
       'updateProviderProfile',
       'topUpConnects',
       'verifyConnectsTopup',
-      'subscribeToPro'
+      'subscribeToPro',
+      'getAssessments',
+      'getAssessmentForTaking',
+      'submitAssessment'
     ]);
     apiServiceSpy.getMyProviderProfile.and.returnValue(of(mockProfile as any));
     apiServiceSpy.getLocations.and.returnValue(of([]));
     apiServiceSpy.getSkills.and.returnValue(of([]));
+    apiServiceSpy.getAssessments.and.returnValue(of([]));
 
     toastServiceSpy = jasmine.createSpyObj('ToastService', ['success', 'error', 'info']);
 

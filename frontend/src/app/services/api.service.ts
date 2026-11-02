@@ -313,6 +313,23 @@ export class ApiService {
     return this.http.get<{ unreadCount: number }>(`${this.baseUrl}/messages/unread-count`, { headers: this.getHeaders() });
   }
 
+  // Skill Assessment Quizzes & Badges
+  getAssessments(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/assessments`, { headers: this.getHeaders() });
+  }
+
+  getAssessmentForTaking(assessmentId: string): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/assessments/${assessmentId}`, { headers: this.getHeaders() });
+  }
+
+  submitAssessment(assessmentId: string, answers: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/assessments/${assessmentId}/submit`, { answers }, { headers: this.getHeaders() });
+  }
+
+  getMyBadges(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/assessments/my-badges`, { headers: this.getHeaders() });
+  }
+
   // Contracts & Escrow Payments (Telebirr / CBE Birr)
   getMyContracts(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/contracts`, { headers: this.getHeaders() });

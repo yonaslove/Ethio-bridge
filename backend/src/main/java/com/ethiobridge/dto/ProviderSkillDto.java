@@ -9,6 +9,8 @@ public class ProviderSkillDto {
     private String category;
     private Integer proficiency;
     private BigDecimal yearsExperience;
+    private boolean isVerified;
+    private Integer assessmentScore;
 
     public ProviderSkillDto() {}
 
@@ -19,6 +21,17 @@ public class ProviderSkillDto {
         this.category = category;
         this.proficiency = proficiency;
         this.yearsExperience = yearsExperience;
+    }
+
+    public ProviderSkillDto(Long skillId, String skillName, String skillSlug, String category, Integer proficiency, BigDecimal yearsExperience, boolean isVerified, Integer assessmentScore) {
+        this.skillId = skillId;
+        this.skillName = skillName;
+        this.skillSlug = skillSlug;
+        this.category = category;
+        this.proficiency = proficiency;
+        this.yearsExperience = yearsExperience;
+        this.isVerified = isVerified;
+        this.assessmentScore = assessmentScore;
     }
 
     public Long getSkillId() { return skillId; }
@@ -38,4 +51,10 @@ public class ProviderSkillDto {
 
     public BigDecimal getYearsExperience() { return yearsExperience; }
     public void setYearsExperience(BigDecimal yearsExperience) { this.yearsExperience = yearsExperience; }
+
+    public boolean isVerified() { return isVerified; }
+    public void setVerified(boolean verified) { isVerified = verified; }
+
+    public Integer getAssessmentScore() { return assessmentScore; }
+    public void setAssessmentScore(Integer assessmentScore) { this.assessmentScore = assessmentScore; }
 }

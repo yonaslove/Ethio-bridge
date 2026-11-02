@@ -59,7 +59,12 @@ import { ProviderProfile } from '../../models/models';
           <h3>Verified Skills & Competencies</h3>
           <div class="skills-grid">
             <div *ngFor="let s of profile.skills" class="skill-card">
-              <div class="skill-name">{{ s.skillName }}</div>
+              <div class="skill-name" style="display: flex; align-items: center; justify-content: space-between;">
+                <span>{{ s.skillName }}</span>
+                <span *ngIf="s.isVerified" class="skill-verified-pill" [title]="'Verified by EthioBridge Assessment (Score: ' + s.assessmentScore + '%)'">
+                  🏅 Verified
+                </span>
+              </div>
               <div class="skill-prof">
                 Proficiency: {{ s.proficiency }}/5 • {{ s.yearsExperience }} yrs
               </div>
@@ -253,6 +258,14 @@ import { ProviderProfile } from '../../models/models';
       font-weight: 700;
       color: var(--color-charcoal);
       font-size: 0.95rem;
+    }
+    .skill-verified-pill {
+      background: #DCFCE7;
+      color: #15803D;
+      font-size: 0.675rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
     }
     .skill-prof {
       font-size: 0.775rem;

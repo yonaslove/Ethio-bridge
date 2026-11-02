@@ -132,8 +132,20 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
 
             <div class="skills-list" *ngIf="profile.skills && profile.skills.length > 0">
               <div *ngFor="let s of profile.skills; let i = index" class="skill-row-item">
-                <div>
-                  <strong>{{ s.skillName || 'Skill #' + s.skillId }}</strong>
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                  <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <strong>{{ s.skillName || 'Skill #' + s.skillId }}</strong>
+                    <span *ngIf="s.isVerified" class="badge-skill-verified">
+                      🏅 {{ i18n.translate('Verified Expert', 'የተረጋገጠ ባለሙያ') }} ({{ s.assessmentScore }}%)
+                    </span>
+                    <button
+                      *ngIf="!s.isVerified"
+                      type="button"
+                      (click)="startAssessmentForSkill(s)"
+                      class="btn-take-quiz">
+                      🎯 {{ i18n.translate('Take Assessment Quiz', 'የብቃት ፈተና ውሰድ') }}
+                    </button>
+                  </div>
                   <span class="skill-meta-tag">Proficiency: {{ s.proficiency }}/5 • {{ s.yearsExperience }} yrs</span>
                 </div>
                 <button (click)="removeSkill(i)" class="btn-remove">✕</button>
@@ -257,6 +269,98 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
             <button (click)="confirmTopup()" [disabled]="submittingTopup" class="btn btn-primary">
               {{ submittingTopup ? i18n.translate('Processing...', 'በማስኬድ ላይ...') : i18n.translate('Pay & Top Up Now', 'አሁን ይክፈሉ') }}
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skill Assessment Quiz Modal -->
+      <div *ngIf="showQuizModal" class="modal-backdrop">
+        <div class="quiz-modal-card">
+          <div class="modal-header">
+            <div>
+              <span class="badge-tech">{{ activeQuiz?.category }}</span>
+              <h3 style="margin-top: 0.25rem; font-weight: 800;">🎯 {{ activeQuiz?.title }}</h3>
+            </div>
+            <button type="button" class="btn-close" (click)="closeQuizModal()">✕</button>
+          </div>
+
+          <!-- In-Progress Quiz View -->
+          <div *ngIf="!quizResult && activeQuiz" class="modal-body">
+            <div class="quiz-meta-bar">
+              <span>⏱️ {{ i18n.translate('Passing Score: ' + activeQuiz.passingScore + '%', 'ማለፊያ ነጥብ: ' + activeQuiz.passingScore + '%') }}</span>
+              <span>Question {{ currentQuestionIndex + 1 }} of {{ activeQuiz.questions?.length }}</span>
+            </div>
+
+            <div class="quiz-progress-track">
+              <div class="quiz-progress-fill" [style.width.%]="((currentQuestionIndex + 1) / (activeQuiz.questions?.length || 1)) * 100"></div>
+            </div>
+
+            <div class="question-box" *ngIf="activeQuiz.questions?.[currentQuestionIndex] as curQ">
+              <h4 class="question-text">{{ curQ.question }}</h4>
+              <div class="options-group">
+                <label *ngFor="let opt of curQ.options; let optIdx = index"
+                       class="option-card"
+                       [class.selected]="selectedAnswers[curQ.id] === optIdx">
+                  <input type="radio"
+                         [name]="'q_' + curQ.id"
+                         [value]="optIdx"
+                         (change)="selectQuizAnswer(curQ.id, optIdx)"
+                         [checked]="selectedAnswers[curQ.id] === optIdx" />
+                  <span>{{ opt }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="!quizResult && activeQuiz" class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" *ngIf="currentQuestionIndex > 0" (click)="currentQuestionIndex = currentQuestionIndex - 1">
+              ← {{ i18n.translate('Previous', 'ወደ ኋላ') }}
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" (click)="closeQuizModal()">
+              {{ i18n.translate('Cancel', 'ይቅር') }}
+            </button>
+            <button type="button"
+                    *ngIf="currentQuestionIndex < ((activeQuiz.questions?.length || 0) - 1)"
+                    class="btn btn-primary btn-sm"
+                    [disabled]="selectedAnswers[activeQuiz.questions[currentQuestionIndex].id] === undefined"
+                    (click)="currentQuestionIndex = currentQuestionIndex + 1">
+              {{ i18n.translate('Next Question', 'ቀጣይ ጥያቄ') }} →
+            </button>
+            <button type="button"
+                    *ngIf="currentQuestionIndex === ((activeQuiz.questions?.length || 0) - 1)"
+                    class="btn btn-primary btn-sm"
+                    [disabled]="submittingQuiz || selectedAnswers[activeQuiz.questions[currentQuestionIndex].id] === undefined"
+                    (click)="submitQuizAnswers()">
+              {{ submittingQuiz ? i18n.translate('Scoring...', 'ውጤት በማስላት ላይ...') : i18n.translate('Submit Assessment', 'ፈተናውን ጨርስ') }}
+            </button>
+          </div>
+
+          <!-- Quiz Result View -->
+          <div *ngIf="quizResult" class="modal-body result-body" style="text-align: center; padding: 1.5rem 1rem;">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">{{ quizResult.passed ? '🎉' : '📚' }}</div>
+            <h3 [style.color]="quizResult.passed ? '#059669' : '#DC2626'" style="font-weight: 800; font-size: 1.35rem;">
+              {{ quizResult.passed ? i18n.translate('Assessment Passed!', 'እንኳን ደስ አለዎት! ፈተናውን አልፈዋል!') : i18n.translate('Assessment Incomplete', 'እንደገና ይሞክሩ') }}
+            </h3>
+            <div style="margin: 1rem 0;">
+              <span style="font-size: 2.25rem; font-weight: 800; color: #1E293B;">{{ quizResult.score }}%</span>
+              <div style="color: #64748B; font-size: 0.85rem; margin-top: 0.25rem;">
+                {{ quizResult.correctCount }} / {{ quizResult.totalQuestions }} {{ i18n.translate('correct answers', 'ትክክለኛ መልሶች') }}
+              </div>
+            </div>
+
+            <p *ngIf="quizResult.passed" style="color: #065F46; font-size: 0.9rem; line-height: 1.5; background: #ECFDF5; padding: 0.75rem; border-radius: 8px;">
+              🏅 <strong>{{ i18n.translate('Badge Earned: Verified Skill Pro', 'የተረጋገጠ የባለሙያ ባጅ ተሸልመዋል') }}</strong>.<br>
+              {{ i18n.translate('Your profile now showcases a certified skill badge to potential employers.', 'መገለጫዎ አሁን ለቀጣሪዎች የተረጋገጠ የክህሎት ባጅ ያሳያል።') }}
+            </p>
+            <p *ngIf="!quizResult.passed" style="color: #991B1B; font-size: 0.9rem; line-height: 1.5; background: #FEF2F2; padding: 0.75rem; border-radius: 8px;">
+              {{ i18n.translate('Passing score is ' + quizResult.passingScore + '%. Review the concepts and retake the test at any time.', 'ማለፊያ ነጥብ ' + quizResult.passingScore + '% ነው። ጽንሰ-ሀሳቦቹን እንደገና ከልሰው በማንኛውም ጊዜ መፈተን ይችላሉ።') }}
+            </p>
+
+            <div style="margin-top: 1.5rem;">
+              <button type="button" class="btn btn-primary w-full" (click)="closeQuizModal()">
+                {{ i18n.translate('Done', 'ተጠናቋል') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -452,6 +556,113 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
       padding: 0.1rem 0.35rem;
       border-radius: 4px;
     }
+    .badge-skill-verified {
+      background: #DCFCE7;
+      color: #15803D;
+      font-size: 0.725rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .btn-take-quiz {
+      background: #EFF6FF;
+      color: #1D4ED8;
+      border: 1px dashed #93C5FD;
+      font-size: 0.725rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-take-quiz:hover {
+      background: #DBEAFE;
+      border-color: #3B82F6;
+    }
+    .quiz-modal-card {
+      background: #FFFFFF;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 580px;
+      padding: 1.75rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .badge-tech {
+      background: #E0F2FE;
+      color: #0369A1;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .quiz-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #64748B;
+      margin-bottom: 0.5rem;
+    }
+    .quiz-progress-track {
+      height: 6px;
+      background: #E2E8F0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .quiz-progress-fill {
+      height: 100%;
+      background: var(--color-cyan, #06B6D4);
+      transition: width 0.3s ease;
+    }
+    .question-box {
+      margin-bottom: 1rem;
+    }
+    .question-text {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1E293B;
+      margin: 0 0 1rem 0;
+      line-height: 1.4;
+    }
+    .options-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .option-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #334155;
+      line-height: 1.35;
+      transition: all 0.2s ease;
+    }
+    .option-card:hover {
+      border-color: #94A3B8;
+      background: #F8FAFC;
+    }
+    .option-card.selected {
+      border-color: #0284C7;
+      background: #F0F9FF;
+      color: #0369A1;
+      font-weight: 600;
+    }
+    .option-card input[type="radio"] {
+      margin-top: 0.2rem;
+    }
     @media (max-width: 900px) {
       .profile-layout, .grid-cols-2, .grid-cols-3 {
         grid-template-columns: 1fr;
@@ -477,6 +688,29 @@ export class ProviderProfileComponent implements OnInit {
   submittingTopup = false;
   topupSuccess = '';
   topupError = '';
+
+  get selectedConnectsPackage(): number {
+    return this.selectedConnectsAmount;
+  }
+  set selectedConnectsPackage(val: number) {
+    this.selectedConnectsAmount = val;
+  }
+
+  getPackagePrice(amount: number): number {
+    if (amount <= 10) return 50;
+    if (amount <= 25) return 100;
+    if (amount <= 30) return 120;
+    return 200;
+  }
+
+  // Skill Assessment Quiz Properties
+  showQuizModal = false;
+  activeQuiz: any = null;
+  currentQuestionIndex = 0;
+  selectedAnswers: { [key: number]: number } = {};
+  submittingQuiz = false;
+  quizResult: any = null;
+  availableAssessments: any[] = [];
 
   constructor(
     private apiService: ApiService,
@@ -653,5 +887,71 @@ export class ProviderProfileComponent implements OnInit {
         error: (err) => this.toastService.error(err.error?.message || 'Pro subscription upgrade failed.')
       });
     }
+  }
+
+  startAssessmentForSkill(skill: any): void {
+    const skillId = skill.skillId;
+    this.apiService.getAssessments().subscribe({
+      next: (list) => {
+        const found = (list || []).find(a => a.skillId === skillId);
+        if (found) {
+          this.openQuiz(found.id);
+        } else {
+          this.toastService.info(`No quiz configured for ${skill.skillName || 'this skill'} yet. Coming soon!`, 'Skill Assessment');
+        }
+      },
+      error: () => {
+        this.toastService.error('Failed to load assessment quizzes.');
+      }
+    });
+  }
+
+  openQuiz(assessmentId: string): void {
+    this.apiService.getAssessmentForTaking(assessmentId).subscribe({
+      next: (quiz) => {
+        this.activeQuiz = quiz;
+        this.currentQuestionIndex = 0;
+        this.selectedAnswers = {};
+        this.quizResult = null;
+        this.showQuizModal = true;
+      },
+      error: () => {
+        this.toastService.error('Could not load quiz questions.');
+      }
+    });
+  }
+
+  selectQuizAnswer(questionId: number, optionIndex: number): void {
+    this.selectedAnswers[questionId] = optionIndex;
+  }
+
+  submitQuizAnswers(): void {
+    if (!this.activeQuiz || this.submittingQuiz) return;
+    this.submittingQuiz = true;
+
+    this.apiService.submitAssessment(this.activeQuiz.id, this.selectedAnswers).subscribe({
+      next: (res) => {
+        this.submittingQuiz = false;
+        this.quizResult = res;
+        if (res.passed) {
+          this.toastService.success(`🎉 Passed with ${res.score}%! Verified Skill Badge awarded.`, 'Assessment Passed');
+          this.loadProfile();
+        } else {
+          this.toastService.warning(`Scored ${res.score}%. Need ${res.passingScore}% to pass.`, 'Keep Practicing');
+        }
+      },
+      error: () => {
+        this.submittingQuiz = false;
+        this.toastService.error('Failed to submit assessment.');
+      }
+    });
+  }
+
+  closeQuizModal(): void {
+    this.showQuizModal = false;
+    this.activeQuiz = null;
+    this.quizResult = null;
+    this.selectedAnswers = {};
+    this.currentQuestionIndex = 0;
   }
 }

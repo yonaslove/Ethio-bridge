@@ -27,6 +27,15 @@ public class ProviderSkill {
     @Column(name = "years_experience", precision = 4, scale = 1)
     private BigDecimal yearsExperience;
 
+    @Column(name = "is_verified", nullable = false)
+    private boolean isVerified = false;
+
+    @Column(name = "assessment_score")
+    private Integer assessmentScore;
+
+    @Column(name = "verified_at")
+    private java.time.OffsetDateTime verifiedAt;
+
     public ProviderSkill() {}
 
     public ProviderSkill(ProviderProfile providerProfile, Skill skill, Integer proficiency, BigDecimal yearsExperience) {
@@ -51,4 +60,13 @@ public class ProviderSkill {
 
     public BigDecimal getYearsExperience() { return yearsExperience; }
     public void setYearsExperience(BigDecimal yearsExperience) { this.yearsExperience = yearsExperience; }
+
+    public boolean isVerified() { return isVerified; }
+    public void setVerified(boolean verified) { isVerified = verified; }
+
+    public Integer getAssessmentScore() { return assessmentScore; }
+    public void setAssessmentScore(Integer assessmentScore) { this.assessmentScore = assessmentScore; }
+
+    public java.time.OffsetDateTime getVerifiedAt() { return verifiedAt; }
+    public void setVerifiedAt(java.time.OffsetDateTime verifiedAt) { this.verifiedAt = verifiedAt; }
 }

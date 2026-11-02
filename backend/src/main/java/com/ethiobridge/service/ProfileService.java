@@ -230,7 +230,9 @@ public class ProfileService {
                             ps.getSkill().getSlug(),
                             ps.getSkill().getCategory().name(),
                             ps.getProficiency(),
-                            ps.getYearsExperience()
+                            ps.getYearsExperience(),
+                            ps.isVerified(),
+                            ps.getAssessmentScore()
                     ))
                     .toList();
             dto.setSkills(skills);
