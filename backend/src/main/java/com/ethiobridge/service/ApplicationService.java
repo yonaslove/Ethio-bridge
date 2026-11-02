@@ -217,12 +217,16 @@ public class ApplicationService {
     private ApplicationDto toApplicationDto(Application a) {
         ApplicationDto dto = new ApplicationDto();
         dto.setId(a.getId());
-        dto.setListingId(a.getListing().getId());
-        dto.setListingTitle(a.getListing().getTitle());
-        dto.setListingType(a.getListing().getListingType().name());
+        if (a.getListing() != null) {
+            dto.setListingId(a.getListing().getId());
+            dto.setListingTitle(a.getListing().getTitle());
+            dto.setListingType(a.getListing().getListingType() != null ? a.getListing().getListingType().name() : "FREELANCE");
+        }
         dto.setApplicantUserId(a.getApplicantUserId());
-        dto.setProviderProfileId(a.getProviderProfile().getId());
-        dto.setHeadline(a.getProviderProfile().getHeadline());
+        if (a.getProviderProfile() != null) {
+            dto.setProviderProfileId(a.getProviderProfile().getId());
+            dto.setHeadline(a.getProviderProfile().getHeadline());
+        }
         dto.setCoverNote(a.getCoverNote());
         dto.setProposedRate(a.getProposedRate());
         dto.setStatus(a.getStatus());

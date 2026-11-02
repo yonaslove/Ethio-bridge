@@ -202,8 +202,8 @@ public class ChapaPaymentTest {
     }
 
     @Test
-    @DisplayName("Chapa Monetization: topUpConnects via CHAPA produces CHP-CON- revenue reference and credits tokens")
-    void testChapaConnectsTopup() {
+    @DisplayName("Monetization: topUpConnects via TELEBIRR produces TB-CON- revenue reference and credits tokens")
+    void testConnectsTopup() {
         ProviderProfile profile = new ProviderProfile();
         profile.setId(UUID.randomUUID());
         profile.setUserId(providerId);
@@ -212,19 +212,37 @@ public class ChapaPaymentTest {
         when(providerProfileRepository.findByUserId(providerId)).thenReturn(Optional.of(profile));
         when(revenueRepository.save(any(PlatformRevenue.class))).thenAnswer(i -> i.getArgument(0));
 
-        Map<String, Object> res = monetizationService.topUpConnects(providerId, 25, "CHAPA");
+        Map<String, Object> res = monetizationService.topUpConnects(providerId, 25, "TELEBIRR");
 
         assertTrue((Boolean) res.get("success"));
         assertEquals(35, res.get("newBalance"));
-        assertEquals("CHAPA", res.get("paymentMethod"));
-        assertTrue(res.get("referenceId").toString().startsWith("CHP-CON-"));
+        assertTrue(res.get("referenceId").toString().startsWith("TB-CON-"));
 
         ArgumentCaptor<PlatformRevenue> revCaptor = ArgumentCaptor.forClass(PlatformRevenue.class);
         verify(revenueRepository, times(1)).save(revCaptor.capture());
         PlatformRevenue savedRev = revCaptor.getValue();
-        assertEquals("CHAPA", savedRev.getPaymentMethod());
+        assertEquals("TELEBIRR", savedRev.getPaymentMethod());
         assertEquals(new BigDecimal("100.00"), savedRev.getGrossAmount());
-        assertTrue(savedRev.getReferenceId().startsWith("CHP-CON-"));
+        assertTrue(savedRev.getReferenceId().startsWith("TB-CON-"));
+    }
+
+    @Test
+    @DisplayName("Chapa Monetization: topUpConnects via CHAPA initiates checkout URL and pending status")
+    void testChapaConnectsCheckout() {
+        ProviderProfile profile = new ProviderProfile();
+        profile.setId(UUID.randomUUID());
+        profile.setUserId(providerId);
+        profile.setConnectsBalance(10);
+
+        when(providerProfileRepository.findByUserId(providerId)).thenReturn(Optional.of(profile));
+
+        Map<String, Object> res = monetizationService.topUpConnects(providerId, 25, "CHAPA");
+
+        assertEquals("PENDING_PAYMENT", res.get("status"));
+        assertEquals(25, res.get("connectsAmount"));
+        assertEquals(new BigDecimal("100.00"), res.get("price"));
+        assertNotNull(res.get("checkoutUrl"));
+        assertTrue(res.get("txRef").toString().startsWith("CHP-"));
     }
 
     @Test
