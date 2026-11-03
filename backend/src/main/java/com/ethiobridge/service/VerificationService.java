@@ -25,15 +25,18 @@ public class VerificationService {
     private final AppUserRepository userRepository;
     private final NotificationService notificationService;
     private final AuditLogService auditLogService;
+    private final DocumentAiInspector documentAiInspector;
 
     public VerificationService(UserVerificationRepository verificationRepository,
                                AppUserRepository userRepository,
                                NotificationService notificationService,
-                               AuditLogService auditLogService) {
+                               AuditLogService auditLogService,
+                               DocumentAiInspector documentAiInspector) {
         this.verificationRepository = verificationRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.auditLogService = auditLogService;
+        this.documentAiInspector = documentAiInspector;
     }
 
     public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber) {
@@ -166,46 +169,67 @@ public class VerificationService {
         List<String> criteria = new ArrayList<>();
         StringBuilder analysis = new StringBuilder();
 
-        // 1. Format validation
-        boolean validFormat = isIdFormatValid(verif.getIdType(), verif.getIdNumber());
-        if (validFormat) {
-            score += 30.0;
-            criteria.add("{\"criterion\":\"ID Format & Checksum\",\"status\":\"PASS\",\"weight\":30,\"detail\":\"Document number matches official " + verif.getIdType() + " schema.\"}");
-            analysis.append("• [PASS] Document format matches official ").append(verif.getIdType()).append(" structure.\n");
+        // 1. Computer Vision Document & Biometric AI Analysis
+        DocumentAiInspector.InspectionResult inspection = documentAiInspector.inspect(verif.getDocumentUrl(), verif.getIdType());
+        boolean hasDocument = verif.getDocumentUrl() != null && !verif.getDocumentUrl().trim().isEmpty();
+
+        if (hasDocument) {
+            if (inspection.isValidDocument()) {
+                score += 40.0;
+                String firstPass = inspection.passNotes().isEmpty() ? "Valid document" : inspection.passNotes().get(0);
+                criteria.add("{\"criterion\":\"Document Biometric & Visual AI\",\"status\":\"PASS\",\"weight\":40,\"detail\":\"" + escapeJson(firstPass) + "\"}");
+                for (String note : inspection.passNotes()) {
+                    analysis.append("• [PASS] ").append(note).append("\n");
+                }
+            } else {
+                criteria.add("{\"criterion\":\"Document Biometric & Visual AI\",\"status\":\"FAIL\",\"weight\":0,\"detail\":\"" + escapeJson(inspection.primaryFailureReason()) + "\"}");
+                for (String note : inspection.failNotes()) {
+                    analysis.append("• [FAIL] ").append(note).append("\n");
+                }
+                for (String note : inspection.passNotes()) {
+                    analysis.append("• [INFO] ").append(note).append("\n");
+                }
+            }
         } else {
-            score += 10.0;
-            criteria.add("{\"criterion\":\"ID Format & Checksum\",\"status\":\"WARN\",\"weight\":10,\"detail\":\"Document format deviates slightly from standard pattern.\"}");
-            analysis.append("• [WARN] Document format deviates from standard ").append(verif.getIdType()).append(" pattern.\n");
+            criteria.add("{\"criterion\":\"Document Image Presence\",\"status\":\"WARN\",\"weight\":0,\"detail\":\"No digital scan attached. Number-only validation.\"}");
+            analysis.append("• [INFO] Number-only submission without digital photo scan.\n");
         }
 
-        // 2. Document Image Clarity & Presence
-        boolean hasDocument = verif.getDocumentUrl() != null && !verif.getDocumentUrl().trim().isEmpty();
-        if (hasDocument) {
-            score += 30.0;
-            criteria.add("{\"criterion\":\"Document Image Clarity\",\"status\":\"PASS\",\"weight\":30,\"detail\":\"High-resolution ID image attached and legible.\"}");
-            analysis.append("• [PASS] Clear national identity document photo provided.\n");
+        // 2. Format validation
+        boolean validFormat = isIdFormatValid(verif.getIdType(), verif.getIdNumber());
+        if (validFormat && inspection.isValidDocument()) {
+            score += 20.0;
+            criteria.add("{\"criterion\":\"ID Format & Checksum\",\"status\":\"PASS\",\"weight\":20,\"detail\":\"Document number matches official " + verif.getIdType() + " schema.\"}");
+            analysis.append("• [PASS] Document format matches official ").append(verif.getIdType()).append(" structure.\n");
+        } else if (validFormat) {
+            score += 10.0;
+            criteria.add("{\"criterion\":\"ID Format & Checksum\",\"status\":\"WARN\",\"weight\":10,\"detail\":\"Entered ID number meets length criteria, but uploaded file is not a recognized " + verif.getIdType() + ".\"}");
+            analysis.append("• [WARN] Entered ID number meets length criteria, but uploaded file is not a recognized ").append(verif.getIdType()).append(".\n");
         } else {
-            criteria.add("{\"criterion\":\"Document Image Clarity\",\"status\":\"WARN\",\"weight\":0,\"detail\":\"No digital scan attached. Number-only validation.\"}");
-            analysis.append("• [INFO] Number-only submission without digital photo scan.\n");
+            score += 5.0;
+            criteria.add("{\"criterion\":\"ID Format & Checksum\",\"status\":\"WARN\",\"weight\":5,\"detail\":\"Document format deviates from standard pattern.\"}");
+            analysis.append("• [WARN] Document format deviates from standard ").append(verif.getIdType()).append(" pattern.\n");
         }
 
         // 3. Name Consistency & Registry Match
         String fullName = user.getFullName() != null ? user.getFullName().trim() : "";
         if (!fullName.isEmpty() && fullName.split("\\s+").length >= 2) {
-            score += 20.0;
-            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"PASS\",\"weight\":20,\"detail\":\"Full name '" + fullName + "' verified consistent.\"}");
+            double namePoints = inspection.isValidDocument() ? 20.0 : 10.0;
+            score += namePoints;
+            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"PASS\",\"weight\":" + (int) namePoints + ",\"detail\":\"Full name '" + escapeJson(fullName) + "' verified consistent.\"}");
             analysis.append("• [PASS] Account name ('").append(fullName).append("') is verified consistent.\n");
         } else {
-            score += 10.0;
-            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"WARN\",\"weight\":10,\"detail\":\"Single-word or abbreviated account name.\"}");
+            score += 5.0;
+            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"WARN\",\"weight\":5,\"detail\":\"Single-word or abbreviated account name.\"}");
             analysis.append("• [WARN] Account name contains only single token.\n");
         }
 
         // 4. Phone & Telebirr Rail Validation
         String phone = verif.getPhoneNumber() != null ? verif.getPhoneNumber().trim() : "";
         if (phone.matches("^(\\+251|0)?[79]\\d{8}$")) {
-            score += 20.0;
-            criteria.add("{\"criterion\":\"Ethiopian Mobile Rail\",\"status\":\"PASS\",\"weight\":20,\"detail\":\"Valid Ethio Telecom / Safaricom mobile identity.\"}");
+            double phonePoints = inspection.isValidDocument() ? 20.0 : 10.0;
+            score += phonePoints;
+            criteria.add("{\"criterion\":\"Ethiopian Mobile Rail\",\"status\":\"PASS\",\"weight\":" + (int) phonePoints + ",\"detail\":\"Valid Ethio Telecom / Safaricom mobile identity.\"}");
             analysis.append("• [PASS] Valid Ethiopian mobile phone range (Ethio Telecom / Safaricom).\n");
         } else {
             score += 5.0;
@@ -215,7 +239,12 @@ public class VerificationService {
 
         verif.setAiScore(BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP));
 
-        if (score >= 80.0) {
+        if (hasDocument && !inspection.isValidDocument()) {
+            verif.setAiVerdict("SUSPICIOUS_ANOMALY");
+            analysis.append("\n✦ AI Decision: SUSPICIOUS_ANOMALY - Pre-screening failed. Upload a genuine official national ID card displaying your photograph.");
+            verif.setStatus("REJECTED");
+            verif.setRejectionReason("AI Document Inspection Failed: " + inspection.primaryFailureReason());
+        } else if (score >= 80.0) {
             verif.setAiVerdict("RECOMMENDED_APPROVE");
             analysis.append("\n✦ AI Decision: HIGH CONFIDENCE - Recommend Admin Approval.");
         } else if (score >= 50.0) {
@@ -224,10 +253,17 @@ public class VerificationService {
         } else {
             verif.setAiVerdict("SUSPICIOUS_ANOMALY");
             analysis.append("\n✦ AI Decision: LOW CONFIDENCE - Potential document anomaly detected.");
+            verif.setStatus("REJECTED");
+            verif.setRejectionReason("Low confidence document submission. Please resubmit clear official documents.");
         }
 
         verif.setAiAnalysis(analysis.toString());
         verif.setCriteriaBreakdown("[" + String.join(",", criteria) + "]");
+    }
+
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\"", "\\\"").replace("\n", " ");
     }
 
     private boolean isIdFormatValid(String idType, String idNumber) {

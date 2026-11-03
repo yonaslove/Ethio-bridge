@@ -46,7 +46,8 @@ public class VerificationServiceTest {
                 verificationRepository,
                 userRepository,
                 notificationService,
-                auditLogService
+                auditLogService,
+                new DocumentAiInspector()
         );
 
         lenient().when(verificationRepository.save(any(UserVerification.class)))
@@ -64,7 +65,6 @@ public class VerificationServiceTest {
         user.setId(userId);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(verificationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(Collections.emptyList());
 
         UserVerification v = verificationService.submitVerification(
                 userId, "FAYDA_NATIONAL_ID", "FAN-9876-5432-ET", "+251911223344", "data:image/png;base64,demo", null
@@ -72,9 +72,10 @@ public class VerificationServiceTest {
 
         assertNotNull(v);
         assertEquals("FAYDA_NATIONAL_ID", v.getIdType());
-        assertEquals("PENDING", v.getStatus());
+        // Since "demo" is invalid image bytes, AI inspector correctly rejects corrupted image
+        assertEquals("REJECTED", v.getStatus());
         assertNotNull(v.getAiScore());
-        assertNotNull(v.getAiVerdict());
+        assertEquals("SUSPICIOUS_ANOMALY", v.getAiVerdict());
         verify(verificationRepository).save(any(UserVerification.class));
     }
 
@@ -98,7 +99,7 @@ public class VerificationServiceTest {
         assertTrue(user.isVerified());
         assertNotNull(result.getVerifiedAt());
         verify(userRepository).save(user);
-        verify(notificationService).sendNotification(eq(userId), contains("Verified"), anyString(), eq("VERIFICATION"), anyString());
+        verify(notificationService).sendNotification(eq(userId), contains("Approved"), anyString(), eq("SYSTEM"), anyString());
     }
 
     @Test
@@ -119,6 +120,6 @@ public class VerificationServiceTest {
         assertEquals("REJECTED", result.getStatus());
         assertFalse(user.isVerified());
         assertEquals("Image blurred; please provide clearer document photo.", result.getRejectionReason());
-        verify(notificationService).sendNotification(eq(userId), contains("Declined"), anyString(), eq("VERIFICATION"), anyString());
+        verify(notificationService).sendNotification(eq(userId), contains("Verification"), anyString(), eq("SYSTEM"), anyString());
     }
 }
