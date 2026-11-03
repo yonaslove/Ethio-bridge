@@ -189,25 +189,25 @@ import { I18nService } from '../../services/i18n.service';
       margin-bottom: 2rem;
     }
     .shield-badge {
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
+      font-size: 1.85rem;
+      margin-bottom: 0.35rem;
     }
     .verif-header h2 {
-      font-size: 1.6rem;
+      font-size: 1.35rem;
       font-weight: 800;
       color: var(--color-charcoal);
     }
     .subtitle {
       color: var(--color-slate);
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-      line-height: 1.5;
+      font-size: 0.85rem;
+      margin-top: 0.35rem;
+      line-height: 1.45;
     }
     .status-banner {
-      padding: 1.25rem;
-      border-radius: 10px;
-      margin-bottom: 2rem;
-      font-size: 0.88rem;
+      padding: 1.15rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
     }
     .banner-verified {
       background: #E8F5E9;
@@ -228,8 +228,8 @@ import { I18nService } from '../../services/i18n.service';
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 1.05rem;
-      margin-bottom: 0.4rem;
+      font-size: 0.95rem;
+      margin-bottom: 0.35rem;
     }
     .status-icon {
       font-weight: 800;

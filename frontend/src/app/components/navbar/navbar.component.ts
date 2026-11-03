@@ -342,20 +342,20 @@ import { Subscription, interval } from 'rxjs';
     .navbar-brand {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.65rem;
       text-decoration: none;
     }
     .brand-logo-badge {
-      width: 40px;
-      height: 40px;
+      width: 34px;
+      height: 34px;
       background: linear-gradient(135deg, var(--color-charcoal) 0%, var(--color-slate) 100%);
       color: #FFFFFF;
-      border-radius: 10px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 1.15rem;
+      font-size: 1rem;
       letter-spacing: -0.02em;
       box-shadow: 0 2px 6px rgba(65, 63, 61, 0.2);
     }
@@ -364,13 +364,13 @@ import { Subscription, interval } from 'rxjs';
       flex-direction: column;
     }
     .brand-title {
-      font-size: 1.25rem;
+      font-size: 1.1rem;
       font-weight: 800;
       color: var(--color-charcoal);
       letter-spacing: -0.02em;
     }
     .brand-subtitle {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--color-slate);
       font-weight: 500;
     }
@@ -382,9 +382,9 @@ import { Subscription, interval } from 'rxjs';
     .btn-quick-post {
       background-color: var(--color-cyan-subtle);
       color: #0E7F8F;
-      font-size: 0.875rem;
+      font-size: 0.825rem;
       font-weight: 700;
-      padding: 0.45rem 1rem;
+      padding: 0.35rem 0.85rem;
       border-radius: 6px;
       border: 1px solid rgba(28, 184, 205, 0.3);
       text-decoration: none;
@@ -398,14 +398,14 @@ import { Subscription, interval } from 'rxjs';
     .auth-box {
       display: flex;
       align-items: center;
-      gap: 0.85rem;
+      gap: 0.75rem;
     }
     .btn-lang-toggle {
       background: var(--color-surface-subtle);
       border: 1px solid var(--color-border);
       border-radius: 20px;
-      padding: 0.35rem 0.75rem;
-      font-size: 0.875rem;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.825rem;
       font-weight: 700;
       color: var(--color-charcoal);
       cursor: pointer;
@@ -554,11 +554,11 @@ import { Subscription, interval } from 'rxjs';
     .user-profile-pill {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.5rem;
       background: var(--color-surface-subtle);
       border: 1px solid var(--color-border);
-      padding: 0.35rem 0.75rem 0.35rem 0.5rem;
-      border-radius: 24px;
+      padding: 0.25rem 0.65rem 0.25rem 0.45rem;
+      border-radius: 20px;
       cursor: pointer;
       transition: all 0.2s ease;
       position: relative;
@@ -570,8 +570,8 @@ import { Subscription, interval } from 'rxjs';
       box-shadow: 0 2px 6px rgba(28, 184, 205, 0.12);
     }
     .user-avatar {
-      width: 30px;
-      height: 30px;
+      width: 26px;
+      height: 26px;
       background: var(--color-charcoal);
       color: #FFFFFF;
       border-radius: 50%;
@@ -579,7 +579,7 @@ import { Subscription, interval } from 'rxjs';
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 0.825rem;
+      font-size: 0.75rem;
     }
     .user-meta {
       display: flex;
@@ -587,7 +587,7 @@ import { Subscription, interval } from 'rxjs';
       text-align: left;
     }
     .user-name {
-      font-size: 0.875rem;
+      font-size: 0.825rem;
       font-weight: 700;
       color: var(--color-charcoal);
       line-height: 1.25;
@@ -599,16 +599,16 @@ import { Subscription, interval } from 'rxjs';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
       background: #10B981;
       color: #FFFFFF;
       border-radius: 50%;
-      font-size: 0.6875rem;
+      font-size: 0.625rem;
       font-weight: 900;
     }
     .user-role-badge {
-      font-size: 0.75rem;
+      font-size: 0.6875rem;
       color: var(--color-cyan);
       font-weight: 700;
       text-transform: uppercase;

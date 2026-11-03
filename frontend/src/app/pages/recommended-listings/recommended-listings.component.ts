@@ -63,30 +63,31 @@ import { Listing } from '../../models/models';
   `,
   styles: [`
     .recommended-page {
-      padding: 2.5rem 1.5rem 5rem;
+      padding: 2rem 1.5rem 4rem;
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 1.5rem;
     }
     .page-header h1 {
       margin-bottom: 0.25rem;
     }
     .page-header p {
       color: var(--color-slate);
+      font-size: 0.925rem;
     }
     .state-card, .empty-card {
-      padding: 4rem 2rem;
+      padding: 3rem 2rem;
     }
     .listings-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.25rem;
     }
     .listing-card {
       background: #FFFFFF;
       display: flex;
       flex-direction: column;
-      gap: 0.85rem;
+      gap: 0.75rem;
     }
     .listing-top {
       display: flex;
@@ -96,10 +97,11 @@ import { Listing } from '../../models/models';
     .rank-tag {
       font-weight: 800;
       color: var(--color-cyan);
-      font-size: 0.825rem;
+      font-size: 0.75rem;
     }
     .listing-title {
-      font-size: 1.2rem;
+      font-size: 1.05rem;
+      line-height: 1.35;
     }
     .listing-title a {
       color: var(--color-charcoal);
@@ -108,21 +110,21 @@ import { Listing } from '../../models/models';
       color: var(--color-cyan);
     }
     .listing-desc {
-      font-size: 0.885rem;
+      font-size: 0.825rem;
       color: #555;
-      line-height: 1.5;
+      line-height: 1.45;
     }
     .listing-skills-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
+      gap: 0.35rem;
     }
     .skill-tag {
       background: var(--color-surface-subtle);
       border: 1px solid var(--color-border);
-      font-size: 0.75rem;
+      font-size: 0.725rem;
       font-weight: 600;
-      padding: 0.2rem 0.5rem;
+      padding: 0.15rem 0.45rem;
       border-radius: 4px;
       color: var(--color-slate);
     }
@@ -131,10 +133,11 @@ import { Listing } from '../../models/models';
       justify-content: space-between;
       align-items: center;
       margin-top: auto;
-      padding-top: 0.85rem;
+      padding-top: 0.75rem;
       border-top: 1px solid var(--color-border);
     }
     .rate-val {
+      font-size: 0.925rem;
       font-weight: 700;
       color: var(--color-charcoal);
     }

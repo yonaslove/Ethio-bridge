@@ -495,36 +495,36 @@ import { ContractItem } from '../../models/models';
       gap: 1rem;
     }
     .contracts-header h2 {
-      font-size: 1.85rem;
+      font-size: 1.35rem;
       font-weight: 800;
       color: var(--color-charcoal);
     }
     .subtitle {
       color: var(--color-slate);
-      font-size: 0.95rem;
+      font-size: 0.85rem;
     }
     .contracts-grid {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
     .contract-card {
       background: #FFFFFF;
       border: 1px solid var(--color-border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 12px rgba(65, 63, 61, 0.05);
+      border-radius: 10px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(65, 63, 61, 0.04);
     }
     .card-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 1rem;
+      margin-bottom: 0.85rem;
     }
     .title-group h3 {
-      font-size: 1.25rem;
+      font-size: 1.05rem;
       font-weight: 800;
-      margin: 0.35rem 0;
+      margin: 0.25rem 0;
       color: var(--color-charcoal);
     }
     .parties {

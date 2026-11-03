@@ -222,14 +222,14 @@ import { I18nService } from '../../services/i18n.service';
       flex-shrink: 0;
     }
     .messages-header h2 {
-      font-size: 1.35rem;
+      font-size: 1.2rem;
       font-weight: 800;
       color: var(--color-charcoal);
       margin: 0;
     }
     .subtitle {
       color: var(--color-slate);
-      font-size: 0.8rem;
+      font-size: 0.785rem;
       margin-top: 0.15rem;
       margin-bottom: 0;
     }
