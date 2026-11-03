@@ -102,32 +102,42 @@ public class DocumentAiInspector {
         }
 
         // 3. Biometric Portrait Photo Detection
-        // Every valid Ethiopian ID (Fayda, Kebele, Passport, License) MUST have a personal headshot photograph.
-        // We perform spatial skin-tone chrominance clustering in standard portrait zones.
+        // Official Ethiopian IDs (Fayda, Kebele, Passport) require a citizen headshot photograph.
+        // We evaluate both color skin chrominance AND laser-engraved grayscale photo characteristics
+        // (as used on official Fayda National IDs printed on security guilloche substrate).
         PortraitAnalysis portrait = analyzePortraitPresence(image);
         if (portrait.detected) {
-            passNotes.add("Biometric portrait photo detected in " + portrait.location + " (" + String.format("%.1f", portrait.density * 100) + "% skin-tone density in photo zone).");
-            score += 45.0;
+            passNotes.add("Biometric portrait photo verified in " + portrait.location + " (" + portrait.description + ").");
+            score += 40.0;
         } else {
             failNotes.add("No citizen portrait photograph detected. Official Ethiopian IDs (Fayda / Kebele / Passport) require a visible headshot photograph.");
         }
 
-        // 4. Document Color Palette & Natural Surface Check
+        // 4. Official 1D Barcode Detection (Fayda FAN Barcode Standard)
+        // Authentic Ethiopian Fayda National IDs contain an alternating high-frequency 1D barcode on the bottom half.
+        BarcodeAnalysis barcode = detectBarcode(image);
+        if (barcode.detected) {
+            passNotes.add("Official Ethiopian Fayda 1D barcode verified (" + barcode.transitions + " vertical transitions across FAN barcode zone).");
+            score += 20.0;
+        }
+
+        // 5. Document Color Palette & Natural Surface Check
         // Non-document graphics (like memes, astrological charts, wallpapers) often have:
         // - Heavy dark borders or pure black letterboxing
-        // - Intense artificial neon or saturated graphic palettes
         // - Extreme dark-background dominance (< 50 average luminance)
         LuminanceAnalysis lum = analyzeLuminanceAndSaturation(image);
         if (lum.isDocumentLike) {
             passNotes.add("Document surface luminance and contrast match authentic printed ID substrates.");
-            score += 25.0;
+            score += 20.0;
         } else {
             failNotes.add("Image visual profile indicates an artistic graphic, social media illustration, or meme rather than a physical identity card.");
         }
 
         // Classify the detected image
         String detectedCategory;
-        if (portrait.detected && lum.isDocumentLike && validAspect) {
+        if (barcode.detected && portrait.detected && validAspect) {
+            detectedCategory = "FAYDA_NATIONAL_ID_CARD";
+        } else if (portrait.detected && lum.isDocumentLike && validAspect) {
             detectedCategory = isIdCard ? "OFFICIAL_ID_CARD" : "PASSPORT_BIO_PAGE";
         } else if (!portrait.detected && !lum.isDocumentLike) {
             detectedCategory = "NON_DOCUMENT_GRAPHIC_OR_MEME";
@@ -188,47 +198,113 @@ public class DocumentAiInspector {
         return null;
     }
 
-    private record PortraitAnalysis(boolean detected, String location, double density) {}
+    private record PortraitAnalysis(boolean detected, String location, String description) {}
+    private record BarcodeAnalysis(boolean detected, int transitions) {}
 
     /**
-     * Checks left zone (10%-45% width), right zone (55%-90% width), and center zone for
-     * a contiguous cluster of human skin-tone pixels matching a standard ID card headshot box.
+     * Checks for official Fayda 1D barcode on the bottom half (x: 35%-85%, y: 76%-90%).
+     * Alternating black and white bars produce >= 24 transitions across a horizontal scan line.
+     */
+    private BarcodeAnalysis detectBarcode(BufferedImage img) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+
+        int maxTransitions = 0;
+        int[] yPcts = {79, 82, 85, 88};
+
+        int startX = (int) (w * 0.35);
+        int endX = (int) (w * 0.85);
+
+        for (int yPct : yPcts) {
+            int y = (int) (h * (yPct / 100.0));
+            if (y >= h) continue;
+
+            int transitions = 0;
+            boolean prevDark = false;
+            for (int x = startX; x < endX; x++) {
+                int rgb = img.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+                int lum = (int) (0.299 * r + 0.587 * g + 0.114 * b);
+
+                boolean isDark = lum < 100;
+                if (isDark != prevDark) {
+                    transitions++;
+                    prevDark = isDark;
+                }
+            }
+            if (transitions > maxTransitions) {
+                maxTransitions = transitions;
+            }
+        }
+
+        boolean detected = maxTransitions >= 24;
+        return new BarcodeAnalysis(detected, maxTransitions);
+    }
+
+    /**
+     * Inspects primary headshot regions:
+     * 1. Left portrait quadrant (Fayda / Kebele standard, x: 8%-45%, y: 18%-88%)
+     * 2. Right portrait quadrant (x: 55%-92%, y: 18%-88%)
+     * 3. Center passport zone (x: 25%-75%, y: 15%-85%)
+     *
+     * Detects both:
+     * - Color skin chrominance (standard color portrait photos)
+     * - Laser-engraved / grayscale portraits printed over national ID guilloche substrates (Fayda standard).
+     *   Laser portraits exhibit human face biometric luminance distribution:
+     *   high midtones (45%-95%), dark facial features & contours (3%-38%), and standard deviation >= 18.0.
      */
     private PortraitAnalysis analyzePortraitPresence(BufferedImage img) {
         int w = img.getWidth();
         int h = img.getHeight();
 
-        // Subdivide into vertical candidate portrait zones (IDs place photos in left or right third)
-        double leftZoneDensity = calculateSkinToneDensity(img, (int) (w * 0.05), (int) (h * 0.15), (int) (w * 0.45), (int) (h * 0.85));
-        double rightZoneDensity = calculateSkinToneDensity(img, (int) (w * 0.55), (int) (h * 0.15), (int) (w * 0.95), (int) (h * 0.85));
-        double centerZoneDensity = calculateSkinToneDensity(img, (int) (w * 0.25), (int) (h * 0.15), (int) (w * 0.75), (int) (h * 0.85));
-
-        // Total full-image skin density
-        double overallDensity = calculateSkinToneDensity(img, 0, 0, w, h);
-
-        // Threshold for a real headshot in an ID card:
-        // A headshot box typically has 6% to 35% skin-tone pixels within its bounding region,
-        // and overall density > 1.5%.
-        // Memes/graphics typically have < 0.2% overall skin density.
-        if (leftZoneDensity >= 0.05 && leftZoneDensity > (overallDensity * 1.5)) {
-            return new PortraitAnalysis(true, "left portrait quadrant (Fayda / Kebele standard)", leftZoneDensity);
-        }
-        if (rightZoneDensity >= 0.05 && rightZoneDensity > (overallDensity * 1.5)) {
-            return new PortraitAnalysis(true, "right portrait quadrant", rightZoneDensity);
-        }
-        if (centerZoneDensity >= 0.07) {
-            return new PortraitAnalysis(true, "center portrait zone (Passport standard)", centerZoneDensity);
+        // 1. Check left quadrant (primary photo on Fayda and Kebele IDs)
+        ZoneMetrics leftMetrics = analyzeZoneBiometrics(img, (int) (w * 0.08), (int) (h * 0.20), (int) (w * 0.45), (int) (h * 0.88));
+        if (leftMetrics.isPortrait()) {
+            return new PortraitAnalysis(true, "left portrait quadrant (Fayda / Kebele standard)", leftMetrics.summary());
         }
 
-        // Check if overall has strong portrait presence
-        if (overallDensity >= 0.04) {
-            return new PortraitAnalysis(true, "general photo frame", overallDensity);
+        // 2. Check right quadrant
+        ZoneMetrics rightMetrics = analyzeZoneBiometrics(img, (int) (w * 0.55), (int) (h * 0.20), (int) (w * 0.92), (int) (h * 0.88));
+        if (rightMetrics.isPortrait()) {
+            return new PortraitAnalysis(true, "right portrait quadrant", rightMetrics.summary());
         }
 
-        return new PortraitAnalysis(false, "NONE", overallDensity);
+        // 3. Check center zone (Passport standard)
+        ZoneMetrics centerMetrics = analyzeZoneBiometrics(img, (int) (w * 0.25), (int) (h * 0.15), (int) (w * 0.75), (int) (h * 0.85));
+        if (centerMetrics.isPortrait()) {
+            return new PortraitAnalysis(true, "center portrait zone (Passport standard)", centerMetrics.summary());
+        }
+
+        return new PortraitAnalysis(false, "NONE", "No human headshot or laser portrait detected");
     }
 
-    private double calculateSkinToneDensity(BufferedImage img, int startX, int startY, int endX, int endY) {
+    private record ZoneMetrics(double skinDensity, double midtoneRatio, double darkRatio, double stdDev, boolean isSolidGraphic) {
+        public boolean isPortrait() {
+            // Case A: High color skin chrominance
+            if (skinDensity >= 0.05) {
+                return true;
+            }
+            // Case B: Laser-engraved / grayscale biometric headshot on ID substrate
+            // Midtones (face skin) 45% - 95%, dark features (hair, eyes, collar) 3% - 38%, contrast stdDev >= 18, not a solid graphic
+            if (midtoneRatio >= 0.45 && midtoneRatio <= 0.95 &&
+                darkRatio >= 0.03 && darkRatio <= 0.38 &&
+                stdDev >= 18.0 && !isSolidGraphic) {
+                return true;
+            }
+            return false;
+        }
+
+        public String summary() {
+            if (skinDensity >= 0.05) {
+                return String.format("%.1f%% color skin tone density", skinDensity * 100);
+            }
+            return String.format("laser-engraved ID headshot (%.1f%% facial midtones, %.1f%% contour details)", midtoneRatio * 100, darkRatio * 100);
+        }
+    }
+
+    private ZoneMetrics analyzeZoneBiometrics(BufferedImage img, int startX, int startY, int endX, int endY) {
         int w = img.getWidth();
         int h = img.getHeight();
 
@@ -239,7 +315,12 @@ public class DocumentAiInspector {
 
         int totalSampled = 0;
         int skinPixels = 0;
-        int step = Math.max(1, (endX - startX) / 80);
+        int midtonePixels = 0;
+        int darkPixels = 0;
+
+        List<Integer> luminances = new ArrayList<>();
+        long sumLum = 0;
+        int step = Math.max(1, (endX - startX) / 70);
 
         for (int x = startX; x < endX; x += step) {
             for (int y = startY; y < endY; y += step) {
@@ -248,14 +329,42 @@ public class DocumentAiInspector {
                 int g = (rgb >> 8) & 0xFF;
                 int b = rgb & 0xFF;
 
+                int lum = (int) (0.299 * r + 0.587 * g + 0.114 * b);
+                luminances.add(lum);
+                sumLum += lum;
                 totalSampled++;
+
                 if (isSkinTone(r, g, b)) {
                     skinPixels++;
+                }
+
+                if (lum >= 75 && lum <= 205) {
+                    midtonePixels++;
+                } else if (lum < 75) {
+                    darkPixels++;
                 }
             }
         }
 
-        return totalSampled > 0 ? (double) skinPixels / totalSampled : 0.0;
+        if (totalSampled == 0) {
+            return new ZoneMetrics(0, 0, 0, 0, false);
+        }
+
+        double skinDensity = (double) skinPixels / totalSampled;
+        double midtoneRatio = (double) midtonePixels / totalSampled;
+        double darkRatio = (double) darkPixels / totalSampled;
+
+        double meanLum = (double) sumLum / totalSampled;
+        double sumSqDiff = 0.0;
+        for (int l : luminances) {
+            sumSqDiff += (l - meanLum) * (l - meanLum);
+        }
+        double stdDev = Math.sqrt(sumSqDiff / totalSampled);
+
+        // Graphics or memes with massive solid dark glyphs (> 42% dark pixels)
+        boolean isSolidGraphic = darkRatio > 0.42;
+
+        return new ZoneMetrics(skinDensity, midtoneRatio, darkRatio, stdDev, isSolidGraphic);
     }
 
     /**

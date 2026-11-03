@@ -250,15 +250,16 @@ import { I18nService } from '../../services/i18n.service';
     }
     .ai-badge {
       font-weight: 700;
-      font-size: 0.82rem;
+      font-size: 0.875rem;
       color: #0E7F8F;
     }
     .ai-verdict-tag {
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       font-weight: 800;
-      padding: 0.15rem 0.45rem;
+      padding: 0.15rem 0.5rem;
       border-radius: 4px;
       text-transform: uppercase;
+      letter-spacing: 0.025em;
     }
     .verdict-high {
       background: #D1FAE5;
@@ -273,10 +274,10 @@ import { I18nService } from '../../services/i18n.service';
       color: #991B1B;
     }
     .ai-summary {
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       color: #374151;
       margin: 0;
-      line-height: 1.4;
+      line-height: 1.6;
     }
     .attached-doc-preview {
       margin-top: 0.75rem;
@@ -285,7 +286,7 @@ import { I18nService } from '../../services/i18n.service';
       gap: 0.75rem;
     }
     .doc-label {
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       font-weight: 700;
     }
     .doc-thumb-wrapper {
@@ -302,7 +303,7 @@ import { I18nService } from '../../services/i18n.service';
       cursor: pointer;
     }
     .btn-xs {
-      padding: 0.2rem 0.5rem;
+      padding: 0.25rem 0.6rem;
       font-size: 0.75rem;
     }
     .verif-form {
@@ -316,7 +317,7 @@ import { I18nService } from '../../services/i18n.service';
       gap: 0.4rem;
     }
     .form-label {
-      font-size: 0.88rem;
+      font-size: 0.875rem;
       font-weight: 700;
       color: var(--color-charcoal);
     }
@@ -384,7 +385,7 @@ import { I18nService } from '../../services/i18n.service';
       gap: 0.2rem;
     }
     .upload-prompt strong {
-      font-size: 0.88rem;
+      font-size: 0.9375rem;
       color: #0E7F8F;
     }
     .upload-prompt span {
@@ -437,7 +438,7 @@ import { I18nService } from '../../services/i18n.service';
       background: none;
       border: none;
       color: #DC2626;
-      font-size: 0.8rem;
+      font-size: 0.8125rem;
       font-weight: 700;
       cursor: pointer;
       padding: 0.25rem 0.5rem;
@@ -455,9 +456,10 @@ import { I18nService } from '../../services/i18n.service';
       display: flex;
       gap: 0.6rem;
       align-items: flex-start;
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       color: var(--color-slate);
       cursor: pointer;
+      line-height: 1.45;
     }
     .checkbox-label input {
       margin-top: 0.2rem;
@@ -468,12 +470,12 @@ import { I18nService } from '../../services/i18n.service';
       color: #991B1B;
       padding: 0.65rem 0.85rem;
       border-radius: 6px;
-      font-size: 0.82rem;
+      font-size: 0.875rem;
     }
     .btn-block {
       width: 100%;
       height: 48px;
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 700;
     }
     /* Modal */

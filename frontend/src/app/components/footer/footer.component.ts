@@ -74,7 +74,7 @@ import { I18nService } from '../../services/i18n.service';
     }
     .footer-desc {
       color: var(--color-taupe);
-      font-size: 0.9rem;
+      font-size: 0.9375rem;
       line-height: 1.6;
     }
     .footer-links {
@@ -84,7 +84,7 @@ import { I18nService } from '../../services/i18n.service';
     }
     .footer-col h4 {
       color: #FFFFFF;
-      font-size: 0.9rem;
+      font-size: 0.9375rem;
       margin-bottom: 1rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -93,7 +93,7 @@ import { I18nService } from '../../services/i18n.service';
       display: block;
       color: var(--color-taupe);
       margin-bottom: 0.5rem;
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       text-decoration: none;
       transition: color 0.15s ease;
     }
@@ -103,7 +103,7 @@ import { I18nService } from '../../services/i18n.service';
     .footer-bottom {
       border-top: 1px solid rgba(255, 255, 255, 0.08);
       padding: 1.25rem 0;
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       color: var(--color-taupe);
     }
     .footer-bottom-inner {

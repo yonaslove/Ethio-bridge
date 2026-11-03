@@ -84,7 +84,7 @@ public class MonetizationServiceTest {
         checkoutMap.put("txRef", "CHP-123");
         checkoutMap.put("status", "success");
 
-        when(paymentService.initializeChapaCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("120.00")), contains("CONNECTS_TOPUP")))
+        when(paymentService.initializeChapaCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("150")), contains("CONNECTS_TOPUP")))
                 .thenReturn(checkoutMap);
 
         Map<String, Object> resp = monetizationService.topUpConnects(providerId, 30, "CHAPA");
@@ -111,7 +111,7 @@ public class MonetizationServiceTest {
         assertTrue((Boolean) result.get("success"));
         assertNotNull(listing.getFeaturedUntil());
         verify(revenueRepository).save(any(PlatformRevenue.class));
-        verify(notificationService).sendNotification(eq(seekerId), contains("Featured Job"), anyString(), eq("LISTING"), anyString());
+        verify(notificationService).sendNotification(eq(seekerId), contains("FEATURED"), anyString(), eq("LISTING"), anyString());
     }
 
     @Test

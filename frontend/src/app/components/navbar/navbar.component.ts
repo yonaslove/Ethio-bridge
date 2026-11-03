@@ -370,7 +370,7 @@ import { Subscription, interval } from 'rxjs';
       letter-spacing: -0.02em;
     }
     .brand-subtitle {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--color-slate);
       font-weight: 500;
     }
@@ -382,7 +382,7 @@ import { Subscription, interval } from 'rxjs';
     .btn-quick-post {
       background-color: var(--color-cyan-subtle);
       color: #0E7F8F;
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       font-weight: 700;
       padding: 0.45rem 1rem;
       border-radius: 6px;
@@ -405,7 +405,7 @@ import { Subscription, interval } from 'rxjs';
       border: 1px solid var(--color-border);
       border-radius: 20px;
       padding: 0.35rem 0.75rem;
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       font-weight: 700;
       color: var(--color-charcoal);
       cursor: pointer;
@@ -459,10 +459,10 @@ import { Subscription, interval } from 'rxjs';
       right: -3px;
       background: var(--color-danger);
       color: #FFFFFF;
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: 800;
       border-radius: 10px;
-      padding: 0.1rem 0.35rem;
+      padding: 0.12rem 0.4rem;
       line-height: 1;
     }
     .notification-dropdown {
@@ -487,7 +487,7 @@ import { Subscription, interval } from 'rxjs';
     }
     .dropdown-header h4 {
       margin: 0;
-      font-size: 0.9rem;
+      font-size: 0.9375rem;
       color: var(--color-charcoal);
     }
     .btn-mark-all {
@@ -516,26 +516,26 @@ import { Subscription, interval } from 'rxjs';
       border-left: 3px solid var(--color-cyan);
     }
     .item-title {
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       font-weight: 700;
       color: var(--color-charcoal);
       margin-bottom: 0.2rem;
     }
     .item-body {
-      font-size: 0.8rem;
+      font-size: 0.8125rem;
       color: var(--color-slate);
-      line-height: 1.3;
+      line-height: 1.4;
       margin-bottom: 0.3rem;
     }
     .item-time {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--color-taupe);
     }
     .empty-notifications {
       padding: 1.5rem;
       text-align: center;
       color: var(--color-slate);
-      font-size: 0.85rem;
+      font-size: 0.875rem;
     }
 
     /* Profile Trigger & Dropdown Menu */
@@ -587,10 +587,10 @@ import { Subscription, interval } from 'rxjs';
       text-align: left;
     }
     .user-name {
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       font-weight: 700;
       color: var(--color-charcoal);
-      line-height: 1.2;
+      line-height: 1.25;
       display: flex;
       align-items: center;
       gap: 0.25rem;
@@ -599,19 +599,20 @@ import { Subscription, interval } from 'rxjs';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       background: #10B981;
       color: #FFFFFF;
       border-radius: 50%;
-      font-size: 0.6rem;
+      font-size: 0.6875rem;
       font-weight: 900;
     }
     .user-role-badge {
-      font-size: 0.675rem;
+      font-size: 0.75rem;
       color: var(--color-cyan);
       font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.025em;
     }
     .profile-caret {
       font-size: 0.75rem;
@@ -668,14 +669,15 @@ import { Subscription, interval } from 'rxjs';
       overflow: hidden;
     }
     .profile-user-name {
-      font-size: 0.925rem;
+      font-size: 0.9375rem;
+      font-weight: 700;
       color: var(--color-charcoal);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .profile-user-email {
-      font-size: 0.775rem;
+      font-size: 0.8125rem;
       color: var(--color-slate);
       white-space: nowrap;
       overflow: hidden;
@@ -688,20 +690,21 @@ import { Subscription, interval } from 'rxjs';
       flex-wrap: wrap;
     }
     .role-tag {
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: 700;
       background: var(--color-cyan-subtle);
       color: #0E7F8F;
-      padding: 0.1rem 0.4rem;
+      padding: 0.15rem 0.5rem;
       border-radius: 4px;
       text-transform: uppercase;
+      letter-spacing: 0.025em;
     }
     .verif-tag {
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: 700;
       background: rgba(105, 113, 132, 0.1);
       color: var(--color-slate);
-      padding: 0.1rem 0.4rem;
+      padding: 0.15rem 0.5rem;
       border-radius: 4px;
     }
     .verif-tag.verified {

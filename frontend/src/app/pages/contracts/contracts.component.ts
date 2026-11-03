@@ -528,16 +528,16 @@ import { ContractItem } from '../../models/models';
       color: var(--color-charcoal);
     }
     .parties {
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       color: var(--color-slate);
       margin: 0;
     }
     .verified-pill {
       background: rgba(28, 184, 205, 0.15);
       color: #0E7F8F;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      padding: 0.1rem 0.4rem;
+      padding: 0.15rem 0.45rem;
       border-radius: 10px;
       margin-left: 0.35rem;
     }
@@ -553,9 +553,10 @@ import { ContractItem } from '../../models/models';
       color: var(--color-slate);
       display: block;
       font-weight: 700;
+      letter-spacing: 0.04em;
     }
     .value {
-      font-size: 1.35rem;
+      font-size: 1.5rem;
       font-weight: 800;
       color: var(--color-charcoal);
     }
@@ -563,16 +564,18 @@ import { ContractItem } from '../../models/models';
       background: #fbfbfb;
       border-left: 3px solid var(--color-cyan);
       padding: 0.75rem 1rem;
-      font-size: 0.85rem;
+      font-size: 0.875rem;
+      line-height: 1.55;
       color: var(--color-slate);
       margin-bottom: 1.5rem;
       border-radius: 0 6px 6px 0;
     }
     .status-badge {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       font-weight: 800;
       text-transform: uppercase;
-      padding: 0.2rem 0.5rem;
+      letter-spacing: 0.025em;
+      padding: 0.2rem 0.55rem;
       border-radius: 4px;
       display: inline-block;
     }
@@ -580,7 +583,7 @@ import { ContractItem } from '../../models/models';
     .status-completed { background: #E1F5FE; color: #0288D1; }
     .status-disputed { background: #FFEBEE; color: #D32F2F; }
     .milestones-container h4 {
-      font-size: 1rem;
+      font-size: 1.125rem;
       font-weight: 800;
       margin-bottom: 1rem;
       color: var(--color-charcoal);
@@ -607,11 +610,12 @@ import { ContractItem } from '../../models/models';
     }
     .m-title {
       font-weight: 700;
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: var(--color-charcoal);
     }
     .m-desc {
-      font-size: 0.82rem;
+      font-size: 0.875rem;
+      line-height: 1.45;
       color: var(--color-slate);
       margin: 0.2rem 0;
     }
@@ -642,11 +646,12 @@ import { ContractItem } from '../../models/models';
       font-weight: 700;
     }
     .m-status-badge {
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: 800;
-      padding: 0.15rem 0.45rem;
+      padding: 0.15rem 0.5rem;
       border-radius: 4px;
       text-transform: uppercase;
+      letter-spacing: 0.025em;
     }
     .m-status-pending { background: #FFF3E0; color: #E65100; }
     .m-status-funded { background: #E0F7FA; color: #006064; }

@@ -311,7 +311,7 @@ import { I18nService } from '../../services/i18n.service';
     }
     .user-name {
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.9375rem;
       color: var(--color-charcoal);
       display: flex;
       align-items: center;
@@ -320,20 +320,20 @@ import { I18nService } from '../../services/i18n.service';
     .verified-badge {
       background: #1CB8CD;
       color: #fff;
-      font-size: 0.65rem;
-      width: 14px;
-      height: 14px;
+      font-size: 0.6875rem;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
     .time-meta {
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       color: var(--color-slate);
     }
     .subject-line {
-      font-size: 0.78rem;
+      font-size: 0.8125rem;
       font-weight: 600;
       color: var(--color-cyan);
       white-space: nowrap;
@@ -341,7 +341,7 @@ import { I18nService } from '../../services/i18n.service';
       text-overflow: ellipsis;
     }
     .preview-line {
-      font-size: 0.75rem;
+      font-size: 0.8125rem;
       color: var(--color-slate);
       white-space: nowrap;
       overflow: hidden;
@@ -350,7 +350,7 @@ import { I18nService } from '../../services/i18n.service';
     .unread-badge {
       background: #D32F2F;
       color: #fff;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       font-weight: 700;
       border-radius: 10px;
       padding: 0.15rem 0.45rem;
@@ -398,7 +398,7 @@ import { I18nService } from '../../services/i18n.service';
       font-size: 1.1rem;
     }
     .chat-partner h3 {
-      font-size: 1.05rem;
+      font-size: 1.125rem;
       font-weight: 800;
       margin: 0;
       display: flex;
@@ -408,13 +408,14 @@ import { I18nService } from '../../services/i18n.service';
     .verified-tag {
       background: rgba(28, 184, 205, 0.15);
       color: #0E7F8F;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      padding: 0.2rem 0.5rem;
+      padding: 0.2rem 0.55rem;
       border-radius: 12px;
+      letter-spacing: 0.02em;
     }
     .chat-subject {
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       color: var(--color-slate);
       margin: 0;
     }
@@ -451,17 +452,17 @@ import { I18nService } from '../../services/i18n.service';
       border: none;
     }
     .bubble-content {
-      font-size: 0.9rem;
-      line-height: 1.4;
+      font-size: 0.9375rem;
+      line-height: 1.5;
       word-break: break-word;
     }
     .bubble-meta {
       display: flex;
       justify-content: flex-end;
       gap: 0.35rem;
-      font-size: 0.68rem;
+      font-size: 0.75rem;
       margin-top: 0.35rem;
-      opacity: 0.8;
+      opacity: 0.85;
     }
     .chat-composer {
       padding: 0.75rem 1.25rem;

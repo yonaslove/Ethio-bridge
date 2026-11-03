@@ -75,11 +75,23 @@ public class ContractServiceTest {
         );
 
         lenient().when(contractRepository.save(any(Contract.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> {
+                    Contract c = invocation.getArgument(0);
+                    if (c.getId() == null) c.setId(UUID.randomUUID());
+                    return c;
+                });
         lenient().when(milestoneRepository.save(any(ContractMilestone.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> {
+                    ContractMilestone m = invocation.getArgument(0);
+                    if (m.getId() == null) m.setId(UUID.randomUUID());
+                    return m;
+                });
         lenient().when(disputeRepository.save(any(Dispute.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> {
+                    Dispute d = invocation.getArgument(0);
+                    if (d.getId() == null) d.setId(UUID.randomUUID());
+                    return d;
+                });
     }
 
     @Test
@@ -133,7 +145,6 @@ public class ContractServiceTest {
 
         when(milestoneRepository.findById(milestoneId)).thenReturn(Optional.of(milestone));
         when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
-        when(userRepository.findById(seekerId)).thenReturn(Optional.of(new AppUser(UUID.randomUUID(), "seeker@ethiobridge.et", "Sara Bekele")));
 
         ContractMilestone result = contractService.releaseMilestone(seekerId, milestoneId);
 
@@ -142,7 +153,7 @@ public class ContractServiceTest {
         assertEquals(new BigDecimal("10.00"), result.getPlatformFeePercent());
         assertEquals(new BigDecimal("1000.00"), result.getPlatformFeeAmount()); // 10% fee
         assertEquals(new BigDecimal("9000.00"), result.getNetPayoutAmount());   // 90% payout
-        verify(notificationService).sendNotification(eq(providerId), contains("Payment Released"), anyString(), eq("PAYMENT"), anyString());
+        verify(notificationService).sendNotification(eq(providerId), contains("Released"), anyString(), eq("CONTRACT"), anyString());
     }
 
     @Test

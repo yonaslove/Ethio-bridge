@@ -368,19 +368,20 @@ import { Subscription, interval } from 'rxjs';
       flex-direction: column;
     }
     .brand-title {
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 800;
       color: var(--color-charcoal);
-      line-height: 1.15;
+      line-height: 1.2;
     }
     .brand-role-pill {
-      font-size: 0.685rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      padding: 0.1rem 0.4rem;
+      padding: 0.15rem 0.5rem;
       border-radius: 4px;
       display: inline-block;
       margin-top: 0.2rem;
       line-height: 1.2;
+      letter-spacing: 0.025em;
     }
     .badge-role-seeker {
       background: rgba(28, 184, 205, 0.15);
@@ -453,7 +454,7 @@ import { Subscription, interval } from 'rxjs';
       gap: 0.2rem;
     }
     .nav-group-title {
-      font-size: 0.685rem;
+      font-size: 0.75rem;
       font-weight: 800;
       color: var(--color-slate);
       text-transform: uppercase;
@@ -477,7 +478,7 @@ import { Subscription, interval } from 'rxjs';
       padding: 0.55rem 0.75rem;
       border-radius: 8px;
       color: var(--color-charcoal);
-      font-size: 0.865rem;
+      font-size: 0.9375rem;
       font-weight: 600;
       text-decoration: none;
       transition: all 0.15s ease;
@@ -515,20 +516,20 @@ import { Subscription, interval } from 'rxjs';
       text-overflow: ellipsis;
     }
     .item-badge-pill {
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: 800;
       background: var(--color-surface-subtle);
       color: var(--color-slate);
       border: 1px solid var(--color-border);
-      padding: 0.1rem 0.4rem;
+      padding: 0.12rem 0.45rem;
       border-radius: 4px;
     }
     .item-badge-unread {
       background: var(--color-danger);
       color: #FFFFFF;
-      font-size: 0.685rem;
+      font-size: 0.75rem;
       font-weight: 800;
-      padding: 0.1rem 0.45rem;
+      padding: 0.12rem 0.45rem;
       border-radius: 10px;
       line-height: 1;
     }
@@ -547,12 +548,12 @@ import { Subscription, interval } from 'rxjs';
       font-weight: 800;
     }
     .item-tag-ai {
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: 800;
       color: var(--color-cyan);
       background: #FFFFFF;
       border: 1px solid rgba(28, 184, 205, 0.4);
-      padding: 0.05rem 0.35rem;
+      padding: 0.08rem 0.4rem;
       border-radius: 4px;
     }
     .item-admin {
@@ -566,12 +567,12 @@ import { Subscription, interval } from 'rxjs';
       background: #8C52FF;
     }
     .item-verified-badge {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       background: #10B981;
       color: #FFFFFF;
       border-radius: 50%;
-      font-size: 0.6rem;
+      font-size: 0.6875rem;
       font-weight: 900;
       display: inline-flex;
       align-items: center;
@@ -590,8 +591,8 @@ import { Subscription, interval } from 'rxjs';
       gap: 0.65rem;
     }
     .chip-avatar {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       background: var(--color-charcoal);
       color: #FFFFFF;
       border-radius: 50%;
@@ -599,7 +600,7 @@ import { Subscription, interval } from 'rxjs';
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
     }
     .chip-text {
       display: flex;
@@ -608,7 +609,7 @@ import { Subscription, interval } from 'rxjs';
       overflow: hidden;
     }
     .chip-name {
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       font-weight: 700;
       color: var(--color-charcoal);
       white-space: nowrap;
@@ -616,18 +617,19 @@ import { Subscription, interval } from 'rxjs';
       text-overflow: ellipsis;
     }
     .chip-role {
-      font-size: 0.685rem;
+      font-size: 0.75rem;
       color: var(--color-cyan);
       font-weight: 600;
       text-transform: uppercase;
+      letter-spacing: 0.025em;
     }
     .chip-verified {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       background: #10B981;
       color: #FFFFFF;
       border-radius: 50%;
-      font-size: 0.6rem;
+      font-size: 0.6875rem;
       font-weight: 900;
       display: inline-flex;
       align-items: center;
