@@ -52,4 +52,16 @@ class DocumentAiInspectorTest {
         assertNotNull(result.primaryFailureReason());
         System.out.println("Result: " + result);
     }
+
+    @Test
+    @DisplayName("Should reject exact image uploaded by Almaz Ayana")
+    void shouldRejectExactUploadedBase64() throws Exception {
+        File imgFile = new File("almaz_uploaded.jpg");
+        if (!imgFile.exists()) return;
+        DocumentAiInspector.InspectionResult result = inspector.inspect(imgFile.getAbsolutePath(), "FAYDA_NATIONAL_ID");
+        System.out.println("Almaz Upload Result: " + result);
+        assertFalse(result.isValidDocument(), "The uploaded Pisces horoscope graphic must NOT pass inspection!");
+        assertFalse(result.hasPortraitPhoto(), "Pisces graphic must not be classified as a portrait photo!");
+        assertTrue(result.imageScore() < 60.0, "Score should be < 60, was: " + result.imageScore());
+    }
 }

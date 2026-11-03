@@ -22,9 +22,10 @@ import java.util.List;
  * Inspects uploaded images for:
  * 1. Resolution and decodability
  * 2. Card geometry & aspect ratio (ISO/IEC 7810 ID-1 standard)
- * 3. Citizen portrait photograph presence (biometric anchor via localized skin-chrominance clustering)
- * 4. Document luminance & background characteristics (detecting memes, social media graphics, cartoons)
- * 5. Horizontal text line structure and layout energy
+ * 3. Citizen portrait photograph presence (biometric anchor via localized skin-chrominance
+ *    or laser-engraved achromatic facial midtone/contour analysis)
+ * 4. Substrate color saturation & luminance (rejecting colorful digital illustrations, memes, cartoons, wallpapers)
+ * 5. Official Ethiopian security features (1D FAN Barcode verification for Fayda National IDs)
  */
 @Component
 public class DocumentAiInspector {
@@ -84,8 +85,8 @@ public class DocumentAiInspector {
         }
 
         // 2. Geometry & Aspect Ratio Check
-        // ISO 7810 ID-1 (Fayda, Kebele, Driver's License): ratio ~ 1.58 (acceptable range: 1.20 - 1.95)
-        // Passport photo spread: ratio ~ 1.30 - 1.65 (or portrait 0.65 - 0.85)
+        // ISO 7810 ID-1 (Fayda, Kebele, Driver's License): ratio ~ 1.58 (acceptable range: 1.15 - 2.10)
+        // Passport photo spread: ratio ~ 0.60 - 2.10
         boolean isIdCard = !"PASSPORT".equalsIgnoreCase(idType);
         boolean validAspect;
         if (isIdCard) {
@@ -101,59 +102,67 @@ public class DocumentAiInspector {
             failNotes.add("Unusual aspect ratio (" + String.format("%.2f", aspectRatio) + ") does not match standard ID card or passport dimensions.");
         }
 
-        // 3. Biometric Portrait Photo Detection
-        // Official Ethiopian IDs (Fayda, Kebele, Passport) require a citizen headshot photograph.
-        // We evaluate both color skin chrominance AND laser-engraved grayscale photo characteristics
-        // (as used on official Fayda National IDs printed on security guilloche substrate).
-        PortraitAnalysis portrait = analyzePortraitPresence(image);
-        if (portrait.detected) {
-            passNotes.add("Biometric portrait photo verified in " + portrait.location + " (" + portrait.description + ").");
-            score += 40.0;
-        } else {
-            failNotes.add("No citizen portrait photograph detected. Official Ethiopian IDs (Fayda / Kebele / Passport) require a visible headshot photograph.");
-        }
-
-        // 4. Official 1D Barcode Detection (Fayda FAN Barcode Standard)
-        // Authentic Ethiopian Fayda National IDs contain an alternating high-frequency 1D barcode on the bottom half.
-        BarcodeAnalysis barcode = detectBarcode(image);
-        if (barcode.detected) {
-            passNotes.add("Official Ethiopian Fayda 1D barcode verified (" + barcode.transitions + " vertical transitions across FAN barcode zone).");
-            score += 20.0;
-        }
-
-        // 5. Document Color Palette & Natural Surface Check
-        // Non-document graphics (like memes, astrological charts, wallpapers) often have:
-        // - Heavy dark borders or pure black letterboxing
-        // - Extreme dark-background dominance (< 50 average luminance)
+        // 3. Document Color Palette & Substrate Check (Detecting saturated graphics, memes, wallpapers)
         LuminanceAnalysis lum = analyzeLuminanceAndSaturation(image);
         if (lum.isDocumentLike) {
             passNotes.add("Document surface luminance and contrast match authentic printed ID substrates.");
             score += 20.0;
         } else {
-            failNotes.add("Image visual profile indicates an artistic graphic, social media illustration, or meme rather than a physical identity card.");
+            failNotes.add(lum.diagnosticMessage);
         }
 
-        // Classify the detected image
+        // 4. Biometric Portrait Photo Detection
+        // Official Ethiopian IDs (Fayda, Kebele, Passport) require a citizen headshot photograph.
+        PortraitAnalysis portrait = analyzePortraitPresence(image);
+        if (portrait.detected) {
+            passNotes.add("Biometric portrait photo verified in " + portrait.location + " (" + portrait.description + ").");
+            score += 30.0;
+        } else {
+            failNotes.add("No citizen portrait photograph detected. Official Ethiopian IDs (Fayda / Kebele / Passport) require a visible headshot photograph.");
+        }
+
+        // 5. Official 1D Barcode Detection (Fayda FAN Barcode Standard)
+        BarcodeAnalysis barcode = detectBarcode(image);
+        boolean isFayda = "FAYDA_NATIONAL_ID".equalsIgnoreCase(idType);
+        if (barcode.detected) {
+            passNotes.add("Official Ethiopian Fayda 1D barcode verified (" + barcode.transitions + " vertical transitions across FAN barcode zone).");
+            score += 20.0;
+        } else if (isFayda) {
+            failNotes.add("Mandatory Fayda 1D barcode missing. Official Ethiopian Fayda National IDs must feature an alternating security barcode below the FAN number.");
+        }
+
+        // Classification & Document Integrity Verdict
         String detectedCategory;
-        if (barcode.detected && portrait.detected && validAspect) {
-            detectedCategory = "FAYDA_NATIONAL_ID_CARD";
-        } else if (portrait.detected && lum.isDocumentLike && validAspect) {
-            detectedCategory = isIdCard ? "OFFICIAL_ID_CARD" : "PASSPORT_BIO_PAGE";
-        } else if (!portrait.detected && !lum.isDocumentLike) {
+        boolean isValid;
+
+        if (!lum.isDocumentLike) {
             detectedCategory = "NON_DOCUMENT_GRAPHIC_OR_MEME";
+            isValid = false;
         } else if (!portrait.detected) {
             detectedCategory = "NON_DOCUMENT_OR_NO_PORTRAIT";
+            isValid = false;
+        } else if (isFayda && !barcode.detected) {
+            detectedCategory = "UNOFFICIAL_OR_MODIFIED_DOCUMENT";
+            isValid = false;
+        } else if (barcode.detected && portrait.detected && validAspect) {
+            detectedCategory = "FAYDA_NATIONAL_ID_CARD";
+            isValid = true;
+        } else if (portrait.detected && lum.isDocumentLike && validAspect) {
+            detectedCategory = isIdCard ? "OFFICIAL_ID_CARD" : "PASSPORT_BIO_PAGE";
+            isValid = (score >= 60.0);
         } else {
             detectedCategory = "ATYPICAL_DOCUMENT_SCAN";
+            isValid = false;
         }
 
-        boolean isValid = portrait.detected && lum.isDocumentLike && (score >= 60.0);
         String primaryFailure = null;
         if (!isValid) {
-            if (!portrait.detected) {
+            if (!lum.isDocumentLike) {
+                primaryFailure = lum.diagnosticMessage;
+            } else if (!portrait.detected) {
                 primaryFailure = "No citizen portrait photo detected. Official Ethiopian IDs (Fayda / Kebele / Passport) must display a clear personal headshot.";
-            } else if (!lum.isDocumentLike) {
-                primaryFailure = "Uploaded image visual characteristics match an illustration / meme or digital graphic, not a physical ID card.";
+            } else if (isFayda && !barcode.detected) {
+                primaryFailure = "Missing official Fayda 1D barcode required for national identity card authentication.";
             } else {
                 primaryFailure = "Document image failed minimum legibility or aspect ratio requirements.";
             }
@@ -250,10 +259,10 @@ public class DocumentAiInspector {
      * 3. Center passport zone (x: 25%-75%, y: 15%-85%)
      *
      * Detects both:
-     * - Color skin chrominance (standard color portrait photos)
-     * - Laser-engraved / grayscale portraits printed over national ID guilloche substrates (Fayda standard).
-     *   Laser portraits exhibit human face biometric luminance distribution:
-     *   high midtones (45%-95%), dark facial features & contours (3%-38%), and standard deviation >= 18.0.
+     * - Color skin chrominance (standard color portrait photos with human skin tones)
+     * - Laser-engraved / grayscale portraits on national ID substrate (Fayda standard).
+     *   Laser portraits must be ACHROMATIC (mean chroma <= 32, achromatic ratio >= 55%),
+     *   exhibit human face biometric luminance distribution (high midtones, dark contours, stdDev >= 18).
      */
     private PortraitAnalysis analyzePortraitPresence(BufferedImage img) {
         int w = img.getWidth();
@@ -280,17 +289,18 @@ public class DocumentAiInspector {
         return new PortraitAnalysis(false, "NONE", "No human headshot or laser portrait detected");
     }
 
-    private record ZoneMetrics(double skinDensity, double midtoneRatio, double darkRatio, double stdDev, boolean isSolidGraphic) {
+    private record ZoneMetrics(double skinDensity, double midtoneRatio, double darkRatio, double stdDev, double achromaticRatio, double meanChroma) {
         public boolean isPortrait() {
-            // Case A: High color skin chrominance
+            // Case A: High color skin chrominance (standard color ID photograph)
             if (skinDensity >= 0.05) {
                 return true;
             }
-            // Case B: Laser-engraved / grayscale biometric headshot on ID substrate
-            // Midtones (face skin) 45% - 95%, dark features (hair, eyes, collar) 3% - 38%, contrast stdDev >= 18, not a solid graphic
-            if (midtoneRatio >= 0.45 && midtoneRatio <= 0.95 &&
+            // Case B: Laser-engraved / grayscale biometric headshot on ID substrate (Fayda standard)
+            // MUST be achromatic (grayscale). Colorful graphic art (cyan, blue, purple) is strictly rejected.
+            if (achromaticRatio >= 0.55 && meanChroma <= 32.0 &&
+                midtoneRatio >= 0.45 && midtoneRatio <= 0.95 &&
                 darkRatio >= 0.03 && darkRatio <= 0.38 &&
-                stdDev >= 18.0 && !isSolidGraphic) {
+                stdDev >= 18.0) {
                 return true;
             }
             return false;
@@ -317,6 +327,8 @@ public class DocumentAiInspector {
         int skinPixels = 0;
         int midtonePixels = 0;
         int darkPixels = 0;
+        int achromaticPixels = 0;
+        long totalChroma = 0;
 
         List<Integer> luminances = new ArrayList<>();
         long sumLum = 0;
@@ -334,6 +346,15 @@ public class DocumentAiInspector {
                 sumLum += lum;
                 totalSampled++;
 
+                int max = Math.max(r, Math.max(g, b));
+                int min = Math.min(r, Math.min(g, b));
+                int chroma = max - min;
+                totalChroma += chroma;
+
+                if (chroma <= 28) {
+                    achromaticPixels++;
+                }
+
                 if (isSkinTone(r, g, b)) {
                     skinPixels++;
                 }
@@ -347,12 +368,14 @@ public class DocumentAiInspector {
         }
 
         if (totalSampled == 0) {
-            return new ZoneMetrics(0, 0, 0, 0, false);
+            return new ZoneMetrics(0, 0, 0, 0, 0, 0);
         }
 
         double skinDensity = (double) skinPixels / totalSampled;
         double midtoneRatio = (double) midtonePixels / totalSampled;
         double darkRatio = (double) darkPixels / totalSampled;
+        double achromaticRatio = (double) achromaticPixels / totalSampled;
+        double meanChroma = (double) totalChroma / totalSampled;
 
         double meanLum = (double) sumLum / totalSampled;
         double sumSqDiff = 0.0;
@@ -361,10 +384,7 @@ public class DocumentAiInspector {
         }
         double stdDev = Math.sqrt(sumSqDiff / totalSampled);
 
-        // Graphics or memes with massive solid dark glyphs (> 42% dark pixels)
-        boolean isSolidGraphic = darkRatio > 0.42;
-
-        return new ZoneMetrics(skinDensity, midtoneRatio, darkRatio, stdDev, isSolidGraphic);
+        return new ZoneMetrics(skinDensity, midtoneRatio, darkRatio, stdDev, achromaticRatio, meanChroma);
     }
 
     /**
@@ -380,7 +400,7 @@ public class DocumentAiInspector {
         return true;
     }
 
-    private record LuminanceAnalysis(boolean isDocumentLike, double averageLuminance, double blackMarginPercent) {}
+    private record LuminanceAnalysis(boolean isDocumentLike, double averageLuminance, double blackMarginPercent, double meanSaturation, double highSatPercent, String diagnosticMessage) {}
 
     private LuminanceAnalysis analyzeLuminanceAndSaturation(BufferedImage img) {
         int w = img.getWidth();
@@ -389,7 +409,10 @@ public class DocumentAiInspector {
         long sumLum = 0;
         int total = 0;
         int blackOrNearBlack = 0;
-        int step = Math.max(1, w / 60);
+        int highSatPixels = 0;
+        double sumSaturation = 0.0;
+
+        int step = Math.max(1, w / 80);
 
         for (int x = 0; x < w; x += step) {
             for (int y = 0; y < h; y += step) {
@@ -398,7 +421,6 @@ public class DocumentAiInspector {
                 int g = (rgb >> 8) & 0xFF;
                 int b = rgb & 0xFF;
 
-                // Perceived luminance
                 int lum = (int) (0.299 * r + 0.587 * g + 0.114 * b);
                 sumLum += lum;
                 total++;
@@ -406,17 +428,44 @@ public class DocumentAiInspector {
                 if (lum < 25) {
                     blackOrNearBlack++;
                 }
+
+                int max = Math.max(r, Math.max(g, b));
+                int min = Math.min(r, Math.min(g, b));
+                double sat = max > 0 ? (double) (max - min) / max : 0.0;
+                sumSaturation += sat;
+
+                if (sat > 0.40) {
+                    highSatPixels++;
+                }
             }
         }
 
-        double avgLum = total > 0 ? (double) sumLum / total : 128.0;
-        double blackRatio = total > 0 ? (double) blackOrNearBlack / total : 0.0;
+        if (total == 0) {
+            return new LuminanceAnalysis(false, 0, 0, 0, 0, "Empty image buffer");
+        }
 
-        // Physical ID documents are light plastic/paper cards (avgLum usually between 100 and 245).
-        // If > 35% of the image is pure pitch black letterboxing or average luminance < 60,
-        // it is an artificial screenshot, dark graphic meme, or letterboxed illustration.
-        boolean documentLike = (avgLum >= 65.0 && avgLum <= 250.0 && blackRatio < 0.35);
+        double avgLum = (double) sumLum / total;
+        double blackRatio = (double) blackOrNearBlack / total;
+        double meanSat = sumSaturation / total;
+        double highSatRatio = (double) highSatPixels / total;
 
-        return new LuminanceAnalysis(documentLike, avgLum, blackRatio);
+        // Physical ID documents are light plastic/paper cards (avgLum usually between 90 and 245)
+        // with very low color saturation (meanSat <= 0.28, highSatRatio <= 0.22).
+        // Non-document graphics (memes, wallpapers, artistic posters, horoscope charts)
+        // have high color saturation (meanSat > 0.30 or highSatRatio > 0.25).
+        boolean lumOk = (avgLum >= 65.0 && avgLum <= 250.0 && blackRatio < 0.35);
+        boolean satOk = (meanSat <= 0.28 && highSatRatio <= 0.22);
+
+        boolean documentLike = lumOk && satOk;
+        String diagnostic;
+        if (!satOk) {
+            diagnostic = String.format("Image visual profile shows high color saturation (%.1f%% saturated color palette), typical of digital illustrations, memes, or posters rather than a physical printed ID card.", highSatRatio * 100);
+        } else if (!lumOk) {
+            diagnostic = "Image surface luminance indicates heavy dark border letterboxing or non-document lighting.";
+        } else {
+            diagnostic = "Document surface matches authentic printed substrate.";
+        }
+
+        return new LuminanceAnalysis(documentLike, avgLum, blackRatio, meanSat, highSatRatio, diagnostic);
     }
 }
