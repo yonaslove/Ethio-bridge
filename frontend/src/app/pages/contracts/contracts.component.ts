@@ -19,6 +19,11 @@ import { ContractItem } from '../../models/models';
           <h2>{{ i18n.t('contracts.escrowTitle') }}</h2>
           <p class="subtitle">{{ i18n.translate('Legally binding service agreements secured via Telebirr, CBE Birr & national banking rails.', 'በቴሌብር፣ በሲቢኢ ብር እና በሀገር ውስጥ የባንክ አሰራር የተረጋገጠ ህጋዊ የስራ እና የክፍያ ውል።') }}</p>
         </div>
+        <div class="header-actions" *ngIf="isSeekerRole()">
+          <button type="button" class="btn btn-primary" (click)="openCreateContractModal()" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+            ➕ {{ i18n.translate('Create New Escrow Contract', 'አዲስ የዋስትና ውል ፍጠር') }}
+          </button>
+        </div>
       </div>
 
       <div *ngIf="loading" class="loading-state">{{ i18n.translate('Loading agreements...', 'ውሎችን በመጫን ላይ...') }}</div>
@@ -26,8 +31,16 @@ import { ContractItem } from '../../models/models';
       <div *ngIf="!loading && contracts.length === 0" class="empty-contracts">
         <div class="empty-icon">📜</div>
         <h3>{{ i18n.translate('No Contracts Created Yet', 'እስካሁን ምንም የተፈጠረ ውል የለም') }}</h3>
-        <p>{{ i18n.translate('When a seeker accepts an application or issues an offer, an escrow contract will appear here.', 'አሰሪው ማመልከቻ ሲቀበል ወይም የስራ ውል ሲያቀርብ፣ የዋስትና ውሉ እዚህ ይታያል።') }}</p>
-        <a routerLink="/browse" class="btn btn-primary">{{ i18n.translate('Browse Active Listings', 'ክፍት ስራዎችን ያስሱ') }}</a>
+        <p>{{ i18n.translate('Ready to start work with a candidate? Create a formal escrow contract or send an offer directly from Chat.', 'ከባለሙያው ጋር ስራ ለመጀመር ዝግጁ ነዎት? እዚህ አዲስ የዋስትና ውል ይፍጠሩ ወይም ከውይይቱ (Chat) ላይ በቀጥታ ውል ይላኩ።') }}</p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center; margin-top: 1.25rem; flex-wrap: wrap;">
+          <button *ngIf="isSeekerRole()" type="button" class="btn btn-primary" (click)="openCreateContractModal()">
+            ➕ {{ i18n.translate('Create Escrow Contract Now', 'አሁን አዲስ ውል ፍጠር') }}
+          </button>
+          <a routerLink="/messages" class="btn btn-outline">
+            💬 {{ i18n.translate('Go to Messages & Send Offer', 'ወደ ውይይት ሂድና ውል ላክ') }}
+          </a>
+          <a routerLink="/browse" class="btn btn-outline">{{ i18n.translate('Browse Active Listings', 'ክፍት ስራዎችን ያስሱ') }}</a>
+        </div>
       </div>
 
       <div *ngIf="!loading && contracts.length > 0" class="contracts-grid">
@@ -401,6 +414,72 @@ import { ContractItem } from '../../models/models';
           </div>
         </div>
       </div>
+
+      <!-- Create New Direct Contract Modal -->
+      <div *ngIf="showCreateContractModal" class="modal-backdrop">
+        <div class="modal-window" style="max-width: 540px;">
+          <div class="modal-header">
+            <h3>📜 {{ i18n.translate('Create Escrow Contract Agreement', 'የእስክሮው ስራ ውል ይፍጠሩ') }}</h3>
+            <button (click)="showCreateContractModal = false" class="btn-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-sub" style="font-size: 0.85rem; color: var(--color-slate); margin-bottom: 1rem;">
+              {{ i18n.translate('Create a legally binding milestone contract for agreed work. Funds will be deposited securely into Escrow before work begins.', 'የተስማሙበትን ስራ ህጋዊ ውል ያዘጋጁ። ስራው ከመጀመሩ በፊት ገንዘቡ በዋስትና (Escrow) ይያዛል።') }}
+            </p>
+
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">
+                {{ i18n.translate('Select Talent / Professional', 'ባለሙያውን ይምረጡ') }} *
+              </label>
+              <select [(ngModel)]="newContractForm.providerUserId" class="form-control" required>
+                <option value="" disabled>{{ i18n.translate('Choose professional...', 'ባለሙያ ይምረጡ...') }}</option>
+                <option *ngFor="let p of candidateOptions" [value]="p.userId">
+                  {{ p.name }} {{ p.verified ? '✓ (Verified)' : '' }} - {{ p.role || 'Provider' }}
+                </option>
+              </select>
+              <small *ngIf="candidateOptions.length === 0" style="color: var(--color-slate); font-size: 0.75rem;">
+                {{ i18n.translate('No chat candidates found. Start a conversation in Messages first or browse talent.', 'እስካሁን ያወያዩት ባለሙያ የለም። መጀመሪያ በመልዕክት ውይይት ይጀምሩ።') }}
+              </small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">
+                {{ i18n.translate('Contract / Job Title', 'የስራው ርዕስ') }} *
+              </label>
+              <input type="text" [(ngModel)]="newContractForm.title" class="form-control" placeholder="e.g. AI Agent System Development" required />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">
+                {{ i18n.translate('Total Project Budget (ETB)', 'አጠቃላይ ክፍያ (በብር)') }} *
+              </label>
+              <input type="number" [(ngModel)]="newContractForm.totalAmount" class="form-control" placeholder="e.g. 15000" min="100" required />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">
+                {{ i18n.translate('Initial Milestone Title', 'የመጀመሪያው ምዕራፍ ርዕስ') }}
+              </label>
+              <input type="text" [(ngModel)]="newContractForm.milestoneTitle" class="form-control" placeholder="e.g. Milestone 1: Core Architecture & Setup" />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">
+                {{ i18n.translate('Terms of Engagement & Deliverables', 'የስራው ዝርዝር እና መመሪያ') }}
+              </label>
+              <textarea [(ngModel)]="newContractForm.terms" class="form-control" rows="3" placeholder="Describe agreed deliverables, deadlines, and milestone scope..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" (click)="showCreateContractModal = false">
+              {{ i18n.translate('Cancel', 'ይቅር') }}
+            </button>
+            <button type="button" class="btn btn-primary" (click)="submitCreateContract()" [disabled]="creatingContract || !newContractForm.providerUserId || !newContractForm.title.trim() || !newContractForm.totalAmount">
+              {{ creatingContract ? i18n.translate('Creating Contract...', 'ውሉን በመፍጠር ላይ...') : i18n.translate('Create & Draft Contract 📜', 'ውል ፍጠርና አዘጋጅ 📜') }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -409,6 +488,11 @@ import { ContractItem } from '../../models/models';
     }
     .contracts-header {
       margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
     .contracts-header h2 {
       font-size: 1.85rem;
@@ -844,6 +928,17 @@ export class ContractsComponent implements OnInit {
   disputeReason = 'Incomplete Deliverable';
   disputeDetails = '';
 
+  showCreateContractModal = false;
+  creatingContract = false;
+  candidateOptions: Array<{ userId: string; name: string; verified?: boolean; role?: string }> = [];
+  newContractForm = {
+    providerUserId: '',
+    title: '',
+    totalAmount: 5000,
+    milestoneTitle: 'Milestone 1: Project Deliverables',
+    terms: 'Work to be delivered per agreed milestones. Funds held in Escrow and released upon client inspection and approval.'
+  };
+
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
@@ -855,6 +950,7 @@ export class ContractsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadContracts();
+    this.loadCandidateOptions();
 
     this.route.queryParams.subscribe(params => {
       if (params['chapa_milestone'] && params['tx_ref']) {
@@ -876,6 +972,87 @@ export class ContractsComponent implements OnInit {
             this.toastService.error('Failed to verify payment with Chapa.', 'Verification Error');
           }
         });
+      }
+    });
+  }
+
+  isSeekerRole(): boolean {
+    const u = this.authService.currentUser;
+    return u ? (u.roles?.includes('SEEKER') || (u as any).role === 'SEEKER' || !this.isProviderRole()) : true;
+  }
+
+  isProviderRole(): boolean {
+    const u = this.authService.currentUser;
+    return u ? (u.roles?.includes('PROVIDER') || (u as any).role === 'PROVIDER') : false;
+  }
+
+  openCreateContractModal(preselectedUserId?: string): void {
+    this.loadCandidateOptions();
+    this.newContractForm = {
+      providerUserId: preselectedUserId || (this.candidateOptions[0]?.userId || ''),
+      title: 'Direct Project Agreement',
+      totalAmount: 5000,
+      milestoneTitle: 'Milestone 1: Project Deliverables',
+      terms: 'Work to be delivered per agreed milestones. Funds held in Escrow and released upon client inspection and approval.'
+    };
+    this.showCreateContractModal = true;
+  }
+
+  loadCandidateOptions(): void {
+    this.apiService.getMyThreads().subscribe({
+      next: (threads) => {
+        const map = new Map<string, { userId: string; name: string; verified?: boolean; role?: string }>();
+        const currentUserId = this.authService.currentUser?.userId || (this.authService.currentUser as any)?.id;
+        if (threads && Array.isArray(threads)) {
+          threads.forEach(t => {
+            const targetId = t.participant1UserId === currentUserId ? t.participant2UserId : t.participant1UserId;
+            const targetName = t.otherUserName || 'Candidate';
+            if (targetId && !map.has(targetId)) {
+              map.set(targetId, {
+                userId: targetId,
+                name: targetName,
+                verified: t.otherUserVerified,
+                role: 'Talent Provider'
+              });
+            }
+          });
+        }
+        this.candidateOptions = Array.from(map.values());
+        if (this.candidateOptions.length > 0 && !this.newContractForm.providerUserId) {
+          this.newContractForm.providerUserId = this.candidateOptions[0].userId;
+        }
+      }
+    });
+  }
+
+  submitCreateContract(): void {
+    if (!this.newContractForm.providerUserId || !this.newContractForm.title.trim() || !this.newContractForm.totalAmount || this.creatingContract) return;
+
+    this.creatingContract = true;
+    const payload = {
+      providerUserId: this.newContractForm.providerUserId,
+      title: this.newContractForm.title.trim(),
+      totalAmount: this.newContractForm.totalAmount,
+      terms: this.newContractForm.terms,
+      milestones: [
+        {
+          title: this.newContractForm.milestoneTitle.trim() || 'Milestone 1: Project Deliverables',
+          description: this.newContractForm.terms,
+          amount: this.newContractForm.totalAmount
+        }
+      ]
+    };
+
+    this.apiService.createContract(payload).subscribe({
+      next: (created) => {
+        this.creatingContract = false;
+        this.showCreateContractModal = false;
+        this.toastService.success('Formal Escrow Contract created successfully! You can now deposit funds into Escrow via Chapa or Telebirr.', 'Contract Created');
+        this.loadContracts();
+      },
+      error: (err) => {
+        this.creatingContract = false;
+        this.toastService.error('Failed to create contract: ' + (err?.error?.message || 'Server error'));
       }
     });
   }

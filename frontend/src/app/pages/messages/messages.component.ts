@@ -372,6 +372,13 @@ import { I18nService } from '../../services/i18n.service';
       align-items: center;
       background: #fafaf9;
       flex-shrink: 0;
+      gap: 1rem;
+    }
+    .chat-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
     }
     .chat-partner {
       display: flex;
