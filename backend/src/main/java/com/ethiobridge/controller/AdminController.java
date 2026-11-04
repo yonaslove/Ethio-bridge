@@ -118,7 +118,8 @@ public class AdminController {
         AppUser admin = userService.getOrCreateCurrentUser(auth);
         String status = body.getOrDefault("status", "SETTLED");
         String resolution = body.get("adminResolution");
-        Dispute resolved = contractService.resolveDispute(admin.getId(), id, status, resolution);
+        String action = body.get("action");
+        Dispute resolved = contractService.resolveDispute(admin.getId(), id, status, resolution, action);
         return ResponseEntity.ok(resolved);
     }
 

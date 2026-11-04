@@ -97,4 +97,15 @@ public class ContractController {
         Dispute dispute = contractService.raiseDispute(user.getId(), contractId, reason, details);
         return ResponseEntity.ok(dispute);
     }
+
+    @PostMapping("/{contractId}/milestones/{milestoneId}/refund")
+    public ResponseEntity<ContractMilestone> refundMilestone(@PathVariable UUID contractId,
+                                                             @PathVariable UUID milestoneId,
+                                                             @RequestBody(required = false) Map<String, String> body,
+                                                             Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        String reason = body != null ? body.get("reason") : "Direct milestone refund initiated";
+        ContractMilestone milestone = contractService.refundMilestoneEscrow(contractId, milestoneId, user.getId(), reason);
+        return ResponseEntity.ok(milestone);
+    }
 }

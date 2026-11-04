@@ -1,0 +1,55 @@
+# Production Docker Profile Configuration for EthioBridge Backend
+server:
+  port: 8080
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/ethiobridge}
+    username: ${SPRING_DATASOURCE_USERNAME:ethiobridge}
+    password: ${SPRING_DATASOURCE_PASSWORD:ethiobridge_password_123}
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+app:
+  security:
+    demo-auth:
+      enabled: ${APP_SECURITY_DEMO_AUTH_ENABLED:false}
+    file-signing-secret: ${FILE_SIGNING_SECRET:ethiobridge-prod-kyc-document-signing-secret-key-2026}
+  frontend:
+    url: ${APP_FRONTEND_URL:http://localhost:4200}
+  backend:
+    public-url: ${APP_BACKEND_PUBLIC_URL:http://localhost:8080}
+
+chapa:
+  secret:
+    key: ${CHAPA_SECRET_KEY:}
+  webhook:
+    secret: ${CHAPA_WEBHOOK_SECRET:}
+  callback:
+    url: ${CHAPA_CALLBACK_URL:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      roles: ADMIN
+
+springdoc:
+  api-docs:
+    enabled: ${ENABLE_SWAGGER:false}
+  swagger-ui:
+    enabled: ${ENABLE_SWAGGER:false}

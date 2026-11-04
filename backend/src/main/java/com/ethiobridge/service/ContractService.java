@@ -322,6 +322,56 @@ public class ContractService {
         return milestone;
     }
 
+    public ContractMilestone refundMilestoneEscrow(UUID contractId, UUID milestoneId, UUID actorUserId, String reason) {
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found"));
+        ContractMilestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Milestone not found"));
+
+        if (!milestone.getContractId().equals(contractId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone does not belong to specified contract");
+        }
+
+        if (!"FUNDED".equalsIgnoreCase(milestone.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot refund milestone in '" + milestone.getStatus() + "' status. Only FUNDED milestones can be refunded.");
+        }
+
+        milestone.setStatus("REFUNDED");
+        milestone = milestoneRepository.save(milestone);
+
+        if (escrowLedgerService != null) {
+            escrowLedgerService.recordMilestoneRefund(
+                    contractId,
+                    milestoneId,
+                    contract.getSeekerUserId(),
+                    contract.getProviderUserId(),
+                    milestone.getAmount(),
+                    reason
+            );
+        }
+
+        auditLogService.log(actorUserId, "REFUND_MILESTONE", "ContractMilestone", milestone.getId().toString(),
+                "Refunded " + milestone.getAmount() + " ETB on contract " + contractId + ". Reason: " + reason, null);
+
+        notificationService.sendNotification(
+                contract.getSeekerUserId(),
+                "Escrow Refund Processed (" + milestone.getAmount() + " ETB)",
+                "Funds for milestone \"" + milestone.getTitle() + "\" have been refunded to your account.",
+                "CONTRACT",
+                "/contracts"
+        );
+        notificationService.sendNotification(
+                contract.getProviderUserId(),
+                "Milestone Escrow Refunded",
+                "Escrow deposit for milestone \"" + milestone.getTitle() + "\" (" + milestone.getAmount() + " ETB) has been returned to seeker.",
+                "CONTRACT",
+                "/contracts"
+        );
+
+        return milestone;
+    }
+
     public Dispute raiseDispute(UUID actorUserId, UUID contractId, String reason, String details) {
         Contract contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found"));
@@ -357,6 +407,10 @@ public class ContractService {
     }
 
     public Dispute resolveDispute(UUID adminUserId, UUID disputeId, String status, String adminResolution) {
+        return resolveDispute(adminUserId, disputeId, status, adminResolution, null);
+    }
+
+    public Dispute resolveDispute(UUID adminUserId, UUID disputeId, String status, String adminResolution, String resolutionAction) {
         Dispute dispute = disputeRepository.findById(disputeId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispute not found"));
 
@@ -368,12 +422,31 @@ public class ContractService {
 
         Contract contract = contractRepository.findById(dispute.getContractId()).orElse(null);
         if (contract != null) {
-            contract.setStatus("RESOLVED".equals(status) || "SETTLED".equals(status) ? "COMPLETED" : "ACTIVE");
+            List<ContractMilestone> milestones = milestoneRepository.findByContractIdOrderByCreatedAtAsc(contract.getId());
+
+            if ("REFUND_SEEKER".equalsIgnoreCase(resolutionAction) || "REFUND".equalsIgnoreCase(resolutionAction)) {
+                for (ContractMilestone m : milestones) {
+                    if ("FUNDED".equalsIgnoreCase(m.getStatus())) {
+                        refundMilestoneEscrow(contract.getId(), m.getId(), adminUserId,
+                                "Dispute resolved in favor of Seeker: " + adminResolution);
+                    }
+                }
+                contract.setStatus("RESOLVED_REFUNDED");
+            } else if ("RELEASE_PROVIDER".equalsIgnoreCase(resolutionAction) || "PAY_PROVIDER".equalsIgnoreCase(resolutionAction)) {
+                for (ContractMilestone m : milestones) {
+                    if ("FUNDED".equalsIgnoreCase(m.getStatus())) {
+                        releaseMilestone(contract.getSeekerUserId(), m.getId());
+                    }
+                }
+                contract.setStatus("RESOLVED_RELEASED");
+            } else {
+                contract.setStatus("RESOLVED".equals(status) || "SETTLED".equals(status) ? "COMPLETED" : "ACTIVE");
+            }
             contractRepository.save(contract);
         }
 
         auditLogService.log(adminUserId, "RESOLVE_DISPUTE", "Dispute", dispute.getId().toString(),
-                "Resolution: " + adminResolution + ", Status: " + status, null);
+                "Resolution: " + adminResolution + ", Status: " + status + (resolutionAction != null ? ", Action: " + resolutionAction : ""), null);
 
         return dispute;
     }

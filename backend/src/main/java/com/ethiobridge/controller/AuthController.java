@@ -10,8 +10,12 @@ import com.ethiobridge.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -37,8 +41,72 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponseDto> refreshToken(@RequestBody Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "refreshToken is required");
+        }
+        AuthResponseDto resp = authService.refreshToken(refreshToken);
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody Map<String, String> body) {
+        String identifier = body.get("identifier");
+        if (identifier == null || identifier.isBlank()) {
+            identifier = body.get("email");
+        }
+        authService.sendPasswordReset(identifier);
+        return ResponseEntity.ok(Map.of("message", "If an account matches that identifier, password reset instructions have been sent."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        authService.resetPassword(token, newPassword);
+        return ResponseEntity.ok(Map.of("message", "Password has been successfully reset. Please log in with your new password."));
+    }
+
+    @PostMapping("/send-phone-otp")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> sendPhoneOtp(@RequestBody Map<String, String> body, Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        String phone = body.get("phoneNumber");
+        if (phone == null || phone.isBlank()) {
+            phone = user.getPhoneNumber();
+        }
+        String masked = authService.sendPhoneVerification(user.getId(), phone);
+        return ResponseEntity.ok(Map.of("message", "Verification OTP sent to " + masked));
+    }
+
+    @PostMapping("/verify-phone-otp")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> verifyPhoneOtp(@RequestBody Map<String, String> body, Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        String phone = body.get("phoneNumber");
+        if (phone == null || phone.isBlank()) {
+            phone = user.getPhoneNumber();
+        }
+        String code = body.get("code");
+        boolean ok = authService.verifyPhoneCode(user.getId(), phone, code);
+        if (!ok) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired OTP code");
+        }
+        return ResponseEntity.ok(Map.of("verified", true, "message", "Phone number verified successfully"));
+    }
+
+    @DeleteMapping("/account")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> deleteAccount(Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        authService.deleteAccount(user.getId());
+        return ResponseEntity.ok(Map.of("message", "Account successfully deactivated and personal data anonymized"));
+    }
+
     @PostMapping("/logout")
-    public ResponseEntity<java.util.Map<String, String>> logout(
+    public ResponseEntity<Map<String, String>> logout(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             jakarta.servlet.http.HttpServletRequest request,
             Authentication authentication) {
@@ -52,7 +120,7 @@ public class AuthController {
         if (token != null) {
             authService.logout(token);
         }
-        return ResponseEntity.ok(java.util.Map.of("message", "Logged out successfully"));
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
     @GetMapping("/me")

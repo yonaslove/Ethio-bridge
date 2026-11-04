@@ -124,6 +124,34 @@ public class EscrowLedgerService {
         return savedPayout;
     }
 
+    public EscrowLedgerEntry recordMilestoneRefund(UUID contractId, UUID milestoneId, UUID seekerUserId,
+                                                  UUID providerUserId, BigDecimal amount, String reason) {
+        String refundRef = "REFUND-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+
+        EscrowLedgerEntry refundEntry = new EscrowLedgerEntry(
+                contractId,
+                milestoneId,
+                refundRef,
+                "REFUND_SEEKER",
+                "ESCROW_HOLD_VAULT",
+                "SEEKER_REFUND_ACCOUNT",
+                amount,
+                seekerUserId,
+                providerUserId,
+                BigDecimal.ZERO,
+                "Milestone escrow deposit refunded to seeker: " + amount + " ETB. Reason: " + (reason != null ? reason : "Mediation settlement / dispute resolution")
+        );
+        EscrowLedgerEntry saved = ledgerRepository.save(refundEntry);
+        String entryIdStr = (saved != null && saved.getId() != null) ? saved.getId().toString() : refundRef;
+        if (auditLogService != null) {
+            auditLogService.log(seekerUserId, "ESCROW_REFUND", "EscrowLedgerEntry",
+                    entryIdStr, "Amount refunded: " + amount + " ETB, Reason: " + reason, null);
+        }
+        log.info("Recorded Escrow REFUND_SEEKER: contract={}, milestone={}, amount={} ETB, ref={}",
+                contractId, milestoneId, amount, refundRef);
+        return saved != null ? saved : refundEntry;
+    }
+
     public EscrowReconciliationRecord reconcileEscrow() {
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime start = now.minusDays(30);

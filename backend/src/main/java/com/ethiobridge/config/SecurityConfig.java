@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -54,6 +55,13 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(headers -> headers
+                .contentTypeOptions(contentType -> {})
+                .frameOptions(frame -> frame.deny())
+                .xssProtection(xss -> {})
+                .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                .permissionsPolicy(permissions -> permissions.policy("geolocation=(), camera=(), microphone=()"))
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/v1/health",
@@ -64,13 +72,13 @@ public class SecurityConfig {
                     "/api/v1/swagger-ui.html",
                     "/actuator/health",
                     "/actuator/health/**",
-                    "/api/v1/payments/chapa/webhook"
+                    "/api/v1/payments/chapa/webhook",
+                    "/api/v1/files/signed/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/listings/my").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/listings", "/api/v1/listings/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/providers", "/api/v1/providers/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/skills", "/api/v1/categories", "/api/v1/locations").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/files/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/payments/methods").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

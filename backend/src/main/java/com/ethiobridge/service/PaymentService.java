@@ -49,6 +49,12 @@ public class PaymentService {
     @Value("${CHAPA_WEBHOOK_SECRET:}")
     private String chapaWebhookSecret;
 
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl;
+
+    @Value("${chapa.callback.url:${app.backend.public-url:http://localhost:8080}/api/v1/payments/chapa/webhook}")
+    private String chapaCallbackUrl;
+
     @org.springframework.beans.factory.annotation.Autowired
     public PaymentService(PaymentTransactionRepository paymentRepository,
                           AuditLogService auditLogService,
@@ -139,20 +145,23 @@ public class PaymentService {
         String firstName = nameParts[0];
         String lastName = nameParts.length > 1 ? nameParts[1] : "Client";
 
+        String baseUrl = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl.replaceAll("/+$", "") : "http://localhost:4200";
+        String callback = (chapaCallbackUrl != null && !chapaCallbackUrl.isBlank()) ? chapaCallbackUrl : "http://localhost:8080/api/v1/payments/chapa/webhook";
+
         String returnUrl;
         String title;
         String desc;
 
         if (purpose != null && purpose.startsWith("CONNECTS_TOPUP")) {
-            returnUrl = "http://localhost:4200/profile/provider?chapa_connects=1&tx_ref=" + ref;
+            returnUrl = baseUrl + "/profile/provider?chapa_connects=1&tx_ref=" + ref;
             title = "EB Connects";
             desc = "Token purchase for job applications";
         } else if (milestoneId != null) {
-            returnUrl = "http://localhost:4200/contracts?chapa_milestone=1&tx_ref=" + ref + "&milestone_id=" + milestoneId;
+            returnUrl = baseUrl + "/contracts?chapa_milestone=1&tx_ref=" + ref + "&milestone_id=" + milestoneId;
             title = "EB Escrow";
             desc = "Milestone escrow protection deposit";
         } else {
-            returnUrl = "http://localhost:4200/contracts?chapa_payment=1&tx_ref=" + ref;
+            returnUrl = baseUrl + "/contracts?chapa_payment=1&tx_ref=" + ref;
             title = "EthioBridge";
             desc = "Service payment";
         }
@@ -180,7 +189,7 @@ public class PaymentService {
                 payloadMap.put("first_name", firstName);
                 payloadMap.put("last_name", lastName);
                 payloadMap.put("tx_ref", ref);
-                payloadMap.put("callback_url", "http://backend:8080/api/v1/payments/chapa/webhook");
+                payloadMap.put("callback_url", callback);
                 payloadMap.put("return_url", returnUrl);
 
                 Map<String, String> customization = new HashMap<>();

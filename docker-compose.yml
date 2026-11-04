@@ -84,6 +84,12 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
       CHAPA_SECRET_KEY: ${CHAPA_SECRET_KEY:-}
       CHAPA_WEBHOOK_SECRET: ${CHAPA_WEBHOOK_SECRET:-}
+      APP_FRONTEND_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:4200}
+      APP_BACKEND_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8080}
+      CHAPA_CALLBACK_URL: ${CHAPA_CALLBACK_URL:-}
+      FILE_SIGNING_SECRET: ${FILE_SIGNING_SECRET:-ethiobridge-kyc-storage-secret-key-2026-auth}
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "8080:8080"
     healthcheck:
@@ -113,3 +119,4 @@ services:
 
 volumes:
   pgdata:
+  uploads_data:
