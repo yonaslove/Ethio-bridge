@@ -113,7 +113,7 @@ public class ChapaPaymentTest {
     }
 
     @Test
-    @DisplayName("Chapa Payment: initiatePayment produces CHP- prefix, SUCCESS status and Chapa audit log")
+    @DisplayName("Chapa Payment: initiatePayment produces CHP- prefix, HELD_IN_ESCROW status and Chapa audit log")
     void testChapaPaymentInitiation() {
         BigDecimal amount = new BigDecimal("4500.00");
 
@@ -121,11 +121,11 @@ public class ChapaPaymentTest {
 
         assertNotNull(tx);
         assertEquals("CHAPA", tx.getPaymentMethod());
-        assertEquals("SUCCESS", tx.getStatus());
+        assertEquals("HELD_IN_ESCROW", tx.getStatus());
         assertEquals(amount, tx.getAmount());
         assertEquals("ETB", tx.getCurrency());
         assertTrue(tx.getTransactionRef().startsWith("CHP-"), "Transaction reference must begin with CHP- prefix");
-        assertTrue(tx.getProviderResponse().contains("Chapa"), "Provider response must reference Chapa gateway");
+        assertTrue(tx.getProviderResponse().contains("CHAPA"), "Provider response must reference Chapa rail");
 
         verify(paymentRepository, times(1)).save(tx);
         verify(auditLogService, times(1)).log(

@@ -23,6 +23,28 @@ public class ContractService {
     private final AuditLogService auditLogService;
     private final AppUserRepository userRepository;
     private final MonetizationService monetizationService;
+    private final EscrowLedgerService escrowLedgerService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ContractService(ContractRepository contractRepository,
+                           ContractMilestoneRepository milestoneRepository,
+                           PaymentService paymentService,
+                           DisputeRepository disputeRepository,
+                           NotificationService notificationService,
+                           AuditLogService auditLogService,
+                           AppUserRepository userRepository,
+                           MonetizationService monetizationService,
+                           EscrowLedgerService escrowLedgerService) {
+        this.contractRepository = contractRepository;
+        this.milestoneRepository = milestoneRepository;
+        this.paymentService = paymentService;
+        this.disputeRepository = disputeRepository;
+        this.notificationService = notificationService;
+        this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
+        this.monetizationService = monetizationService;
+        this.escrowLedgerService = escrowLedgerService;
+    }
 
     public ContractService(ContractRepository contractRepository,
                            ContractMilestoneRepository milestoneRepository,
@@ -32,14 +54,8 @@ public class ContractService {
                            AuditLogService auditLogService,
                            AppUserRepository userRepository,
                            MonetizationService monetizationService) {
-        this.contractRepository = contractRepository;
-        this.milestoneRepository = milestoneRepository;
-        this.paymentService = paymentService;
-        this.disputeRepository = disputeRepository;
-        this.notificationService = notificationService;
-        this.auditLogService = auditLogService;
-        this.userRepository = userRepository;
-        this.monetizationService = monetizationService;
+        this(contractRepository, milestoneRepository, paymentService, disputeRepository,
+             notificationService, auditLogService, userRepository, monetizationService, null);
     }
 
     public Contract createContract(UUID seekerUserId, UUID listingId, UUID applicationId, UUID providerUserId,
@@ -125,11 +141,23 @@ public class ContractService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone is already funded or released");
         }
 
-        paymentService.initiatePayment(contract.getId(), milestone.getId(), actorUserId, milestone.getAmount(), paymentMethod);
+        PaymentTransaction tx = paymentService.initiatePayment(contract.getId(), milestone.getId(), actorUserId, milestone.getAmount(), paymentMethod);
 
         milestone.setStatus("FUNDED");
         milestone.setFundedAt(OffsetDateTime.now());
         milestone = milestoneRepository.save(milestone);
+
+        if (escrowLedgerService != null) {
+            escrowLedgerService.recordDepositHold(
+                    contract.getId(),
+                    milestone.getId(),
+                    contract.getSeekerUserId(),
+                    contract.getProviderUserId(),
+                    milestone.getAmount(),
+                    tx.getTransactionRef(),
+                    paymentMethod
+            );
+        }
 
         notificationService.sendNotification(
                 contract.getProviderUserId(),
@@ -239,6 +267,28 @@ public class ContractService {
 
         milestone = milestoneRepository.save(milestone);
 
+        // Fetch provider user for payout destination
+        AppUser provider = userRepository.findById(contract.getProviderUserId()).orElse(null);
+        String payoutAccount = (provider != null && provider.getPhoneNumber() != null) ? provider.getPhoneNumber() : "TELEBIRR_REGISTERED_PHONE";
+
+        String payoutRef = "PAYOUT-ESC-" + System.currentTimeMillis();
+        if (escrowLedgerService != null) {
+            ProviderPayout payout = escrowLedgerService.recordReleasePayout(
+                    contract.getId(),
+                    milestone.getId(),
+                    contract.getSeekerUserId(),
+                    contract.getProviderUserId(),
+                    milestone.getAmount(),
+                    feeAmount,
+                    netPayout,
+                    "TELEBIRR",
+                    payoutAccount
+            );
+            if (payout != null && payout.getPayoutReference() != null) {
+                payoutRef = payout.getPayoutReference();
+            }
+        }
+
         // Record platform commission in revenue ledger
         monetizationService.recordEscrowCommission(
                 milestone.getId(),
@@ -246,7 +296,7 @@ public class ContractService {
                 milestone.getAmount(),
                 feeAmount,
                 netPayout,
-                "10% Escrow platform service fee on \"" + contract.getTitle() + "\" (" + milestone.getTitle() + ")"
+                "10% Escrow platform service fee on \"" + contract.getTitle() + "\" (" + milestone.getTitle() + ") [Disbursement Ref: " + payoutRef + "]"
         );
 
         // Check if all milestones released, mark contract completed

@@ -1,7 +1,8 @@
 package com.ethiobridge.controller;
 
-import com.ethiobridge.entity.AppUser;
-import com.ethiobridge.entity.PaymentTransaction;
+import com.ethiobridge.entity.*;
+import com.ethiobridge.service.ContractService;
+import com.ethiobridge.service.EscrowLedgerService;
 import com.ethiobridge.service.PaymentService;
 import com.ethiobridge.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -19,12 +20,17 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final UserService userService;
-    private final com.ethiobridge.service.ContractService contractService;
+    private final ContractService contractService;
+    private final EscrowLedgerService escrowLedgerService;
 
-    public PaymentController(PaymentService paymentService, UserService userService, com.ethiobridge.service.ContractService contractService) {
+    public PaymentController(PaymentService paymentService,
+                             UserService userService,
+                             ContractService contractService,
+                             EscrowLedgerService escrowLedgerService) {
         this.paymentService = paymentService;
         this.userService = userService;
         this.contractService = contractService;
+        this.escrowLedgerService = escrowLedgerService;
     }
 
     @GetMapping("/methods")
@@ -35,7 +41,7 @@ public class PaymentController {
                         "name", "Chapa Payment Gateway",
                         "description", "Cards (Visa/Mastercard), Awash, Dashen, Bank Transfer, Telebirr via Chapa",
                         "type", "AGGREGATOR",
-                        "mode", "SANDBOX_SIMULATED",
+                        "mode", "CHAPA_LIVE_SANDBOX",
                         "supportedCurrencies", List.of("ETB", "USD"),
                         "active", true
                 ),
@@ -44,7 +50,7 @@ public class PaymentController {
                         "name", "Telebirr (ቴሌብር)",
                         "description", "Ethio telecom instant USSD & SuperApp QR",
                         "type", "MOBILE_MONEY",
-                        "mode", "SANDBOX_SIMULATED",
+                        "mode", "ESCROW_VAULT_SETTLED",
                         "supportedCurrencies", List.of("ETB"),
                         "active", true
                 ),
@@ -53,7 +59,7 @@ public class PaymentController {
                         "name", "CBE Birr (የኢትዮጵያ ንግድ ባንክ)",
                         "description", "Commercial Bank of Ethiopia direct mobile banking",
                         "type", "BANK_DIRECT",
-                        "mode", "SANDBOX_SIMULATED",
+                        "mode", "ESCROW_VAULT_SETTLED",
                         "supportedCurrencies", List.of("ETB"),
                         "active", true
                 )
@@ -78,9 +84,33 @@ public class PaymentController {
         return ResponseEntity.ok(resp);
     }
 
+    /**
+     * Chapa Webhook Endpoint: Asynchronous, cryptographically signed payment notification handler.
+     * Verifies HMAC-SHA256 signature against CHAPA_WEBHOOK_SECRET and enforces idempotency.
+     */
+    @PostMapping("/chapa/webhook")
+    public ResponseEntity<Map<String, Object>> handleChapaWebhook(
+            @RequestBody String rawPayload,
+            @RequestHeader(value = "Chapa-Signature", required = false) String chapaSig,
+            @RequestHeader(value = "x-chapa-signature", required = false) String xChapaSig,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        String signature = (chapaSig != null && !chapaSig.isBlank()) ? chapaSig : xChapaSig;
+        Map<String, Object> result = paymentService.processChapaWebhook(rawPayload, signature, idempotencyKey);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Authenticated verification check for returned checkouts.
+     * Enforces caller ownership check, state validation, and queries genuine Chapa Gateway API.
+     */
     @GetMapping("/chapa/verify/{txRef}")
-    public ResponseEntity<Map<String, Object>> verifyChapaTransaction(@PathVariable String txRef) {
-        Map<String, Object> result = paymentService.verifyChapaPayment(txRef);
+    public ResponseEntity<Map<String, Object>> verifyChapaTransaction(
+            @PathVariable String txRef,
+            Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        Map<String, Object> result = paymentService.verifyChapaPayment(txRef, user.getId(), isAdmin);
         if ("NOT_FOUND".equals(result.get("status"))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction reference not found: " + txRef);
         }
@@ -90,5 +120,26 @@ public class PaymentController {
     @GetMapping("/contracts/{contractId}")
     public ResponseEntity<List<PaymentTransaction>> getContractTransactions(@PathVariable UUID contractId) {
         return ResponseEntity.ok(paymentService.getTransactionsByContract(contractId));
+    }
+
+    @GetMapping("/escrow/ledger/{contractId}")
+    public ResponseEntity<List<EscrowLedgerEntry>> getContractEscrowLedger(@PathVariable UUID contractId) {
+        return ResponseEntity.ok(escrowLedgerService.getContractLedger(contractId));
+    }
+
+    @GetMapping("/escrow/payouts/me")
+    public ResponseEntity<List<ProviderPayout>> getMyProviderPayouts(Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        return ResponseEntity.ok(escrowLedgerService.getProviderPayouts(user.getId()));
+    }
+
+    @PostMapping("/escrow/reconciliation")
+    public ResponseEntity<EscrowReconciliationRecord> runEscrowReconciliation() {
+        return ResponseEntity.ok(escrowLedgerService.reconcileEscrow());
+    }
+
+    @GetMapping("/escrow/reconciliation")
+    public ResponseEntity<List<EscrowReconciliationRecord>> getReconciliationHistory() {
+        return ResponseEntity.ok(escrowLedgerService.getReconciliationHistory());
     }
 }

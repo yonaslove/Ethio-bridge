@@ -63,7 +63,8 @@ public class SecurityConfig {
                     "/api/v1/swagger-ui/**",
                     "/api/v1/swagger-ui.html",
                     "/actuator/health",
-                    "/actuator/health/**"
+                    "/actuator/health/**",
+                    "/api/v1/payments/chapa/webhook"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/listings/my").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/listings", "/api/v1/listings/**").permitAll()
