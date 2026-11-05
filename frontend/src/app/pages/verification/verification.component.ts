@@ -93,8 +93,19 @@ import { I18nService } from '../../services/i18n.service';
                      class="form-control phone-input"
                      placeholder="911 234 567"
                      required />
+              <button type="button" class="btn btn-secondary btn-sm" (click)="sendPhoneOtp()" [disabled]="otpSending || !phoneNumber || phoneVerified">
+                {{ phoneVerified ? '✓ Verified' : (otpSending ? 'Sending...' : 'Send OTP') }}
+              </button>
             </div>
-            <small class="hint">{{ i18n.translate('Must be an active Ethiopian number (09... or 07...) registered to your name.', 'በስምዎ የተመዘገበ ንቁ የኢትዮ ቴሌኮም ወይም የሳፋሪኮም ስልክ ቁጥር መሆን አለበት።') }}</small>
+            <div *ngIf="otpSent && !phoneVerified" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" [(ngModel)]="otpCode" name="otpCode" placeholder="Enter 6-digit OTP" class="form-control" style="max-width: 180px;" />
+              <button type="button" class="btn btn-primary btn-sm" (click)="verifyPhoneOtp()" [disabled]="!otpCode || otpVerifying">
+                {{ otpVerifying ? 'Verifying...' : 'Confirm OTP' }}
+              </button>
+            </div>
+            <small class="hint" *ngIf="otpSuccess" style="color: #059669; font-weight: 600;">{{ otpSuccess }}</small>
+            <small class="hint error-hint" *ngIf="otpError">{{ otpError }}</small>
+            <small class="hint" *ngIf="!otpSuccess && !otpError">{{ i18n.translate('Must be an active Ethiopian number (09... or 07...) registered to your name.', 'በስምዎ የተመዘገበ ንቁ የኢትዮ ቴሌኮም ወይም የሳፋሪኮም ስልክ ቁጥር መሆን አለበት።') }}</small>
           </div>
 
           <!-- Document Upload Field -->
@@ -546,10 +557,57 @@ export class VerificationComponent implements OnInit {
   submitError = '';
   viewFullDoc = false;
 
+  // Phone OTP state
+  phoneVerified = false;
+  otpSending = false;
+  otpSent = false;
+  otpVerifying = false;
+  otpCode = '';
+  otpSuccess = '';
+  otpError = '';
+
   constructor(
     private apiService: ApiService,
+    private authService: AuthService,
     public i18n: I18nService
   ) {}
+
+  sendPhoneOtp(): void {
+    if (!this.phoneNumber) return;
+    this.otpSending = true;
+    this.otpError = '';
+    this.otpSuccess = '';
+    const fullPhone = '+251' + this.phoneNumber.replace(/^0+/, '');
+    this.authService.sendPhoneOtp(fullPhone).subscribe({
+      next: (res) => {
+        this.otpSending = false;
+        this.otpSent = true;
+        this.otpSuccess = res.message || 'OTP code sent via SMS.';
+      },
+      error: (err) => {
+        this.otpSending = false;
+        this.otpError = err?.error?.message || 'Failed to send phone OTP.';
+      }
+    });
+  }
+
+  verifyPhoneOtp(): void {
+    if (!this.otpCode) return;
+    this.otpVerifying = true;
+    this.otpError = '';
+    const fullPhone = '+251' + this.phoneNumber.replace(/^0+/, '');
+    this.authService.verifyPhoneOtp(this.otpCode.trim(), fullPhone).subscribe({
+      next: (res) => {
+        this.otpVerifying = false;
+        this.phoneVerified = true;
+        this.otpSuccess = 'Phone verified successfully! ✓';
+      },
+      error: (err) => {
+        this.otpVerifying = false;
+        this.otpError = err?.error?.message || 'Invalid or expired OTP code.';
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.apiService.getVerificationStatus().subscribe({

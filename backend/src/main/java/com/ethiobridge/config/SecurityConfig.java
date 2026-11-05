@@ -76,8 +76,11 @@ public class SecurityConfig {
                     "/api/v1/files/signed/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/listings/my").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/v1/listings", "/api/v1/listings/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/providers", "/api/v1/providers/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/listings").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/listings/{id:[a-f0-9\\-]+}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/listings/{id:[a-f0-9\\-]+}/reviews").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/providers").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/providers/{id:[a-f0-9\\-]+}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/skills", "/api/v1/categories", "/api/v1/locations").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/payments/methods").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")

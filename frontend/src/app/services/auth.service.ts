@@ -104,6 +104,9 @@ export class AuthService {
 
     localStorage.setItem('ethiobridge_token', token);
     localStorage.setItem('ethiobridge_user', JSON.stringify(user));
+    if ((res as any).refreshToken) {
+      localStorage.setItem('ethiobridge_refresh_token', (res as any).refreshToken);
+    }
   }
 
   private clearSession(): void {
@@ -111,6 +114,30 @@ export class AuthService {
     this.currentUserSubject.next(null);
     localStorage.removeItem('ethiobridge_token');
     localStorage.removeItem('ethiobridge_user');
+    localStorage.removeItem('ethiobridge_refresh_token');
+  }
+
+  public forgotPassword(identifier: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/forgot-password`, { identifier });
+  }
+
+  public resetPassword(token: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/reset-password`, { token, newPassword });
+  }
+
+  public sendPhoneOtp(phoneNumber?: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/send-phone-otp`, { phoneNumber }, { headers: this.getAuthHeaders() });
+  }
+
+  public verifyPhoneOtp(code: string, phoneNumber?: string): Observable<{ verified: boolean; message: string }> {
+    return this.http.post<{ verified: boolean; message: string }>(`${this.apiBaseUrl}/auth/verify-phone-otp`, { code, phoneNumber }, { headers: this.getAuthHeaders() });
+  }
+
+  public refreshToken(): Observable<AuthResponse> {
+    const rf = localStorage.getItem('ethiobridge_refresh_token');
+    return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/refresh`, { refreshToken: rf }).pipe(
+      tap(res => this.persistSession(res))
+    );
   }
 
   public isSeeker(): boolean {

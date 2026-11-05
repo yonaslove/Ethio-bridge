@@ -117,9 +117,28 @@ import { Listing, MatchRunResponse, CandidateMatchResult } from '../../models/mo
             <div class="cand-bio-snippet" *ngIf="cand.bio">
               "{{ cand.bio | slice:0:130 }}..."
             </div>
-            <a [routerLink]="['/providers', cand.providerProfileId]" class="btn btn-secondary btn-sm">
-              View Full Profile
-            </a>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <a [routerLink]="['/providers', cand.providerProfileId]" class="btn btn-secondary btn-sm">
+                View Profile
+              </a>
+              <button
+                type="button"
+                class="btn btn-outline btn-sm"
+                (click)="giveFeedback(cand, 'THUMBS_UP')"
+                [disabled]="feedbackMap[cand.providerProfileId]">
+                {{ feedbackMap[cand.providerProfileId] === 'THUMBS_UP' ? '✓ Good Fit' : '👍 Good Fit' }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline btn-sm"
+                (click)="giveFeedback(cand, 'DISMISS')"
+                [disabled]="feedbackMap[cand.providerProfileId]">
+                {{ feedbackMap[cand.providerProfileId] === 'DISMISS' ? '✕ Dismissed' : '👎 Dismiss' }}
+              </button>
+              <a [routerLink]="['/messages']" [queryParams]="{ providerId: cand.providerProfileId }" class="btn btn-primary btn-sm">
+                💬 Message
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -340,11 +359,26 @@ export class CandidatesViewComponent implements OnInit {
   selectedMethod: 'ai' | 'keyword' = 'ai';
   matchResponse?: MatchRunResponse;
   loading = false;
+  feedbackMap: { [providerId: string]: string } = {};
 
   constructor(
     private route: ActivatedRoute,
     private apiService: ApiService
   ) {}
+
+  giveFeedback(cand: CandidateMatchResult, action: string): void {
+    this.feedbackMap[cand.providerProfileId] = action;
+    this.apiService.recordMatchFeedback(
+      this.listingId,
+      cand.providerProfileId,
+      action,
+      cand.score,
+      cand.rank
+    ).subscribe({
+      next: () => {},
+      error: () => {}
+    });
+  }
 
   ngOnInit(): void {
     this.listingId = this.route.snapshot.paramMap.get('id') || '';

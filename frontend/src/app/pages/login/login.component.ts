@@ -64,11 +64,78 @@ import { I18nService } from '../../services/i18n.service';
             />
           </div>
 
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 1.25rem;">
+            <button type="button" (click)="toggleForgotModal(true)" class="link-cyan" style="background: none; border: none; cursor: pointer; font-size: 0.825rem;">
+              {{ i18n.translate('Forgot password?', 'የይለፍ ቃል ረሱ?') }}
+            </button>
+          </div>
+
           <button type="submit" class="btn btn-primary btn-block btn-lg" [disabled]="loading || !emailOrUsername || !password">
             <span *ngIf="!loading">{{ i18n.translate('Sign In', 'ይግቡ') }}</span>
             <span *ngIf="loading" class="spinner-text">{{ i18n.translate('Authenticating...', 'በማረጋገጥ ላይ...') }}</span>
           </button>
         </form>
+
+        <!-- Forgot / Reset Password Modal -->
+        <div *ngIf="showForgotModal" class="modal-overlay" (click)="toggleForgotModal(false)">
+          <div class="modal-card" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h2 class="modal-title">{{ i18n.translate('Password Recovery', 'የይለፍ ቃል ማግኛ') }}</h2>
+              <button (click)="toggleForgotModal(false)" class="close-btn">&times;</button>
+            </div>
+            
+            <div *ngIf="forgotSuccess" class="auth-success" style="margin-bottom: 1rem;">
+              {{ forgotSuccess }}
+            </div>
+            <div *ngIf="forgotError" class="auth-error" style="margin-bottom: 1rem;">
+              {{ forgotError }}
+            </div>
+
+            <div *ngIf="forgotStep === 'REQUEST'">
+              <p style="font-size: 0.85rem; color: var(--color-slate); margin-bottom: 1rem;">
+                {{ i18n.translate('Enter your registered email address or username to receive a secure recovery code.', 'የይለፍ ቃልዎን ለመቀየር የተመዘገቡበትን ኢሜይል ወይም የተጠቃሚ ስም ያስገቡ።') }}
+              </p>
+              <div class="form-group">
+                <input
+                  type="text"
+                  [(ngModel)]="forgotEmail"
+                  [placeholder]="i18n.translate('Registered email or username', 'የተመዘገበ ኢሜይል ወይም የተጠቃሚ ስም')"
+                  class="form-input"
+                />
+              </div>
+              <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+                <button type="button" (click)="toggleForgotModal(false)" class="btn btn-secondary">
+                  {{ i18n.translate('Cancel', 'ይቅር') }}
+                </button>
+                <button type="button" (click)="submitForgotRequest()" class="btn btn-primary" [disabled]="!forgotEmail || forgotLoading">
+                  {{ forgotLoading ? i18n.translate('Sending...', 'በመላክ ላይ...') : i18n.translate('Send Code', 'ኮድ ላክ') }}
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="forgotStep === 'RESET'">
+              <p style="font-size: 0.85rem; color: var(--color-slate); margin-bottom: 1rem;">
+                {{ i18n.translate('Enter the recovery code and your new password.', 'የተላከውን ኮድ እና አዲሱን የይለፍ ቃል ያስገቡ።') }}
+              </p>
+              <div class="form-group">
+                <label class="form-label">{{ i18n.translate('Recovery Code', 'የማረጋገጫ ኮድ') }}</label>
+                <input type="text" [(ngModel)]="resetToken" placeholder="RESET-..." class="form-input" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">{{ i18n.translate('New Password', 'አዲስ የይለፍ ቃል') }}</label>
+                <input type="password" [(ngModel)]="resetNewPassword" [placeholder]="i18n.translate('Minimum 8 characters', 'ቢያንስ 8 ፊደላት')" class="form-input" />
+              </div>
+              <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+                <button type="button" (click)="forgotStep = 'REQUEST'" class="btn btn-secondary">
+                  {{ i18n.translate('Back', 'ተመለስ') }}
+                </button>
+                <button type="button" (click)="submitResetPassword()" class="btn btn-primary" [disabled]="!resetToken || !resetNewPassword || forgotLoading">
+                  {{ forgotLoading ? i18n.translate('Resetting...', 'በመቀየር ላይ...') : i18n.translate('Update Password', 'የይለፍ ቃል ቀይር') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div class="auth-footer">
           <p>{{ i18n.translate("Don't have an account yet?", "አካውንት የለዎትም?") }} <a routerLink="/register" class="link-cyan">{{ i18n.t('nav.register') }}</a></p>
@@ -287,6 +354,44 @@ import { I18nService } from '../../services/i18n.service';
     .link-cyan:hover {
       text-decoration: underline;
     }
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+    .modal-card {
+      background: #FFFFFF;
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--color-charcoal);
+      margin: 0;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--color-slate);
+    }
   `]
 })
 export class LoginComponent implements OnInit {
@@ -300,12 +405,67 @@ export class LoginComponent implements OnInit {
   returnUrl = '/';
   personas: PersonaQuickOption[] = TEST_PERSONAS;
 
+  // Forgot password modal state
+  showForgotModal = false;
+  forgotStep: 'REQUEST' | 'RESET' = 'REQUEST';
+  forgotEmail = '';
+  resetToken = '';
+  resetNewPassword = '';
+  forgotLoading = false;
+  forgotSuccess = '';
+  forgotError = '';
+
   constructor(
     private authService: AuthService,
     private router: Router,
     private route: ActivatedRoute,
     public i18n: I18nService
   ) {}
+
+  toggleForgotModal(open: boolean): void {
+    this.showForgotModal = open;
+    this.forgotStep = 'REQUEST';
+    this.forgotError = '';
+    this.forgotSuccess = '';
+  }
+
+  submitForgotRequest(): void {
+    if (!this.forgotEmail) return;
+    this.forgotLoading = true;
+    this.forgotError = '';
+    this.forgotSuccess = '';
+
+    this.authService.forgotPassword(this.forgotEmail.trim()).subscribe({
+      next: (res) => {
+        this.forgotLoading = false;
+        this.forgotSuccess = res.message || 'Recovery code generated. Check your inbox or system console.';
+        this.forgotStep = 'RESET';
+      },
+      error: (err) => {
+        this.forgotLoading = false;
+        this.forgotError = err?.error?.message || 'Failed to send recovery code. Please check the identifier.';
+      }
+    });
+  }
+
+  submitResetPassword(): void {
+    if (!this.resetToken || !this.resetNewPassword) return;
+    this.forgotLoading = true;
+    this.forgotError = '';
+    this.forgotSuccess = '';
+
+    this.authService.resetPassword(this.resetToken.trim(), this.resetNewPassword).subscribe({
+      next: (res) => {
+        this.forgotLoading = false;
+        this.successMessage = 'Password updated successfully! Please sign in with your new password.';
+        this.showForgotModal = false;
+      },
+      error: (err) => {
+        this.forgotLoading = false;
+        this.forgotError = err?.error?.message || 'Invalid or expired recovery code.';
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';

@@ -30,6 +30,11 @@ services:
       - "${KEYCLOAK_PORT:-8180}:8080"
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /realms/master HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
 
   eureka-server:
     build: ./eureka-server
@@ -39,7 +44,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8761/actuator/health || exit 0"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8761/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 15
@@ -51,8 +56,8 @@ services:
       INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?AI_INTERNAL_TOKEN environment variable must be set}
       MODEL_NAME: ${AI_MODEL_NAME}
       ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200}
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/ai/v1/health')\""]
       interval: 15s
@@ -66,7 +71,7 @@ services:
       postgres:
         condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
       ai-service:
         condition: service_healthy
       eureka-server:
@@ -93,7 +98,7 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 0"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 20
@@ -112,7 +117,7 @@ services:
     ports:
       - "4200:80"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 0"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/"]
       interval: 15s
       timeout: 5s
       retries: 10
