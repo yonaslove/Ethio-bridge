@@ -40,10 +40,11 @@ app:
 
 eureka:
   client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
+    register-with-eureka: ${EUREKA_CLIENT_REGISTER:true}
+    fetch-registry: ${EUREKA_CLIENT_FETCH:true}
   instance:
     prefer-ip-address: true
 

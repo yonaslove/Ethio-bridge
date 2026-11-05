@@ -134,12 +134,23 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(issuerUri);
-        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuerUri);
-        OAuth2TokenValidator<Jwt> withAudience = new AudienceValidator(audience);
-        OAuth2TokenValidator<Jwt> delegatingValidator = new DelegatingOAuth2TokenValidator<>(withIssuer, withAudience);
-        jwtDecoder.setJwtValidator(delegatingValidator);
-        return jwtDecoder;
+        if (issuerUri != null && !issuerUri.isBlank() && !issuerUri.contains("localhost")) {
+            try {
+                NimbusJwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(issuerUri);
+                OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuerUri);
+                OAuth2TokenValidator<Jwt> withAudience = new AudienceValidator(audience);
+                OAuth2TokenValidator<Jwt> delegatingValidator = new DelegatingOAuth2TokenValidator<>(withIssuer, withAudience);
+                jwtDecoder.setJwtValidator(delegatingValidator);
+                return jwtDecoder;
+            } catch (Exception e) {
+                log.warn("Keycloak OIDC issuer not reachable at {}. Operating in standalone token mode: {}", issuerUri, e.getMessage());
+            }
+        }
+        return token -> {
+            throw new org.springframework.security.oauth2.jwt.BadJwtException(
+                "Keycloak OIDC not active. Authenticate via /api/v1/auth/login"
+            );
+        };
     }
 
     @Bean

@@ -15,10 +15,16 @@ spring:
   jpa:
     show-sql: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
+    register-with-eureka: ${EUREKA_CLIENT_REGISTER:false}
+    fetch-registry: ${EUREKA_CLIENT_FETCH:false}
 
 app:
   security:
