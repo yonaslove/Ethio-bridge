@@ -384,72 +384,84 @@ public class PaymentService {
             String[] parts = sub.split(":");
             try {
                 int connectsAmount = Integer.parseInt(parts[0].trim());
-                providerProfileRepository.findByUserId(tx.getUserId()).ifPresent(profile -> {
-                    int current = profile.getConnectsBalance() != null ? profile.getConnectsBalance() : 0;
-                    profile.setConnectsBalance(current + connectsAmount);
-                    providerProfileRepository.save(profile);
+                ProviderProfile profile = providerProfileRepository.findByUserId(tx.getUserId())
+                        .orElseGet(() -> {
+                            ProviderProfile p = new ProviderProfile();
+                            p.setUserId(tx.getUserId());
+                            p.setConnectsBalance(20);
+                            return providerProfileRepository.save(p);
+                        });
 
-                    PlatformRevenue rev = new PlatformRevenue(
-                            "CONNECTS_TOPUP",
-                            profile.getId(),
-                            tx.getUserId(),
-                            tx.getAmount(),
-                            tx.getAmount(),
-                            BigDecimal.ZERO,
-                            "CHAPA",
-                            txRef,
-                            "Connects Top-Up: +" + connectsAmount + " tokens (" + tx.getAmount() + " ETB)"
-                    );
-                    revenueRepository.save(rev);
-
-                    notificationService.sendNotification(
-                            tx.getUserId(),
-                            "Connects Balance Credited (+" + connectsAmount + ")",
-                            "Your Chapa payment of " + tx.getAmount() + " ETB succeeded. New balance: " + profile.getConnectsBalance() + " Connects.",
-                            "CONNECTS",
-                            "/profile/provider"
-                    );
-                    result.put("connectsAdded", connectsAmount);
-                    result.put("newBalance", profile.getConnectsBalance());
-                });
-            } catch (Exception ex) {
-                log.warn("Failed to parse connectsAmount from initialPurpose: {}", initialPurpose);
-            }
-        }
-
-        // 2. Pro Talent subscription fulfillment:
-        if (initialPurpose != null && initialPurpose.contains("PRO_SUBSCRIPTION")) {
-            providerProfileRepository.findByUserId(tx.getUserId()).ifPresent(profile -> {
-                profile.setPro(true);
-                profile.setProExpiresAt(OffsetDateTime.now().plusDays(30));
                 int current = profile.getConnectsBalance() != null ? profile.getConnectsBalance() : 0;
-                profile.setConnectsBalance(current + 30);
-                providerProfileRepository.save(profile);
+                profile.setConnectsBalance(current + connectsAmount);
+                ProviderProfile savedProfile = providerProfileRepository.save(profile);
 
                 PlatformRevenue rev = new PlatformRevenue(
-                        "PRO_SUBSCRIPTION",
-                        profile.getId(),
+                        "CONNECTS_TOPUP",
+                        savedProfile.getId(),
                         tx.getUserId(),
                         tx.getAmount(),
                         tx.getAmount(),
                         BigDecimal.ZERO,
                         "CHAPA",
                         txRef,
-                        "EthioBridge Pro Talent 30-Day Subscription (Chapa Gateway)"
+                        "Connects Top-Up: +" + connectsAmount + " tokens (" + tx.getAmount() + " ETB)"
                 );
                 revenueRepository.save(rev);
 
                 notificationService.sendNotification(
                         tx.getUserId(),
-                        "Welcome to ⭐ EthioBridge Pro!",
-                        "Your Pro membership is active. You received a verified Pro badge, priority AI matching, and +30 bonus Connects!",
-                        "MEMBERSHIP",
+                        "Connects Balance Credited (+" + connectsAmount + ")",
+                        "Your Chapa payment of " + tx.getAmount() + " ETB succeeded. New balance: " + savedProfile.getConnectsBalance() + " Connects.",
+                        "CONNECTS",
                         "/profile/provider"
                 );
-                result.put("isPro", true);
-                result.put("proExpiresAt", profile.getProExpiresAt());
-                result.put("newBalance", profile.getConnectsBalance());
-            });
+                result.put("connectsAdded", connectsAmount);
+                result.put("newBalance", savedProfile.getConnectsBalance());
+            } catch (Exception ex) {
+                log.warn("Failed to parse connectsAmount from initialPurpose: {}", initialPurpose, ex);
+            }
+        }
+
+        // 2. Pro Talent subscription fulfillment:
+        if (initialPurpose != null && initialPurpose.contains("PRO_SUBSCRIPTION")) {
+            ProviderProfile profile = providerProfileRepository.findByUserId(tx.getUserId())
+                    .orElseGet(() -> {
+                        ProviderProfile p = new ProviderProfile();
+                        p.setUserId(tx.getUserId());
+                        p.setConnectsBalance(20);
+                        return providerProfileRepository.save(p);
+                    });
+
+            profile.setPro(true);
+            profile.setProExpiresAt(OffsetDateTime.now().plusDays(30));
+            int current = profile.getConnectsBalance() != null ? profile.getConnectsBalance() : 0;
+            profile.setConnectsBalance(current + 30);
+            ProviderProfile savedProfile = providerProfileRepository.save(profile);
+
+            PlatformRevenue rev = new PlatformRevenue(
+                    "PRO_SUBSCRIPTION",
+                    savedProfile.getId(),
+                    tx.getUserId(),
+                    tx.getAmount(),
+                    tx.getAmount(),
+                    BigDecimal.ZERO,
+                    "CHAPA",
+                    txRef,
+                    "EthioBridge Pro Talent 30-Day Subscription (Chapa Gateway)"
+            );
+            revenueRepository.save(rev);
+
+            notificationService.sendNotification(
+                    tx.getUserId(),
+                    "Welcome to ⭐ EthioBridge Pro!",
+                    "Your Pro membership is active. You received a verified Pro badge, priority AI matching, and +30 bonus Connects!",
+                    "MEMBERSHIP",
+                    "/profile/provider"
+            );
+            result.put("isPro", true);
+            result.put("proExpiresAt", savedProfile.getProExpiresAt());
+            result.put("newBalance", savedProfile.getConnectsBalance());
         }
 
         // 3. Escrow milestone funding fulfillment:
@@ -488,7 +500,7 @@ public class PaymentService {
         }
 
         tx.setStatus("SUCCESS");
-        tx.setProviderResponse("Approved & Verified via " + source + ". Ref: " + txRef);
+        tx.setProviderResponse((initialPurpose != null ? initialPurpose + " | " : "") + "Approved & Verified via " + source + ". Ref: " + txRef);
         paymentRepository.save(tx);
 
         result.put("status", "SUCCESS");
@@ -519,7 +531,7 @@ public class PaymentService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: You do not own this transaction");
         }
 
-        // State Check: If already succeeded, return success idempotently
+        // State Check: If already succeeded, return success idempotently with enriched profile data
         if ("SUCCESS".equalsIgnoreCase(tx.getStatus())) {
             result.put("status", "SUCCESS");
             result.put("amount", tx.getAmount());
@@ -527,6 +539,26 @@ public class PaymentService {
             result.put("milestoneId", tx.getMilestoneId());
             result.put("contractId", tx.getContractId());
             result.put("message", "Payment already verified successfully");
+
+            if (tx.getUserId() != null) {
+                providerProfileRepository.findByUserId(tx.getUserId()).ifPresent(p -> {
+                    result.put("newBalance", p.getConnectsBalance());
+                    result.put("isPro", p.isPro());
+                    result.put("proExpiresAt", p.getProExpiresAt());
+                });
+            }
+
+            String resp = tx.getProviderResponse();
+            if (resp != null && resp.contains("CONNECTS_TOPUP:")) {
+                try {
+                    String sub = resp.substring(resp.indexOf("CONNECTS_TOPUP:") + "CONNECTS_TOPUP:".length());
+                    String[] parts = sub.split("[:| ]");
+                    if (parts.length > 0 && !parts[0].isBlank()) {
+                        result.put("connectsAdded", Integer.parseInt(parts[0].trim()));
+                    }
+                } catch (Exception ignored) {}
+            }
+
             return result;
         }
 

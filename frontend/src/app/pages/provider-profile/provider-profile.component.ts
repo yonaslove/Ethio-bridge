@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { I18nService } from '../../services/i18n.service';
 import { ToastService } from '../../services/toast.service';
@@ -949,7 +949,8 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
     private apiService: ApiService,
     public i18n: I18nService,
     private toastService: ToastService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -964,14 +965,19 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
         this.apiService.verifyConnectsTopup(txRef).subscribe({
           next: (res) => {
             if (res && res.status === 'SUCCESS') {
-              if (this.profile && res.newBalance !== undefined) {
-                this.profile.connectsBalance = res.newBalance;
+              if (res.newBalance !== undefined) {
+                if (this.profile) {
+                  this.profile.connectsBalance = res.newBalance;
+                }
               }
+              const addedMsg = res.connectsAdded ? `Added ${res.connectsAdded} Connects.` : '';
+              const balanceMsg = res.newBalance !== undefined ? `Current balance: ${res.newBalance} Connects.` : '';
               this.toastService.success(
-                `🎉 Chapa payment successful! Added ${res.connectsAdded || ''} Connects to your balance.`,
+                `🎉 Chapa payment successful! ${addedMsg} ${balanceMsg}`,
                 'Connects Credited'
               );
               this.loadProfile();
+              this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
             } else {
               this.toastService.error('Chapa payment was not completed or failed. No connects were added.', 'Payment Incomplete');
             }
@@ -988,11 +994,21 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
         this.apiService.verifyConnectsTopup(txRef).subscribe({
           next: (res) => {
             if (res && res.status === 'SUCCESS') {
+              if (res.newBalance !== undefined && this.profile) {
+                this.profile.connectsBalance = res.newBalance;
+              }
+              if (this.profile) {
+                this.profile.isPro = true;
+                if (res.proExpiresAt) {
+                  this.profile.proExpiresAt = res.proExpiresAt;
+                }
+              }
               this.toastService.success(
                 '🎉 Welcome to EthioBridge Pro! Verified badge activated and +30 bonus Connects granted.',
                 'Pro Membership Activated'
               );
               this.loadProfile();
+              this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
             } else {
               this.toastService.error('Chapa Pro payment was not completed or failed.', 'Payment Incomplete');
             }
