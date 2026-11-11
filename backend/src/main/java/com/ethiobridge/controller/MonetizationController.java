@@ -72,11 +72,24 @@ public class MonetizationController {
     @PostMapping("/pro/subscribe")
     public ResponseEntity<Map<String, Object>> subscribePro(
             Authentication authentication,
+            @RequestHeader(value = "Origin", required = false) String origin,
+            @RequestHeader(value = "Referer", required = false) String referer,
             @RequestBody(required = false) Map<String, Object> body) {
         AppUser user = userService.getOrCreateCurrentUser(authentication);
         String paymentMethod = body != null && body.get("paymentMethod") != null ? (String) body.get("paymentMethod") : "TELEBIRR";
 
-        Map<String, Object> response = monetizationService.subscribeToPro(user.getId(), paymentMethod);
+        String clientBaseUrl = (origin != null && !origin.isBlank()) ? origin : null;
+        if (clientBaseUrl == null && referer != null && !referer.isBlank()) {
+            try {
+                java.net.URI uri = java.net.URI.create(referer);
+                clientBaseUrl = uri.getScheme() + "://" + uri.getAuthority();
+            } catch (Exception ignored) {}
+        }
+        if (clientBaseUrl == null && body != null && body.get("clientUrl") != null) {
+            clientBaseUrl = body.get("clientUrl").toString();
+        }
+
+        Map<String, Object> response = monetizationService.subscribeToPro(user.getId(), paymentMethod, clientBaseUrl);
         return ResponseEntity.ok(response);
     }
 

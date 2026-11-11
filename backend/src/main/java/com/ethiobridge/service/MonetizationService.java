@@ -182,12 +182,26 @@ public class MonetizationService {
     }
 
     public Map<String, Object> subscribeToPro(UUID providerUserId, String paymentMethod) {
+        return subscribeToPro(providerUserId, paymentMethod, null);
+    }
+
+    public Map<String, Object> subscribeToPro(UUID providerUserId, String paymentMethod, String clientBaseUrl) {
         ProviderProfile profile = providerProfileRepository.findByUserId(providerUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider profile not found"));
 
         BigDecimal price = new BigDecimal("299.00");
-        String refPrefix = paymentMethod.toUpperCase().contains("CHAPA") ? "CHP-PRO-" :
-                paymentMethod.toUpperCase().contains("TELEBIRR") ? "TB-PRO-" : "CBE-PRO-";
+
+        if ("CHAPA".equalsIgnoreCase(paymentMethod)) {
+            String purpose = "PRO_SUBSCRIPTION";
+            Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
+            Map<String, Object> resp = new HashMap<>(checkout);
+            resp.put("status", "PENDING_PAYMENT");
+            resp.put("price", price);
+            resp.put("message", "Payment initiated with Chapa. Please complete checkout to activate Pro.");
+            return resp;
+        }
+
+        String refPrefix = paymentMethod.toUpperCase().contains("TELEBIRR") ? "TB-PRO-" : "CBE-PRO-";
         String ref = refPrefix + System.currentTimeMillis();
 
         PlatformRevenue revenue = new PlatformRevenue(

@@ -488,8 +488,9 @@ export class ApiService {
     return this.http.post<FeatureListingResponse>(`${this.baseUrl}/monetization/listings/${listingId}/feature`, { paymentMethod }, { headers: this.getHeaders() });
   }
 
-  subscribeToPro(paymentMethod: string = 'TELEBIRR'): Observable<ProSubscriptionResponse> {
-    return this.http.post<ProSubscriptionResponse>(`${this.baseUrl}/monetization/pro/subscribe`, { paymentMethod }, { headers: this.getHeaders() });
+  subscribeToPro(paymentMethod: string = 'TELEBIRR'): Observable<any> {
+    const clientUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    return this.http.post<any>(`${this.baseUrl}/monetization/pro/subscribe`, { paymentMethod, clientUrl }, { headers: this.getHeaders() });
   }
 
   getMonetizationStats(): Observable<MonetizationStats> {

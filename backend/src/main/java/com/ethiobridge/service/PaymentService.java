@@ -162,6 +162,10 @@ public class PaymentService {
             returnUrl = baseUrl + "/profile/provider?chapa_connects=1&tx_ref=" + ref;
             title = "EB Connects";
             desc = "Token purchase for job applications";
+        } else if (purpose != null && purpose.startsWith("PRO_SUBSCRIPTION")) {
+            returnUrl = baseUrl + "/profile/provider?chapa_pro=1&tx_ref=" + ref;
+            title = "EthioBridge Pro";
+            desc = "Pro Talent 30-Day Subscription (299 ETB)";
         } else if (milestoneId != null) {
             returnUrl = baseUrl + "/contracts?chapa_milestone=1&tx_ref=" + ref + "&milestone_id=" + milestoneId;
             title = "EB Escrow";
@@ -413,7 +417,42 @@ public class PaymentService {
             }
         }
 
-        // 2. Escrow milestone funding fulfillment:
+        // 2. Pro Talent subscription fulfillment:
+        if (initialPurpose != null && initialPurpose.contains("PRO_SUBSCRIPTION")) {
+            providerProfileRepository.findByUserId(tx.getUserId()).ifPresent(profile -> {
+                profile.setPro(true);
+                profile.setProExpiresAt(OffsetDateTime.now().plusDays(30));
+                int current = profile.getConnectsBalance() != null ? profile.getConnectsBalance() : 0;
+                profile.setConnectsBalance(current + 30);
+                providerProfileRepository.save(profile);
+
+                PlatformRevenue rev = new PlatformRevenue(
+                        "PRO_SUBSCRIPTION",
+                        profile.getId(),
+                        tx.getUserId(),
+                        tx.getAmount(),
+                        tx.getAmount(),
+                        BigDecimal.ZERO,
+                        "CHAPA",
+                        txRef,
+                        "EthioBridge Pro Talent 30-Day Subscription (Chapa Gateway)"
+                );
+                revenueRepository.save(rev);
+
+                notificationService.sendNotification(
+                        tx.getUserId(),
+                        "Welcome to ⭐ EthioBridge Pro!",
+                        "Your Pro membership is active. You received a verified Pro badge, priority AI matching, and +30 bonus Connects!",
+                        "MEMBERSHIP",
+                        "/profile/provider"
+                );
+                result.put("isPro", true);
+                result.put("proExpiresAt", profile.getProExpiresAt());
+                result.put("newBalance", profile.getConnectsBalance());
+            });
+        }
+
+        // 3. Escrow milestone funding fulfillment:
         if (tx.getMilestoneId() != null) {
             milestoneRepository.findById(tx.getMilestoneId()).ifPresent(m -> {
                 if ("PENDING".equalsIgnoreCase(m.getStatus())) {

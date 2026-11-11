@@ -981,6 +981,27 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
           }
         });
       }
+
+      if (params['chapa_pro'] && params['tx_ref']) {
+        const txRef = params['tx_ref'];
+        this.toastService.info('Verifying Chapa Pro membership payment...', 'Chapa Gateway');
+        this.apiService.verifyConnectsTopup(txRef).subscribe({
+          next: (res) => {
+            if (res && res.status === 'SUCCESS') {
+              this.toastService.success(
+                '🎉 Welcome to EthioBridge Pro! Verified badge activated and +30 bonus Connects granted.',
+                'Pro Membership Activated'
+              );
+              this.loadProfile();
+            } else {
+              this.toastService.error('Chapa Pro payment was not completed or failed.', 'Payment Incomplete');
+            }
+          },
+          error: () => {
+            this.toastService.error('Failed to verify Chapa Pro payment.', 'Verification Error');
+          }
+        });
+      }
     });
   }
 
@@ -1115,6 +1136,26 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
     const method = this.proPaymentMethod || 'TELEBIRR';
     this.submittingPro = true;
     this.proError = '';
+
+    if (method === 'CHAPA') {
+      this.apiService.subscribeToPro('CHAPA').subscribe({
+        next: (res: any) => {
+          this.submittingPro = false;
+          const targetUrl = res.checkoutUrl || res.checkout_url;
+          if (targetUrl) {
+            this.toastService.info('Redirecting to Chapa payment portal...', 'Chapa Gateway');
+            window.location.href = targetUrl;
+          } else {
+            this.proError = 'Could not generate Chapa checkout URL. Please try again.';
+          }
+        },
+        error: (err: any) => {
+          this.submittingPro = false;
+          this.proError = err.error?.message || 'Pro subscription initiation failed. Please try again.';
+        }
+      });
+      return;
+    }
 
     this.apiService.subscribeToPro(method).subscribe({
       next: (res) => {
