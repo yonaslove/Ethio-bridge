@@ -477,12 +477,17 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Proactively ping the cloud container to ensure it is awake immediately while user types credentials
+    this.authService.pingWarmup();
+
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
     if (this.route.snapshot.queryParams['registered'] === 'true') {
       this.successMessage = 'Account created successfully! Please sign in with your email and password to enter your workspace.';
       if (this.route.snapshot.queryParams['email']) {
         this.emailOrUsername = this.route.snapshot.queryParams['email'];
       }
+    } else if (this.route.snapshot.queryParams['expired'] === 'true') {
+      this.noticeMessage = 'Your session has expired. Please sign in to resume your workspace.';
     } else if (this.route.snapshot.queryParams['returnUrl']) {
       this.noticeMessage = 'Please sign in to access that protected portal or page.';
     }
@@ -491,12 +496,12 @@ export class LoginComponent implements OnInit {
   private startColdStartTimer(): void {
     this.isColdStarting = false;
     clearTimeout(this.coldStartTimer);
-    // If request takes longer than 2.5s, it indicates a Render container cold start
+    // If request takes longer than 1.2s, it indicates a Render container cold start
     this.coldStartTimer = setTimeout(() => {
       if (this.loading) {
         this.isColdStarting = true;
       }
-    }, 2500);
+    }, 1200);
   }
 
   private stopColdStartTimer(): void {

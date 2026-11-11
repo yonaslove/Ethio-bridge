@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, map, tap } from 'rxjs';
+import { BehaviorSubject, Observable, map, tap, timeout, retry } from 'rxjs';
 import { User, AuthResponse, LoginPayload, RegisterPayload } from '../models/models';
 import { environment } from '../../environments/environment';
 
@@ -39,6 +39,16 @@ export class AuthService {
     private router: Router
   ) {
     this.restoreSession();
+    this.pingWarmup();
+  }
+
+  public pingWarmup(): void {
+    // Fire-and-forget lightweight ping to wake backend container from sleep mode
+    const healthUrl = this.apiBaseUrl.replace(/\/api\/v1\/?$/, '/actuator/health');
+    this.http.get(healthUrl).subscribe({
+      next: () => {},
+      error: () => {}
+    });
   }
 
   private restoreSession(): void {
@@ -70,6 +80,7 @@ export class AuthService {
 
   public login(payload: LoginPayload): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/login`, payload).pipe(
+      timeout(45000), // Render free tier container spin-up can take up to 35-40s on dormant start
       tap(res => this.persistSession(res))
     );
   }
