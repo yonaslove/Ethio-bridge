@@ -67,6 +67,7 @@ public class SecurityConfig {
                 .permissionsPolicy(permissions -> permissions.policy("geolocation=(), camera=(), microphone=()"))
             )
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
                     "/api/v1/health",
                     "/api/v1/health/**",
@@ -163,9 +164,18 @@ public class SecurityConfig {
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .toList();
-        config.setAllowedOrigins(origins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "X-Demo-User"));
+
+        // If configured as wildcard '*' or contains default, also allow all onrender.com and localhost domains
+        if (origins.contains("*")) {
+            config.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            config.setAllowedOrigins(origins);
+            config.setAllowedOriginPatterns(List.of("https://*.onrender.com", "http://localhost:*", "http://127.0.0.1:*"));
+        }
+
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
