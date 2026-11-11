@@ -82,10 +82,10 @@ import { Listing, MatchRunResponse, CandidateMatchResult } from '../../models/mo
               <div class="cand-loc" *ngIf="cand.locationName">📍 {{ cand.locationName }}</div>
             </div>
 
-            <!-- Score Circle / Badge -->
-            <div class="cand-score-box">
+            <!-- Score Circle / Badge with adaptive color based on compatibility -->
+            <div class="cand-score-box" [ngClass]="cand.score >= 0.7 ? 'score-high' : (cand.score >= 0.35 ? 'score-mid' : 'score-low')">
               <div class="score-percent">{{ (cand.score * 100) | number:'1.0-0' }}%</div>
-              <div class="score-label">Match Score</div>
+              <div class="score-label">{{ cand.score < 0.2 ? 'Incompatible' : 'Match Score' }}</div>
             </div>
           </div>
 
@@ -272,16 +272,35 @@ import { Listing, MatchRunResponse, CandidateMatchResult } from '../../models/mo
     }
     .cand-score-box {
       text-align: right;
-      background: var(--color-cyan-subtle);
-      border: 1px solid rgba(28, 184, 205, 0.25);
       padding: 0.6rem 1.15rem;
       border-radius: 12px;
       flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    .cand-score-box.score-high {
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+    }
+    .cand-score-box.score-high .score-percent {
+      color: #059669;
+    }
+    .cand-score-box.score-mid {
+      background: var(--color-cyan-subtle);
+      border: 1px solid rgba(28, 184, 205, 0.25);
+    }
+    .cand-score-box.score-mid .score-percent {
+      color: #0E7F8F;
+    }
+    .cand-score-box.score-low {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+    }
+    .cand-score-box.score-low .score-percent {
+      color: #DC2626;
     }
     .score-percent {
       font-size: 1.6rem;
       font-weight: 800;
-      color: #0E7F8F;
       line-height: 1;
     }
     .score-label {

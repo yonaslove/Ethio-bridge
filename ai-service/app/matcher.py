@@ -273,7 +273,8 @@ def score_candidate(listing: ListingDto, candidate: CandidateDto) -> Tuple[float
     candidate_full_text = f"{candidate.text or ''} {candidate_skills_str} {candidate.categoryFocus or ''}"
 
     sem_sim = calculate_semantic_similarity(listing_full_text, candidate_full_text)
-    sem_score = round(max(0.15, sem_sim), 4)
+    # True semantic similarity: do not artificially bump unrelated profiles to 0.15
+    sem_score = round(max(0.0, sem_sim), 4)
 
     factors.append(Factor(
         name="semantic.relevance",
@@ -290,7 +291,31 @@ def score_candidate(listing: ListingDto, candidate: CandidateDto) -> Tuple[float
         f.weight = round(f.weight / total_weight, 4)
         total_score += f.weight * f.contribution
 
-    final_score = round(max(0.0, min(1.0, total_score)), 4)
+    # ==========================================
+    # DOMAIN & SKILL GATING (Relevance Protection)
+    # ==========================================
+    # If required skills are specified and candidate has 0 matching skills,
+    # or semantic similarity is negligible (< 0.08), the candidate is fundamentally
+    # in the wrong profession (e.g. Software Dev for Hotel Manager).
+    # Secondary factors (same location/availability) cannot make an unqualified person a 45% match!
+    gating_penalty = 1.0
+    is_unrelated = False
+
+    if total_req_count > 0 and len(matched_req) == 0:
+        # Zero required skills matched
+        if sem_score < 0.10:
+            # Complete mismatch across domain and skills -> Hard clamp to max 5%
+            gating_penalty = 0.08
+            is_unrelated = True
+        else:
+            # Some semantic proximity but missing all required skills -> heavy penalty
+            gating_penalty = 0.25
+    elif total_req_count == 0 and sem_score < 0.05:
+        # No explicit skills provided, but semantic similarity is practically zero
+        gating_penalty = 0.10
+        is_unrelated = True
+
+    final_score = round(max(0.0, min(1.0, total_score * gating_penalty)), 4)
 
     strengths = []
     if skill_score >= 0.7:
@@ -302,7 +327,9 @@ def score_candidate(listing: ListingDto, candidate: CandidateDto) -> Tuple[float
     if exp_score >= 0.9:
         strengths.append("experience level")
 
-    if strengths:
+    if is_unrelated or final_score < 0.15:
+        summary = "Low match: Core skills and domain experience do not align with this position."
+    elif strengths:
         summary = f"Strong on {', '.join(strengths)}."
     else:
         summary = "Partial match across profile and listing requirements."
