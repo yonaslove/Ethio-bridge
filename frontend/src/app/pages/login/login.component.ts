@@ -70,9 +70,16 @@ import { I18nService } from '../../services/i18n.service';
             </button>
           </div>
 
+          <div *ngIf="loading && isColdStarting" class="auth-notice" style="margin-bottom: 1rem; animation: pulse 2s infinite;">
+            <span class="notice-icon">⏳</span> 
+            <span>{{ i18n.translate('Cloud server is waking up from sleep mode (Render cold start). Please wait a few seconds...', 'የክላውድ ሰርቨሩ እየነቃ ነው (Render cold start)። እባክዎ ጥቂት ሰከንዶች ይጠብቁ...') }}</span>
+          </div>
+
           <button type="submit" class="btn btn-primary btn-block btn-lg" [disabled]="loading || !emailOrUsername || !password">
             <span *ngIf="!loading">{{ i18n.translate('Sign In', 'ይግቡ') }}</span>
-            <span *ngIf="loading" class="spinner-text">{{ i18n.translate('Authenticating...', 'በማረጋገጥ ላይ...') }}</span>
+            <span *ngIf="loading" class="spinner-text">
+              {{ isColdStarting ? i18n.translate('Waking server & Authenticating...', 'ሰርቨሩን በማስነሳት ላይ...') : i18n.translate('Authenticating...', 'በማረጋገጥ ላይ...') }}
+            </span>
           </button>
         </form>
 
@@ -399,6 +406,8 @@ export class LoginComponent implements OnInit {
   password = '';
   showPassword = false;
   loading = false;
+  isColdStarting = false;
+  private coldStartTimer: any = null;
   errorMessage = '';
   noticeMessage = '';
   successMessage = '';
@@ -479,21 +488,40 @@ export class LoginComponent implements OnInit {
     }
   }
 
+  private startColdStartTimer(): void {
+    this.isColdStarting = false;
+    clearTimeout(this.coldStartTimer);
+    // If request takes longer than 2.5s, it indicates a Render container cold start
+    this.coldStartTimer = setTimeout(() => {
+      if (this.loading) {
+        this.isColdStarting = true;
+      }
+    }, 2500);
+  }
+
+  private stopColdStartTimer(): void {
+    clearTimeout(this.coldStartTimer);
+    this.isColdStarting = false;
+  }
+
   onSubmit(): void {
     if (!this.emailOrUsername || !this.password) return;
 
     this.loading = true;
     this.errorMessage = '';
+    this.startColdStartTimer();
 
     this.authService.login({
       emailOrUsername: this.emailOrUsername,
       password: this.password
     }).subscribe({
       next: (res) => {
+        this.stopColdStartTimer();
         this.loading = false;
         this.navigateAfterLogin(res.roles);
       },
       error: (err) => {
+        this.stopColdStartTimer();
         this.loading = false;
         this.errorMessage = err?.error?.message || 'Authentication failed. Please verify your credentials.';
       }
@@ -503,13 +531,16 @@ export class LoginComponent implements OnInit {
   loginAsPersona(personaId: string): void {
     this.loading = true;
     this.errorMessage = '';
+    this.startColdStartTimer();
 
     this.authService.quickLoginAs(personaId).subscribe({
       next: (res) => {
+        this.stopColdStartTimer();
         this.loading = false;
         this.navigateAfterLogin(res.roles);
       },
       error: (err) => {
+        this.stopColdStartTimer();
         this.loading = false;
         this.errorMessage = 'Quick sign-in failed. Please try again.';
       }
