@@ -476,7 +476,8 @@ export class ApiService {
 
   // Monetization & Revenue (Upwork Model)
   topUpConnects(amount: number, paymentMethod: string = 'CHAPA'): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/monetization/connects/topup`, { amount, paymentMethod }, { headers: this.getHeaders() });
+    const clientUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    return this.http.post<any>(`${this.baseUrl}/monetization/connects/topup`, { amount, paymentMethod, clientUrl }, { headers: this.getHeaders() });
   }
 
   verifyConnectsTopup(txRef: string): Observable<any> {
