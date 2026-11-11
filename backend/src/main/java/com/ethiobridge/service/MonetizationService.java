@@ -61,6 +61,10 @@ public class MonetizationService {
     }
 
     public Map<String, Object> topUpConnects(UUID providerUserId, int connectsAmount, String paymentMethod) {
+        return topUpConnects(providerUserId, connectsAmount, paymentMethod, null);
+    }
+
+    public Map<String, Object> topUpConnects(UUID providerUserId, int connectsAmount, String paymentMethod, String clientBaseUrl) {
         ProviderProfile profile = providerProfileRepository.findByUserId(providerUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider profile not found"));
 
@@ -73,7 +77,7 @@ public class MonetizationService {
 
         if ("CHAPA".equalsIgnoreCase(paymentMethod)) {
             String purpose = "CONNECTS_TOPUP:" + connectsAmount;
-            Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose);
+            Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
             Map<String, Object> resp = new HashMap<>(checkout);
             resp.put("status", "PENDING_PAYMENT");
             resp.put("connectsAmount", connectsAmount);
