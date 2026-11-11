@@ -273,6 +273,60 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
         </div>
       </div>
 
+      <!-- Professional Pro Subscription Checkout Modal -->
+      <div *ngIf="showProModal" class="modal-backdrop">
+        <div class="modal-content" style="max-width: 500px;">
+          <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1.5rem;">⭐</span>
+              <h2 style="margin: 0; font-size: 1.25rem;">{{ i18n.translate('Upgrade to EthioBridge Pro', 'ወደ ኢትዮብሪጅ ፕሮ ያሳድጉ') }}</h2>
+            </div>
+            <button (click)="showProModal = false" class="btn-close">✕</button>
+          </div>
+
+          <div *ngIf="proError" class="alert-danger" style="margin-bottom: 1rem;">
+            {{ proError }}
+          </div>
+
+          <div class="pro-modal-perks" style="background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;">
+            <div style="font-weight: 700; color: #92400E; margin-bottom: 0.5rem; font-size: 0.875rem;">
+              {{ i18n.translate('Included Pro Perks for 30 Days:', 'የ 30 ቀናት የፕሮ ጥቅሞች:') }}
+            </div>
+            <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: #78350F; display: flex; flex-direction: column; gap: 0.35rem;">
+              <li>⭐ {{ i18n.translate('Verified Pro Talent Badge on profile & proposals', 'የተረጋገጠ የፕሮ ባለሙያ ባጅ በመገለጫዎና በማመልከቻዎ ላይ') }}</li>
+              <li>🎯 {{ i18n.translate('50% Discount on proposal tokens (1 Connect/app)', '50% ቅናሽ በማመልከቻ ነጥቦች (1 ነጥብ በስራ)') }}</li>
+              <li>🪙 {{ i18n.translate('+30 Bonus Connects added to your account instantly', '+30 ነፃ የማመልከቻ ነጥቦች ወዲያውኑ ይጨመራሉ') }}</li>
+              <li>📈 {{ i18n.translate('Priority ranking in AI Candidate recommendations', 'በ AI እጩዎች ዝርዝር ውስጥ ቀዳሚነት') }}</li>
+            </ul>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label">{{ i18n.translate('Select Payment Method', 'የመክፈያ ዘዴ ይምረጡ') }}</label>
+            <div style="display: flex; gap: 0.75rem;">
+              <label class="package-pill" style="flex: 1;" [class.selected]="proPaymentMethod === 'TELEBIRR'" (click)="proPaymentMethod = 'TELEBIRR'">
+                <div class="pkg-num">Telebirr</div>
+                <div class="pkg-price">299 ETB / mo</div>
+              </label>
+              <label class="package-pill" style="flex: 1;" [class.selected]="proPaymentMethod === 'CBE_BIRR'" (click)="proPaymentMethod = 'CBE_BIRR'">
+                <div class="pkg-num">CBE Birr</div>
+                <div class="pkg-price">299 ETB / mo</div>
+              </label>
+              <label class="package-pill" style="flex: 1;" [class.selected]="proPaymentMethod === 'CHAPA'" (click)="proPaymentMethod = 'CHAPA'">
+                <div class="pkg-num">Chapa / Card</div>
+                <div class="pkg-price">299 ETB / mo</div>
+              </label>
+            </div>
+          </div>
+
+          <div class="flex justify-between items-center" style="margin-top: 1.5rem;">
+            <button (click)="showProModal = false" class="btn btn-secondary">{{ i18n.translate('Cancel', 'ይቅር') }}</button>
+            <button (click)="confirmProUpgrade()" [disabled]="submittingPro" class="btn btn-primary" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); border: none;">
+              {{ submittingPro ? i18n.translate('Activating...', 'በማስኬድ ላይ...') : i18n.translate('Pay 299 ETB & Activate Pro', '299 ብር ከፍለው ያግብሩ') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Skill Assessment Quiz Modal -->
       <div *ngIf="showQuizModal" class="modal-backdrop">
         <div class="quiz-modal-card">
@@ -776,6 +830,12 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
   topupSuccess = '';
   topupError = '';
 
+  // Pro Subscription Modal State
+  showProModal = false;
+  proPaymentMethod = 'TELEBIRR';
+  submittingPro = false;
+  proError = '';
+
   get selectedConnectsPackage(): number {
     return this.selectedConnectsAmount;
   }
@@ -1046,20 +1106,32 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
   }
 
   subscribePro(): void {
-    const method = this.selectedPaymentMethod || 'CHAPA';
-    if (confirm(`Upgrade to EthioBridge Pro for 299 ETB / month via ${method}? (+30 bonus Connects and Verified Pro Badge)`)) {
-      this.apiService.subscribeToPro(method).subscribe({
-        next: (res) => {
-          if (this.profile) {
-            this.profile.isPro = true;
-            this.profile.proExpiresAt = res.proExpiresAt;
-            this.profile.connectsBalance = res.newConnectsBalance;
-          }
-          this.toastService.success(`Welcome to EthioBridge Pro! Activated via ${method} (Ref: ${res.referenceId}).`, 'Pro Membership Activated');
-        },
-        error: (err) => this.toastService.error(err.error?.message || 'Pro subscription upgrade failed.')
-      });
-    }
+    this.showProModal = true;
+    this.proError = '';
+    this.submittingPro = false;
+  }
+
+  confirmProUpgrade(): void {
+    const method = this.proPaymentMethod || 'TELEBIRR';
+    this.submittingPro = true;
+    this.proError = '';
+
+    this.apiService.subscribeToPro(method).subscribe({
+      next: (res) => {
+        this.submittingPro = false;
+        this.showProModal = false;
+        if (this.profile) {
+          this.profile.isPro = true;
+          this.profile.proExpiresAt = res.proExpiresAt;
+          this.profile.connectsBalance = res.newConnectsBalance;
+        }
+        this.toastService.success(`Welcome to EthioBridge Pro! Activated via ${method} (Ref: ${res.referenceId}).`, 'Pro Membership Activated');
+      },
+      error: (err) => {
+        this.submittingPro = false;
+        this.proError = err.error?.message || 'Pro subscription upgrade failed. Please try again.';
+      }
+    });
   }
 
   startAssessmentForSkill(skill: any): void {
