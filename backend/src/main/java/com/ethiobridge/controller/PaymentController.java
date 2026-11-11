@@ -70,6 +70,8 @@ public class PaymentController {
     @PostMapping("/chapa/initialize")
     public ResponseEntity<Map<String, Object>> initializeChapaPayment(
             Authentication auth,
+            @RequestHeader(value = "Origin", required = false) String origin,
+            @RequestHeader(value = "Referer", required = false) String referer,
             @RequestBody Map<String, Object> payload) {
         AppUser user = userService.getOrCreateCurrentUser(auth);
 
@@ -80,7 +82,18 @@ public class PaymentController {
         UUID milestoneId = (payload.get("milestoneId") != null && !payload.get("milestoneId").toString().isBlank())
                 ? UUID.fromString(payload.get("milestoneId").toString()) : null;
 
-        Map<String, Object> resp = paymentService.initializeChapaCheckout(contractId, milestoneId, user.getId(), amount, purpose);
+        String clientBaseUrl = (origin != null && !origin.isBlank()) ? origin : null;
+        if (clientBaseUrl == null && referer != null && !referer.isBlank()) {
+            try {
+                java.net.URI uri = java.net.URI.create(referer);
+                clientBaseUrl = uri.getScheme() + "://" + uri.getAuthority();
+            } catch (Exception ignored) {}
+        }
+        if (clientBaseUrl == null && payload.get("clientUrl") != null) {
+            clientBaseUrl = payload.get("clientUrl").toString();
+        }
+
+        Map<String, Object> resp = paymentService.initializeChapaCheckout(contractId, milestoneId, user.getId(), amount, purpose, clientBaseUrl);
         return ResponseEntity.ok(resp);
     }
 

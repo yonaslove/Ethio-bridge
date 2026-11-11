@@ -136,6 +136,10 @@ public class PaymentService {
     }
 
     public Map<String, Object> initializeChapaCheckout(UUID contractId, UUID milestoneId, UUID userId, BigDecimal amount, String purpose) {
+        return initializeChapaCheckout(contractId, milestoneId, userId, amount, purpose, null);
+    }
+
+    public Map<String, Object> initializeChapaCheckout(UUID contractId, UUID milestoneId, UUID userId, BigDecimal amount, String purpose, String clientBaseUrl) {
         String ref = "CHP-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
 
         AppUser user = userRepository.findById(userId).orElse(null);
@@ -145,7 +149,9 @@ public class PaymentService {
         String firstName = nameParts[0];
         String lastName = nameParts.length > 1 ? nameParts[1] : "Client";
 
-        String baseUrl = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl.replaceAll("/+$", "") : "http://localhost:4200";
+        String baseUrl = (clientBaseUrl != null && !clientBaseUrl.isBlank())
+                ? clientBaseUrl.replaceAll("/+$", "")
+                : ((frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl.replaceAll("/+$", "") : "http://localhost:4200");
         String callback = (chapaCallbackUrl != null && !chapaCallbackUrl.isBlank()) ? chapaCallbackUrl : "http://localhost:8080/api/v1/payments/chapa/webhook";
 
         String returnUrl;
