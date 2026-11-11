@@ -21,19 +21,19 @@ import { ServiceCategory, Location, Skill, ListingType, Seniority, RequirementTy
         <div class="form-section">
           <h3>1. Select Marketplace Pillar</h3>
           <div class="type-selector-grid">
-            <div class="type-card" [class.selected]="listingType === 'JOB'" (click)="listingType = 'JOB'">
+            <div class="type-card" [class.selected]="listingType === 'JOB'" (click)="onPillarChange('JOB')">
               <div class="type-icon">💼</div>
               <div class="type-title">Employment</div>
               <p class="type-desc">Full-time or part-time staff positions for software companies and organizations</p>
             </div>
 
-            <div class="type-card" [class.selected]="listingType === 'FREELANCE_PROJECT'" (click)="listingType = 'FREELANCE_PROJECT'">
+            <div class="type-card" [class.selected]="listingType === 'FREELANCE_PROJECT'" (click)="onPillarChange('FREELANCE_PROJECT')">
               <div class="type-icon">💻</div>
               <div class="type-title">Freelance Project</div>
               <p class="type-desc">Contract or milestone-based deliverables (Web apps, designs, translation)</p>
             </div>
 
-            <div class="type-card" [class.selected]="listingType === 'LOCAL_SERVICE_REQUEST'" (click)="listingType = 'LOCAL_SERVICE_REQUEST'">
+            <div class="type-card" [class.selected]="listingType === 'LOCAL_SERVICE_REQUEST'" (click)="onPillarChange('LOCAL_SERVICE_REQUEST')">
               <div class="type-icon">🔧</div>
               <div class="type-title">Local Service Request</div>
               <p class="type-desc">On-site specialized trade or technician assistance (Electricians, plumbing, tutoring)</p>
@@ -43,21 +43,41 @@ import { ServiceCategory, Location, Skill, ListingType, Seniority, RequirementTy
 
         <!-- Step 2: Basic Details -->
         <div class="form-section">
-          <h3>2. Listing Details</h3>
+          <h3>
+            2. 
+            <span *ngIf="listingType === 'JOB'">Job Opening Details</span>
+            <span *ngIf="listingType === 'FREELANCE_PROJECT'">Freelance Project Scope</span>
+            <span *ngIf="listingType === 'LOCAL_SERVICE_REQUEST'">Service Request Details</span>
+          </h3>
 
           <div class="form-group">
-            <label class="form-label">Title *</label>
-            <input type="text" [(ngModel)]="title" class="form-input" placeholder="e.g. Senior Java Backend Architect" />
+            <label class="form-label">
+              {{ listingType === 'JOB' ? 'Job Title *' : (listingType === 'FREELANCE_PROJECT' ? 'Project Title *' : 'Service Needed *') }}
+            </label>
+            <input 
+              type="text" 
+              [(ngModel)]="title" 
+              class="form-input" 
+              [placeholder]="listingType === 'JOB' ? 'e.g. Senior Java Backend Architect' : (listingType === 'FREELANCE_PROJECT' ? 'e.g. Flutter Mobile E-Commerce App' : 'e.g. House Rewiring & Circuit Breaker Repair')" 
+            />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Description & Deliverables *</label>
-            <textarea [(ngModel)]="description" rows="5" class="form-textarea" placeholder="Describe the responsibilities, expected outcomes, or service details..."></textarea>
+            <label class="form-label">
+              {{ listingType === 'JOB' ? 'Role Description & Requirements *' : (listingType === 'FREELANCE_PROJECT' ? 'Project Deliverables & Milestones *' : 'Issue Description & Work Required *') }}
+            </label>
+            <textarea 
+              [(ngModel)]="description" 
+              rows="5" 
+              class="form-textarea" 
+              [placeholder]="listingType === 'JOB' ? 'Describe responsibilities, day-to-day work, qualifications, and benefits...' : (listingType === 'FREELANCE_PROJECT' ? 'Detail the scope of work, expected deliverables, milestones, and tech stack...' : 'Describe what needs fixing or building, site conditions, and preferred schedule...')"></textarea>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div class="form-group">
-              <label class="form-label">Service Category</label>
+              <label class="form-label">
+                {{ listingType === 'LOCAL_SERVICE_REQUEST' ? 'Trade Category *' : 'Industry / Domain Category' }}
+              </label>
               <select [(ngModel)]="serviceCategoryId" class="form-select">
                 <option [ngValue]="null">Select category...</option>
                 <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
@@ -65,7 +85,9 @@ import { ServiceCategory, Location, Skill, ListingType, Seniority, RequirementTy
             </div>
 
             <div class="form-group">
-              <label class="form-label">Location</label>
+              <label class="form-label">
+                {{ listingType === 'LOCAL_SERVICE_REQUEST' ? 'Service Location (Addis Ababa Sub-City / Region) *' : 'Location' }}
+              </label>
               <select [(ngModel)]="locationId" class="form-select">
                 <option [ngValue]="null">Select location...</option>
                 <option *ngFor="let loc of locations" [ngValue]="loc.id">{{ loc.name }} ({{ loc.region }})</option>
@@ -73,27 +95,40 @@ import { ServiceCategory, Location, Skill, ListingType, Seniority, RequirementTy
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-4">
-            <div class="form-group">
-              <label class="form-label">Remote Work Allowed</label>
+          <div class="grid gap-4" [ngClass]="listingType === 'LOCAL_SERVICE_REQUEST' ? 'grid-cols-2' : 'grid-cols-3'">
+            <!-- Remote option: Not relevant for local on-site physical trades -->
+            <div class="form-group" *ngIf="listingType !== 'LOCAL_SERVICE_REQUEST'">
+              <label class="form-label">Work Arrangement</label>
               <select [(ngModel)]="isRemote" class="form-select">
-                <option [ngValue]="false">No (On-Site Required)</option>
-                <option [ngValue]="true">Yes (Remote Allowed)</option>
+                <option [ngValue]="false">On-Site Only</option>
+                <option [ngValue]="true">Remote / Hybrid Allowed</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Availability Required</label>
+              <label class="form-label">
+                {{ listingType === 'LOCAL_SERVICE_REQUEST' ? 'Service Schedule / Urgency' : 'Availability / Commitment' }}
+              </label>
               <select [(ngModel)]="availabilityRequired" class="form-select">
-                <option value="FULL_TIME">Full Time</option>
-                <option value="PART_TIME">Part Time</option>
-                <option value="HOURLY">Hourly</option>
-                <option value="ONE_OFF">One-Off Job</option>
+                <ng-container *ngIf="listingType === 'JOB'">
+                  <option value="FULL_TIME">Full Time (40 hrs/wk)</option>
+                  <option value="PART_TIME">Part Time (20 hrs/wk)</option>
+                </ng-container>
+                <ng-container *ngIf="listingType === 'FREELANCE_PROJECT'">
+                  <option value="ONE_OFF">Fixed Milestone Contract</option>
+                  <option value="HOURLY">Hourly Retainer</option>
+                  <option value="PART_TIME">Part-Time Ongoing</option>
+                </ng-container>
+                <ng-container *ngIf="listingType === 'LOCAL_SERVICE_REQUEST'">
+                  <option value="ONE_OFF">Emergency / Immediate Dispatch</option>
+                  <option value="HOURLY">Scheduled Day Service</option>
+                  <option value="PART_TIME">Recurring Maintenance</option>
+                </ng-container>
               </select>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Seniority Level</label>
+            <div class="form-group" *ngIf="listingType === 'JOB' || listingType === 'FREELANCE_PROJECT'">
+              <label class="form-label">Experience Level Required</label>
               <select [(ngModel)]="seniority" class="form-select">
                 <option value="ANY">Any / Flexible</option>
                 <option value="JUNIOR">Junior (1-2 yrs)</option>
@@ -106,8 +141,17 @@ import { ServiceCategory, Location, Skill, ListingType, Seniority, RequirementTy
 
         <!-- Step 3: Required & Preferred Skills -->
         <div class="form-section">
-          <h3>3. Key Skills & Qualifications</h3>
-          <p class="section-hint">Add skills used by the AI semantic engine to rank candidate profiles.</p>
+          <h3>
+            3. 
+            <span *ngIf="listingType === 'JOB'">Required & Preferred Qualifications</span>
+            <span *ngIf="listingType === 'FREELANCE_PROJECT'">Required Technical Stack & Skills</span>
+            <span *ngIf="listingType === 'LOCAL_SERVICE_REQUEST'">Required Trade Skills & Certifications</span>
+          </h3>
+          <p class="section-hint">
+            {{ listingType === 'LOCAL_SERVICE_REQUEST' 
+                ? 'Specify required trade capabilities (e.g. Electrical wiring, plumbing, HVAC) for local dispatch matching.' 
+                : 'Add skills used by the AI semantic engine to rank and match top Ethiopian candidate profiles.' }}
+          </p>
 
           <div class="add-skill-box">
             <select [(ngModel)]="newSkillId" class="form-select flex-1">
@@ -140,15 +184,30 @@ import { ServiceCategory, Location, Skill, ListingType, Seniority, RequirementTy
 
         <!-- Step 4: Budget -->
         <div class="form-section">
-          <h3>4. Budget & Compensation (ETB)</h3>
+          <h3>
+            4. 
+            <span *ngIf="listingType === 'JOB'">Monthly Salary Range (ETB)</span>
+            <span *ngIf="listingType === 'FREELANCE_PROJECT'">Escrow Project Budget (ETB)</span>
+            <span *ngIf="listingType === 'LOCAL_SERVICE_REQUEST'">Service Fee / Labor Budget (ETB)</span>
+          </h3>
+          <p class="section-hint" *ngIf="listingType === 'FREELANCE_PROJECT'">
+            Secured via Chapa/Telebirr Milestone Escrow. Funds are released upon deliverable approval.
+          </p>
+          <p class="section-hint" *ngIf="listingType === 'LOCAL_SERVICE_REQUEST'">
+            Estimated labor and service cost. Materials can be quoted separately on-site.
+          </p>
           <div class="grid grid-cols-2 gap-4">
             <div class="form-group">
-              <label class="form-label">Minimum Budget (ETB)</label>
-              <input type="number" [(ngModel)]="budgetMin" class="form-input" placeholder="e.g. 15000" />
+              <label class="form-label">
+                {{ listingType === 'JOB' ? 'Minimum Monthly Salary (ETB)' : 'Minimum Budget (ETB)' }}
+              </label>
+              <input type="number" [(ngModel)]="budgetMin" class="form-input" [placeholder]="listingType === 'JOB' ? 'e.g. 25000' : (listingType === 'FREELANCE_PROJECT' ? 'e.g. 15000' : 'e.g. 1500')" />
             </div>
             <div class="form-group">
-              <label class="form-label">Maximum Budget (ETB)</label>
-              <input type="number" [(ngModel)]="budgetMax" class="form-input" placeholder="e.g. 30000" />
+              <label class="form-label">
+                {{ listingType === 'JOB' ? 'Maximum Monthly Salary (ETB)' : 'Maximum Budget (ETB)' }}
+              </label>
+              <input type="number" [(ngModel)]="budgetMax" class="form-input" [placeholder]="listingType === 'JOB' ? 'e.g. 50000' : (listingType === 'FREELANCE_PROJECT' ? 'e.g. 35000' : 'e.g. 3500')" />
             </div>
           </div>
         </div>
@@ -308,6 +367,23 @@ export class ListingCreateComponent implements OnInit {
   selectedSkills: { skillId: number; skillName: string; requirement: RequirementType; weight: number }[] = [];
   newSkillId: number | null = null;
   newSkillRequirement: RequirementType = 'REQUIRED';
+
+  onPillarChange(type: ListingType): void {
+    this.listingType = type;
+    if (type === 'JOB') {
+      this.isRemote = false;
+      this.availabilityRequired = 'FULL_TIME';
+      this.seniority = 'MID';
+    } else if (type === 'FREELANCE_PROJECT') {
+      this.isRemote = true;
+      this.availabilityRequired = 'ONE_OFF';
+      this.seniority = 'MID';
+    } else if (type === 'LOCAL_SERVICE_REQUEST') {
+      this.isRemote = false; // Trades like electricians/plumbers must be on-site
+      this.availabilityRequired = 'ONE_OFF';
+      this.seniority = 'ANY';
+    }
+  }
 
   submitting = false;
   errorMessage = '';
