@@ -322,6 +322,10 @@ export class ApiService {
     return this.http.get<any>(`${this.baseUrl}/assessments/${assessmentId}`, { headers: this.getHeaders() });
   }
 
+  getAssessmentBySkillId(skillId: number | string): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/assessments/by-skill/${skillId}`, { headers: this.getHeaders() });
+  }
+
   submitAssessment(assessmentId: string, answers: any): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/assessments/${assessmentId}/submit`, { answers }, { headers: this.getHeaders() });
   }

@@ -83,6 +83,15 @@ public class ProfileService {
         ProviderProfile profile = providerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Provider profile not found"));
 
+        // Keep track of existing verification data to prevent losing verified badges upon profile save
+        List<ProviderSkill> existingSkills = providerSkillRepository.findByIdProviderProfileId(profile.getId());
+        Map<Long, ProviderSkill> existingMap = new HashMap<>();
+        for (ProviderSkill ps : existingSkills) {
+            if (ps.getSkill() != null && ps.getSkill().getId() != null) {
+                existingMap.put(ps.getSkill().getId(), ps);
+            }
+        }
+
         providerSkillRepository.deleteByIdProviderProfileId(profile.getId());
         profile.getSkills().clear();
 
@@ -92,6 +101,14 @@ public class ProfileService {
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill id not found: " + sDto.getSkillId()));
 
                 ProviderSkill ps = new ProviderSkill(profile, skill, sDto.getProficiency(), sDto.getYearsExperience());
+
+                ProviderSkill old = existingMap.get(sDto.getSkillId());
+                if (old != null) {
+                    ps.setVerified(old.isVerified());
+                    ps.setAssessmentScore(old.getAssessmentScore());
+                    ps.setVerifiedAt(old.getVerifiedAt());
+                }
+
                 profile.getSkills().add(ps);
             }
         }

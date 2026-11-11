@@ -38,6 +38,11 @@ public class SkillAssessmentController {
         return ResponseEntity.ok(assessmentService.getAssessmentForTaking(id));
     }
 
+    @GetMapping("/by-skill/{skillId}")
+    public ResponseEntity<Map<String, Object>> getAssessmentBySkill(@PathVariable Long skillId) {
+        return ResponseEntity.ok(assessmentService.getOrCreateAssessmentBySkillId(skillId));
+    }
+
     @PostMapping("/{id}/submit")
     public ResponseEntity<Map<String, Object>> submitAssessment(
             @PathVariable UUID id,

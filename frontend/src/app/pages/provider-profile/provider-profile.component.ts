@@ -141,9 +141,10 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
                     <button
                       *ngIf="!s.isVerified"
                       type="button"
+                      [disabled]="loadingQuizSkillId === s.skillId"
                       (click)="startAssessmentForSkill(s)"
                       class="btn-take-quiz">
-                      🎯 {{ i18n.translate('Take Assessment Quiz', 'የብቃት ፈተና ውሰድ') }}
+                      {{ loadingQuizSkillId === s.skillId ? '⏳ Preparing Questions...' : ('🎯 ' + i18n.translate('Take Assessment Quiz', 'የብቃት ፈተና ውሰድ')) }}
                     </button>
                   </div>
                   <span class="skill-meta-tag">Proficiency: {{ s.proficiency }}/5 • {{ s.yearsExperience }} yrs</span>
@@ -242,15 +243,19 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
                 <div class="pkg-num">10 Connects</div>
                 <div class="pkg-price">50 ETB</div>
               </div>
-              <div class="package-pill" [class.selected]="selectedConnectsAmount === 25" (click)="selectedConnectsAmount = 25">
-                <div class="pkg-num">25 Connects</div>
-                <div class="pkg-price">100 ETB</div>
+              <div class="package-pill" [class.selected]="selectedConnectsAmount === 20" (click)="selectedConnectsAmount = 20">
+                <div class="pkg-num">20 Connects</div>
+                <div class="pkg-price">90 ETB</div>
                 <span class="pkg-badge">POPULAR</span>
               </div>
-              <div class="package-pill" [class.selected]="selectedConnectsAmount === 60" (click)="selectedConnectsAmount = 60">
-                <div class="pkg-num">60 Connects</div>
-                <div class="pkg-price">200 ETB</div>
+              <div class="package-pill" [class.selected]="selectedConnectsAmount === 50" (click)="selectedConnectsAmount = 50">
+                <div class="pkg-num">50 Connects</div>
+                <div class="pkg-price">180 ETB</div>
                 <span class="pkg-badge">BEST VALUE</span>
+              </div>
+              <div class="package-pill" [class.selected]="selectedConnectsAmount === 100" (click)="selectedConnectsAmount = 100">
+                <div class="pkg-num">100 Connects</div>
+                <div class="pkg-price">320 ETB</div>
               </div>
             </div>
           </div>
@@ -845,12 +850,15 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
 
   getPackagePrice(amount: number): number {
     if (amount <= 10) return 50;
+    if (amount <= 20) return 90;
     if (amount <= 25) return 100;
-    if (amount <= 30) return 120;
-    return 200;
+    if (amount <= 50) return 180;
+    if (amount <= 60) return 200;
+    return 320;
   }
 
   // Skill Assessment Quiz & Anti-Cheat Properties
+  loadingQuizSkillId: number | null = null;
   showQuizModal = false;
   activeQuiz: any = null;
   currentQuestionIndex = 0;
@@ -1193,17 +1201,30 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
 
   startAssessmentForSkill(skill: any): void {
     const skillId = skill.skillId;
-    this.apiService.getAssessments().subscribe({
-      next: (list) => {
-        const found = (list || []).find(a => a.skillId === skillId);
-        if (found) {
-          this.openQuiz(found.id);
-        } else {
-          this.toastService.info(`No quiz configured for ${skill.skillName || 'this skill'} yet. Coming soon!`, 'Skill Assessment');
+    if (!skillId) {
+      this.toastService.error('Skill ID is missing. Please save your profile first.');
+      return;
+    }
+    this.loadingQuizSkillId = skillId;
+    this.apiService.getAssessmentBySkillId(skillId).subscribe({
+      next: (quiz) => {
+        this.loadingQuizSkillId = null;
+        if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+          this.toastService.warning(`Generating assessment questions for ${skill.skillName || 'this skill'}... Please try again in a moment.`);
+          return;
         }
+        this.activeQuiz = quiz;
+        this.currentQuestionIndex = 0;
+        this.selectedAnswers = {};
+        this.quizResult = null;
+        this.tabSwitchWarnings = 0;
+        this.quizDisqualified = false;
+        this.showQuizModal = true;
+        this.startQuestionTimer();
       },
       error: () => {
-        this.toastService.error('Failed to load assessment quizzes.');
+        this.loadingQuizSkillId = null;
+        this.toastService.error(`Failed to load assessment for ${skill.skillName || 'this skill'}. Please try again.`);
       }
     });
   }

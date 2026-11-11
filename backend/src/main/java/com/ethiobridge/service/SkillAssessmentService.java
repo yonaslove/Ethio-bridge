@@ -84,6 +84,108 @@ public class SkillAssessmentService {
         return result;
     }
 
+    @Transactional
+    public Map<String, Object> getOrCreateAssessmentBySkillId(Long skillId) {
+        Skill skill = skillRepository.findById(skillId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Skill not found: " + skillId));
+
+        SkillAssessment sa = assessmentRepository.findBySkillId(skillId).orElseGet(() -> {
+            SkillAssessment newSa = new SkillAssessment();
+            newSa.setSkillId(skillId);
+            newSa.setTitle(skill.getName() + " Competency & Professional Assessment");
+            newSa.setCategory(skill.getCategory() != null ? skill.getCategory().name() : "TECH");
+            newSa.setPassingScore(80);
+            newSa.setTimeLimitMinutes(15);
+            newSa.setQuestionsJson(generateAssessmentQuestionsForSkill(skill));
+            return assessmentRepository.save(newSa);
+        });
+
+        return getAssessmentForTaking(sa.getId());
+    }
+
+    private String generateAssessmentQuestionsForSkill(Skill skill) {
+        String name = skill.getName();
+        String cat = skill.getCategory() != null ? skill.getCategory().name() : "GENERAL";
+
+        List<Map<String, Object>> questions = new ArrayList<>();
+
+        // Question 1: Core Fundamentals & Purpose
+        questions.add(Map.of(
+                "id", 1,
+                "question", "What is the primary role and core advantage of applying " + name + " in professional projects?",
+                "options", List.of(
+                        "It strictly serves as visual decoration with no impact on functionality or performance",
+                        "It provides standardized, efficient, and reliable industry methodology to deliver production-grade results in " + cat,
+                        "It completely replaces all database and cloud infrastructure automatically",
+                        "It is only used for temporary development drafts and discarded in production"
+                ),
+                "correctIndex", 1,
+                "explanation", name + " provides industry-standard architecture, high efficiency, and quality guarantees for modern " + cat + " workflows."
+        ));
+
+        // Question 2: Industry Best Practices
+        questions.add(Map.of(
+                "id", 2,
+                "question", "When implementing solutions with " + name + ", which engineering best practice must always be followed?",
+                "options", List.of(
+                        "Hardcode configuration secrets and passwords directly into public files",
+                        "Follow structured modular design, error handling, strict validation, and established safety/coding guidelines",
+                        "Skip verification and testing to accelerate deployment speed",
+                        "Avoid documentation and revision control"
+                ),
+                "correctIndex", 1,
+                "explanation", "Structured modularity, error handling, and adherence to safety and design standards are critical when applying " + name + "."
+        ));
+
+        // Question 3: Performance & Reliability
+        questions.add(Map.of(
+                "id", 3,
+                "question", "How does a specialist in " + name + " troubleshoot performance bottlenecks or failure states effectively?",
+                "options", List.of(
+                        "Reinstall the operating system each time a warning is logged",
+                        "Conduct systematic diagnostics, inspect logs/metrics, identify the root cause, and optimize the bottleneck",
+                        "Disable all logging and warning outputs to hide latency",
+                        "Reduce system security controls"
+                ),
+                "correctIndex", 1,
+                "explanation", "Systematic telemetry, diagnostic profiling, and targeted optimization resolve bottlenecks without compromising reliability."
+        ));
+
+        // Question 4: Ethiopian Market & Contextual Application
+        questions.add(Map.of(
+                "id", 4,
+                "question", "In the Ethiopian marketplace, what contextual consideration is essential when deploying " + name + " deliverables?",
+                "options", List.of(
+                        "Assuming zero power fluctuations and unlimited high-speed fiber internet everywhere",
+                        "Ensuring resilience under variable network latency, localized language adaptation (Amharic/English), and mobile optimization",
+                        "Designing exclusively for high-end desktop workstations",
+                        "Ignoring local regulatory and compliance standards"
+                ),
+                "correctIndex", 1,
+                "explanation", "Deliverables in Ethiopia must account for real infrastructure conditions, network variance, and localized accessibility."
+        ));
+
+        // Question 5: Quality Assurance & Deliverable Handoff
+        questions.add(Map.of(
+                "id", 5,
+                "question", "Before marking a contract deliverable involving " + name + " as complete, what final protocol ensures client satisfaction?",
+                "options", List.of(
+                        "Request milestone payout release before demonstrating working results",
+                        "Perform end-to-end quality assurance, verify requirements against scope, and provide clear documentation or instructions",
+                        "Delete the working repository to prevent client inspection",
+                        "Notify the client that testing is solely their responsibility"
+                ),
+                "correctIndex", 1,
+                "explanation", "Rigorous QA testing, verification against contract scope, and thorough client handoff ensure five-star ratings and dispute-free escrow releases."
+        ));
+
+        try {
+            return objectMapper.writeValueAsString(questions);
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> getAssessmentForTaking(UUID assessmentId) {
         SkillAssessment sa = assessmentRepository.findById(assessmentId)

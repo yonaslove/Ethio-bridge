@@ -70,8 +70,11 @@ public class MonetizationService {
 
         BigDecimal price = switch (connectsAmount) {
             case 10 -> new BigDecimal("50.00");
+            case 20 -> new BigDecimal("90.00");
             case 25 -> new BigDecimal("100.00");
+            case 50 -> new BigDecimal("180.00");
             case 60 -> new BigDecimal("200.00");
+            case 100 -> new BigDecimal("320.00");
             default -> new BigDecimal(connectsAmount * 5); // 5 ETB per connect
         };
 
