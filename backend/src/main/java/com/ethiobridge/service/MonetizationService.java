@@ -78,55 +78,17 @@ public class MonetizationService {
             default -> new BigDecimal(connectsAmount * 5); // 5 ETB per connect
         };
 
-        if ("CHAPA".equalsIgnoreCase(paymentMethod)) {
-            String purpose = "CONNECTS_TOPUP:" + connectsAmount;
-            Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
-            Map<String, Object> resp = new HashMap<>(checkout);
-            resp.put("status", "PENDING_PAYMENT");
-            resp.put("connectsAmount", connectsAmount);
-            resp.put("price", price);
-            resp.put("message", "Payment initiated with Chapa. Please complete checkout to receive your Connects.");
-            return resp;
-        }
-
-        String refPrefix = paymentMethod.toUpperCase().contains("TELEBIRR") ? "TB-CON-" : "CBE-CON-";
-        String ref = refPrefix + System.currentTimeMillis();
-
-        PlatformRevenue revenue = new PlatformRevenue(
-                "CONNECTS_TOPUP",
-                profile.getId(),
-                providerUserId,
-                price,
-                price, // 100% platform revenue
-                BigDecimal.ZERO,
-                paymentMethod.toUpperCase(),
-                ref,
-                "Connects Top-Up: +" + connectsAmount + " tokens (" + price + " ETB)"
-        );
-        revenueRepository.save(revenue);
-
-        int current = profile.getConnectsBalance() != null ? profile.getConnectsBalance() : 0;
-        profile.setConnectsBalance(current + connectsAmount);
-        providerProfileRepository.save(profile);
-
-        auditLogService.log(providerUserId, "TOPUP_CONNECTS", "ProviderProfile", profile.getId().toString(),
-                "Added " + connectsAmount + " connects via " + paymentMethod + ". Ref: " + ref, null);
-
-        notificationService.sendNotification(
-                providerUserId,
-                "Connects Balance Updated (+" + connectsAmount + ")",
-                "Your payment of " + price + " ETB via " + paymentMethod + " succeeded. New balance: " + profile.getConnectsBalance() + " Connects.",
-                "CONNECTS",
-                "/profile/provider"
-        );
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("addedConnects", connectsAmount);
-        result.put("newBalance", profile.getConnectsBalance());
-        result.put("amountPaid", price);
-        result.put("referenceId", ref);
-        return result;
+        // All payment methods (Chapa Aggregator, Telebirr, CBE Birr) are securely routed
+        // through Chapa's official hosted checkout rail with full verification
+        String purpose = "CONNECTS_TOPUP:" + connectsAmount;
+        Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
+        Map<String, Object> resp = new HashMap<>(checkout);
+        resp.put("status", "PENDING_PAYMENT");
+        resp.put("connectsAmount", connectsAmount);
+        resp.put("price", price);
+        resp.put("paymentMethod", paymentMethod != null ? paymentMethod.toUpperCase() : "CHAPA");
+        resp.put("message", "Payment initiated. Please complete checkout on the secure gateway to receive your Connects.");
+        return resp;
     }
 
     public Map<String, Object> verifyConnectsTopup(UUID providerUserId, String txRef) {
@@ -194,58 +156,15 @@ public class MonetizationService {
 
         BigDecimal price = new BigDecimal("299.00");
 
-        if ("CHAPA".equalsIgnoreCase(paymentMethod)) {
-            String purpose = "PRO_SUBSCRIPTION";
-            Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
-            Map<String, Object> resp = new HashMap<>(checkout);
-            resp.put("status", "PENDING_PAYMENT");
-            resp.put("price", price);
-            resp.put("message", "Payment initiated with Chapa. Please complete checkout to activate Pro.");
-            return resp;
-        }
-
-        String refPrefix = paymentMethod.toUpperCase().contains("TELEBIRR") ? "TB-PRO-" : "CBE-PRO-";
-        String ref = refPrefix + System.currentTimeMillis();
-
-        PlatformRevenue revenue = new PlatformRevenue(
-                "PRO_SUBSCRIPTION",
-                profile.getId(),
-                providerUserId,
-                price,
-                price, // 100% platform revenue
-                BigDecimal.ZERO,
-                paymentMethod.toUpperCase(),
-                ref,
-                "EthioBridge Pro Talent 30-Day Subscription"
-        );
-        revenueRepository.save(revenue);
-
-        profile.setPro(true);
-        profile.setProExpiresAt(OffsetDateTime.now().plusDays(30));
-        // Bonus 30 connects for subscribing to Pro
-        int current = profile.getConnectsBalance() != null ? profile.getConnectsBalance() : 0;
-        profile.setConnectsBalance(current + 30);
-        providerProfileRepository.save(profile);
-
-        auditLogService.log(providerUserId, "SUBSCRIBE_PRO", "ProviderProfile", profile.getId().toString(),
-                "Subscribed to EthioBridge Pro for 30 days via " + paymentMethod + ". Ref: " + ref, null);
-
-        notificationService.sendNotification(
-                providerUserId,
-                "Welcome to ⭐ EthioBridge Pro!",
-                "Your Pro membership is active. You received a verified Pro badge, priority AI matching, and +30 bonus Connects!",
-                "MEMBERSHIP",
-                "/profile/provider"
-        );
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("isPro", true);
-        result.put("proExpiresAt", profile.getProExpiresAt());
-        result.put("newConnectsBalance", profile.getConnectsBalance());
-        result.put("amountPaid", price);
-        result.put("referenceId", ref);
-        return result;
+        // Route all Pro memberships through Chapa's official hosted gateway
+        String purpose = "PRO_SUBSCRIPTION";
+        Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
+        Map<String, Object> resp = new HashMap<>(checkout);
+        resp.put("status", "PENDING_PAYMENT");
+        resp.put("price", price);
+        resp.put("paymentMethod", paymentMethod != null ? paymentMethod.toUpperCase() : "CHAPA");
+        resp.put("message", "Subscription checkout initiated. Please complete payment on the secure portal.");
+        return resp;
     }
 
     @Transactional(readOnly = true)

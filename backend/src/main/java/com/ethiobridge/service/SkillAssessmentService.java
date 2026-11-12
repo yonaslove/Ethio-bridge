@@ -100,6 +100,12 @@ public class SkillAssessmentService {
             return assessmentRepository.save(newSa);
         });
 
+        // Ensure questions are never empty even if the assessment was previously created with null or empty questionsJson
+        if (sa.getQuestionsJson() == null || sa.getQuestionsJson().isBlank() || "[]".equals(sa.getQuestionsJson().trim())) {
+            sa.setQuestionsJson(generateAssessmentQuestionsForSkill(skill));
+            sa = assessmentRepository.save(sa);
+        }
+
         return getAssessmentForTaking(sa.getId());
     }
 

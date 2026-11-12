@@ -263,10 +263,13 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
           <div class="form-group" style="margin-top: 1rem;">
             <label class="form-label">{{ i18n.translate('Payment Gateway (Ethiopian Rails)', 'የመክፈያ ዘዴ') }}</label>
             <select [(ngModel)]="selectedPaymentMethod" class="form-select">
-              <option value="TELEBIRR">Telebirr (ቴሌብር)</option>
-              <option value="CBE_BIRR">CBE Birr (ሲቢኢ ብር)</option>
-              <option value="CHAPA">Chapa (ቻፓ)</option>
+              <option value="CHAPA">Chapa (Cards, Telebirr, CBE Birr, Awash, Dashen)</option>
+              <option value="TELEBIRR">Telebirr (ቴሌብር via Chapa Gateway)</option>
+              <option value="CBE_BIRR">CBE Birr (ሲቢኢ ብር via Chapa Gateway)</option>
             </select>
+            <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.35rem;">
+              🔒 {{ i18n.translate('Official Ethiopian banking gateway. Authorize safely with Telebirr PIN, CBE Birr, or Debit Card.', 'ደህንነቱ የተጠበቀ የኢትዮጵያ ባንክ ክፍያ በር። በቴሌብር፣ በሲቢኢ ብር ወይም በባንክ ካርድ ይክፈሉ።') }}
+            </p>
           </div>
 
           <div class="flex justify-between items-center" style="margin-top: 1.5rem;">
@@ -969,7 +972,8 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
     this.route.queryParams.subscribe(params => {
       if (params['chapa_connects'] && params['tx_ref']) {
         const txRef = params['tx_ref'];
-        this.toastService.info('Verifying Chapa token purchase payment...', 'Chapa Gateway');
+        this.showTopupModal = false;
+        this.toastService.info('Verifying payment and crediting Connects...', 'Secure Gateway');
         this.apiService.verifyConnectsTopup(txRef).subscribe({
           next: (res) => {
             if (res && res.status === 'SUCCESS') {
@@ -981,24 +985,25 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
               const addedMsg = res.connectsAdded ? `Added ${res.connectsAdded} Connects.` : '';
               const balanceMsg = res.newBalance !== undefined ? `Current balance: ${res.newBalance} Connects.` : '';
               this.toastService.success(
-                `🎉 Chapa payment successful! ${addedMsg} ${balanceMsg}`,
+                `🎉 Payment successful! ${addedMsg} ${balanceMsg}`,
                 'Connects Credited'
               );
               this.loadProfile();
               this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
             } else {
-              this.toastService.error('Chapa payment was not completed or failed. No connects were added.', 'Payment Incomplete');
+              this.toastService.error('Payment was not completed or failed. No connects were added.', 'Payment Incomplete');
             }
           },
           error: () => {
-            this.toastService.error('Failed to verify Chapa payment.', 'Verification Error');
+            this.toastService.error('Failed to verify payment with gateway.', 'Verification Error');
           }
         });
       }
 
       if (params['chapa_pro'] && params['tx_ref']) {
         const txRef = params['tx_ref'];
-        this.toastService.info('Verifying Chapa Pro membership payment...', 'Chapa Gateway');
+        this.showProModal = false;
+        this.toastService.info('Verifying Pro membership payment...', 'Secure Gateway');
         this.apiService.verifyConnectsTopup(txRef).subscribe({
           next: (res) => {
             if (res && res.status === 'SUCCESS') {
@@ -1115,37 +1120,21 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
     this.topupError = '';
     this.topupSuccess = '';
 
-    if (this.selectedPaymentMethod === 'CHAPA') {
-      this.apiService.topUpConnects(this.selectedConnectsAmount, 'CHAPA').subscribe({
-        next: (res: any) => {
-          this.submittingTopup = false;
-          const targetUrl = res?.checkoutUrl || res?.checkout_url;
-          if (targetUrl) {
-            window.location.href = targetUrl;
-          } else {
-            this.topupError = 'Could not generate Chapa checkout URL. Please try again.';
-          }
-        },
-        error: (err: any) => {
-          this.submittingTopup = false;
-          this.topupError = err.error?.message || 'Payment initiation failed. Please try again.';
-        }
-      });
-      return;
-    }
-
+    // Route all payment options through the official secure payment gateway (Chapa with Telebirr/CBE Birr rails)
     this.apiService.topUpConnects(this.selectedConnectsAmount, this.selectedPaymentMethod).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         this.submittingTopup = false;
-        if (this.profile) {
-          this.profile.connectsBalance = res.newBalance;
+        const targetUrl = res?.checkoutUrl || res?.checkout_url;
+        if (targetUrl) {
+          this.toastService.info('Redirecting to secure Ethiopian payment portal (Chapa / Telebirr / CBE)...', 'Payment Gateway');
+          window.location.href = targetUrl;
+        } else {
+          this.topupError = 'Could not generate checkout portal link. Please try again.';
         }
-        this.topupSuccess = `Success! Added ${res.addedConnects} Connects. Current Balance: ${res.newBalance} Connects. Reference: ${res.referenceId}`;
-        setTimeout(() => this.showTopupModal = false, 2500);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.submittingTopup = false;
-        this.topupError = err.error?.message || 'Payment processing failed. Please try again.';
+        this.topupError = err.error?.message || 'Payment initiation failed. Please try again.';
       }
     });
   }
@@ -1157,44 +1146,24 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
   }
 
   confirmProUpgrade(): void {
-    const method = this.proPaymentMethod || 'TELEBIRR';
+    const method = this.proPaymentMethod || 'CHAPA';
     this.submittingPro = true;
     this.proError = '';
 
-    if (method === 'CHAPA') {
-      this.apiService.subscribeToPro('CHAPA').subscribe({
-        next: (res: any) => {
-          this.submittingPro = false;
-          const targetUrl = res.checkoutUrl || res.checkout_url;
-          if (targetUrl) {
-            this.toastService.info('Redirecting to Chapa payment portal...', 'Chapa Gateway');
-            window.location.href = targetUrl;
-          } else {
-            this.proError = 'Could not generate Chapa checkout URL. Please try again.';
-          }
-        },
-        error: (err: any) => {
-          this.submittingPro = false;
-          this.proError = err.error?.message || 'Pro subscription initiation failed. Please try again.';
-        }
-      });
-      return;
-    }
-
     this.apiService.subscribeToPro(method).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         this.submittingPro = false;
-        this.showProModal = false;
-        if (this.profile) {
-          this.profile.isPro = true;
-          this.profile.proExpiresAt = res.proExpiresAt;
-          this.profile.connectsBalance = res.newConnectsBalance;
+        const targetUrl = res.checkoutUrl || res.checkout_url;
+        if (targetUrl) {
+          this.toastService.info('Redirecting to secure Ethiopian payment portal (Chapa / Telebirr / CBE)...', 'Payment Gateway');
+          window.location.href = targetUrl;
+        } else {
+          this.proError = 'Could not generate checkout portal link. Please try again.';
         }
-        this.toastService.success(`Welcome to EthioBridge Pro! Activated via ${method} (Ref: ${res.referenceId}).`, 'Pro Membership Activated');
       },
-      error: (err) => {
+      error: (err: any) => {
         this.submittingPro = false;
-        this.proError = err.error?.message || 'Pro subscription upgrade failed. Please try again.';
+        this.proError = err.error?.message || 'Pro subscription initiation failed. Please try again.';
       }
     });
   }
