@@ -23,6 +23,7 @@ import { ProviderProfile } from '../../models/models';
           <div class="header-info">
             <div class="name-badge-row">
               <h1>{{ profile.fullName || 'Professional Provider' }}</h1>
+              <span *ngIf="profile.isPro" class="badge-pro-pill" title="Verified Pro Talent">⭐ PRO</span>
               <span class="verified-badge">✓ Fayda ID Verified</span>
             </div>
             <div class="headline-text">{{ profile.headline }}</div>
@@ -173,6 +174,19 @@ import { ProviderProfile } from '../../models/models';
       font-weight: 800;
       padding: 0.2rem 0.6rem;
       border-radius: 12px;
+    }
+    .badge-pro-pill {
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.2rem 0.65rem;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
     }
     .headline-text {
       font-size: 1.05rem;

@@ -167,7 +167,10 @@ import { Listing, ServiceCategory, Location, ListingType, ProviderProfile } from
               <div class="provider-avatar-chip">
                 <div class="avatar-sm">{{ (p.fullName || 'P').charAt(0).toUpperCase() }}</div>
                 <div>
-                  <h4 class="provider-name">{{ p.fullName || 'Verified Provider' }}</h4>
+                  <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <h4 class="provider-name">{{ p.fullName || 'Verified Provider' }}</h4>
+                    <span *ngIf="p.isPro" class="badge-pro-pill" title="EthioBridge Verified Pro Talent">⭐ PRO</span>
+                  </div>
                   <span class="verified-pill">✓ {{ i18n.translate('Fayda ID Verified', 'በፋይዳ የተረጋገጠ') }}</span>
                 </div>
               </div>
@@ -332,6 +335,19 @@ import { Listing, ServiceCategory, Location, ListingType, ProviderProfile } from
       font-size: 0.68rem;
       color: #0E7F8F;
       font-weight: 700;
+    }
+    .badge-pro-pill {
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+      color: #FFFFFF;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 0.15rem 0.45rem;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+      box-shadow: 0 1px 4px rgba(217, 119, 6, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
     }
     .provider-headline {
       font-size: 0.9rem;

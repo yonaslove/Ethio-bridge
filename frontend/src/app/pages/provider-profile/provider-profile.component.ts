@@ -13,9 +13,23 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
   imports: [CommonModule, FormsModule],
   template: `
     <div class="container profile-page">
-      <div class="profile-header">
-        <h1>Provider Profile & Skills</h1>
-        <p>Your profile is analyzed by the AI engine to recommend jobs, freelance contracts, and local services</p>
+      <div class="profile-header flex justify-between items-center" style="flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h1>Provider Profile & Skills</h1>
+            <span *ngIf="profile?.isPro" class="badge-pro-pillar">
+              ⭐ PRO TALENT
+            </span>
+          </div>
+          <p>Your profile is analyzed by the AI engine to recommend jobs, freelance contracts, and local services</p>
+        </div>
+        <div *ngIf="profile?.isPro" class="pro-membership-pill">
+          <span class="pro-icon">⭐</span>
+          <div>
+            <strong>EthioBridge Pro Active</strong>
+            <small *ngIf="profile?.proExpiresAt"> • Renews {{ profile?.proExpiresAt | date:'mediumDate' }}</small>
+          </div>
+        </div>
       </div>
 
       <div *ngIf="savedSuccess" class="alert-success" style="margin-bottom: 1.5rem;">
@@ -597,6 +611,33 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
       font-weight: 600;
       margin: 0.5rem 0;
       color: var(--color-charcoal);
+    }
+    .badge-pro-pillar {
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .pro-membership-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #FFFBEB;
+      border: 1px solid #FCD34D;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #92400E;
+    }
+    .pro-membership-pill .pro-icon {
+      font-size: 1.25rem;
     }
     .pro-perks-list {
       list-style: none;
