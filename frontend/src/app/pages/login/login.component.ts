@@ -625,7 +625,7 @@ export class LoginComponent implements OnInit {
       error: (err) => {
         this.stopColdStartTimer();
         this.loading = false;
-        this.errorMessage = 'Quick sign-in failed. Please try again.';
+        this.errorMessage = err?.error?.message || (err?.status === 0 ? 'Cloud server is waking up. Please wait a moment and try again.' : 'Quick sign-in failed. Please try again.');
       }
     });
   }
