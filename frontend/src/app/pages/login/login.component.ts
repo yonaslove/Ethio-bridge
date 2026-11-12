@@ -147,6 +147,27 @@ import { I18nService } from '../../services/i18n.service';
         <div class="auth-footer">
           <p>{{ i18n.translate("Don't have an account yet?", "አካውንት የለዎትም?") }} <a routerLink="/register" class="link-cyan">{{ i18n.t('nav.register') }}</a></p>
         </div>
+
+        <!-- 1-Click Quick Login Persona Drawer for Testing -->
+        <div class="quick-personas-section">
+          <div class="quick-personas-header">
+            <span>⚡ {{ i18n.translate('Instant 1-Click Test Sign-In', 'በ1-ጠቅታ ፈጣን መግቢያ') }}</span>
+          </div>
+          <p class="quick-personas-hint">
+            {{ i18n.translate('Click any persona below to auto-fill credentials & enter directly:', 'ከታች ካሉት አንዱን በመምረጥ ወዲያውኑ ይግቡ፡') }}
+          </p>
+          <div class="persona-chips-grid">
+            <button
+              type="button"
+              *ngFor="let p of personas"
+              (click)="loginAsPersona(p.id)"
+              [disabled]="loading"
+              class="persona-chip-btn">
+              <span class="chip-title">{{ p.name }}</span>
+              <span class="chip-badge">{{ p.roleBadge }}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -398,6 +419,63 @@ import { I18nService } from '../../services/i18n.service';
       font-size: 1.5rem;
       cursor: pointer;
       color: var(--color-slate);
+    }
+    .quick-personas-section {
+      margin-top: 1.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px dashed var(--color-border);
+    }
+    .quick-personas-header {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #0E7F8F;
+      margin-bottom: 0.35rem;
+    }
+    .quick-personas-hint {
+      font-size: 0.775rem;
+      color: var(--color-slate);
+      margin-bottom: 0.75rem;
+      line-height: 1.35;
+    }
+    .persona-chips-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+    .persona-chip-btn {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0.85rem;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+    .persona-chip-btn:hover {
+      background: #F0F9FF;
+      border-color: #0284C7;
+      transform: translateY(-1px);
+    }
+    .persona-chip-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .chip-title {
+      font-size: 0.825rem;
+      font-weight: 700;
+      color: #1E293B;
+    }
+    .chip-badge {
+      font-size: 0.725rem;
+      font-weight: 600;
+      color: #0284C7;
+      background: #E0F2FE;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
     }
   `]
 })
