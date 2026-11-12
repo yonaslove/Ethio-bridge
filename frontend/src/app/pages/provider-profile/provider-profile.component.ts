@@ -970,8 +970,11 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
     this.loadProfile();
 
     this.route.queryParams.subscribe(params => {
-      if (params['chapa_connects'] && params['tx_ref']) {
-        const txRef = params['tx_ref'];
+      const isConnects = params['chapa_connects'] || params['amp;chapa_connects'];
+      const rawTxRef = params['tx_ref'] || params['amp;tx_ref'];
+
+      if (isConnects && rawTxRef) {
+        const txRef = rawTxRef;
         this.showTopupModal = false;
         this.toastService.info('Verifying payment and crediting Connects...', 'Secure Gateway');
         this.apiService.verifyConnectsTopup(txRef).subscribe({
@@ -1000,8 +1003,9 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
         });
       }
 
-      if (params['chapa_pro'] && params['tx_ref']) {
-        const txRef = params['tx_ref'];
+      const isPro = params['chapa_pro'] || params['amp;chapa_pro'];
+      if (isPro && rawTxRef) {
+        const txRef = rawTxRef;
         this.showProModal = false;
         this.toastService.info('Verifying Pro membership payment...', 'Secure Gateway');
         this.apiService.verifyConnectsTopup(txRef).subscribe({
