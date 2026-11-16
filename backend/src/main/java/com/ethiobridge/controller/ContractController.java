@@ -94,7 +94,8 @@ public class ContractController {
         AppUser user = userService.getOrCreateCurrentUser(auth);
         String reason = body.get("reason");
         String details = body.get("details");
-        Dispute dispute = contractService.raiseDispute(user.getId(), contractId, reason, details);
+        String evidenceFileUrls = body.get("evidenceFileUrls");
+        Dispute dispute = contractService.raiseDispute(user.getId(), contractId, reason, details, evidenceFileUrls);
         return ResponseEntity.ok(dispute);
     }
 

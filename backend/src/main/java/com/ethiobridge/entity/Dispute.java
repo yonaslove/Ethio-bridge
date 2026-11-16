@@ -30,6 +30,9 @@ public class Dispute {
     @Column(name = "admin_resolution", columnDefinition = "TEXT")
     private String adminResolution;
 
+    @Column(name = "evidence_file_urls", columnDefinition = "TEXT")
+    private String evidenceFileUrls;
+
     @Column(name = "resolved_by")
     private UUID resolvedBy;
 
@@ -70,6 +73,9 @@ public class Dispute {
 
     public String getAdminResolution() { return adminResolution; }
     public void setAdminResolution(String adminResolution) { this.adminResolution = adminResolution; }
+
+    public String getEvidenceFileUrls() { return evidenceFileUrls; }
+    public void setEvidenceFileUrls(String evidenceFileUrls) { this.evidenceFileUrls = evidenceFileUrls; }
 
     public UUID getResolvedBy() { return resolvedBy; }
     public void setResolvedBy(UUID resolvedBy) { this.resolvedBy = resolvedBy; }

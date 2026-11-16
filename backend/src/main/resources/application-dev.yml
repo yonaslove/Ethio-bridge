@@ -1,0 +1,7 @@
+# Development profile configuration for EthioBridge Backend
+# Enables development sandbox payment simulation explicitly for local testing
+
+app:
+  payment:
+    simulation:
+      enabled: ${APP_PAYMENT_SIMULATION_ENABLED:true} # Explicitly enabled for development

@@ -85,6 +85,9 @@ class PaymentSecurityAndEscrowTest {
                 webhookLogRepository,
                 escrowLedgerService
         );
+        org.springframework.core.env.Environment defaultTestEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(defaultTestEnv.getActiveProfiles()).thenReturn(new String[]{"test"});
+        paymentService.setEnvironment(defaultTestEnv);
         ReflectionTestUtils.setField(paymentService, "chapaWebhookSecret", webhookSecret);
 
         contractService = new ContractService(
@@ -158,6 +161,7 @@ class PaymentSecurityAndEscrowTest {
 
         when(paymentRepository.findByTransactionRef(txRef)).thenReturn(Optional.of(tx));
         when(providerProfileRepository.findByUserId(providerId)).thenReturn(Optional.of(profile));
+        when(providerProfileRepository.save(any(ProviderProfile.class))).thenAnswer(i -> i.getArgument(0));
 
         Map<String, Object> result = paymentService.processChapaWebhook(payload, validSig, "KEY-VALID-1");
 
@@ -206,6 +210,7 @@ class PaymentSecurityAndEscrowTest {
         PaymentTransaction tx = new PaymentTransaction(contractId, milestoneId, seekerId, new BigDecimal("5000.00"), "CHAPA", txRef, "INITIATED");
         when(paymentRepository.findByTransactionRef(txRef)).thenReturn(Optional.of(tx));
 
+        paymentService.setPaymentSimulationEnabled(true);
         Map<String, Object> result = paymentService.verifyChapaPayment(txRef, seekerId, false);
 
         assertNotEquals("SUCCESS", result.get("status"));
@@ -290,5 +295,194 @@ class PaymentSecurityAndEscrowTest {
                 "COMMISSION_FEE".equals(entry.getEntryType()) &&
                 new BigDecimal("2000.00").compareTo(entry.getAmount()) == 0
         ));
+    }
+
+    @Test
+    @DisplayName("Development Simulation Enabled: verifies legitimate initiated transaction and fulfills benefits")
+    void shouldFulfillSimulatedTransactionWhenSimulationEnabled() {
+        String txRef = "CHP-1794773223333-C6CCC7";
+        PaymentTransaction tx = new PaymentTransaction(null, null, providerId, new BigDecimal("100.00"), "CHAPA", txRef, "INITIATED");
+        tx.setProviderResponse("CONNECTS_TOPUP:25");
+
+        ProviderProfile profile = new ProviderProfile();
+        profile.setId(UUID.randomUUID());
+        profile.setUserId(providerId);
+        profile.setConnectsBalance(10);
+
+        when(paymentRepository.findByTransactionRef(txRef)).thenReturn(Optional.of(tx));
+        when(providerProfileRepository.findByUserId(providerId)).thenReturn(Optional.of(profile));
+        when(providerProfileRepository.save(any(ProviderProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        paymentService.setPaymentSimulationEnabled(true);
+        Map<String, Object> result = paymentService.verifyChapaPayment(txRef, providerId, false);
+
+        assertEquals("SUCCESS", result.get("status"));
+        assertEquals("SANDBOX_SIMULATED", result.get("mode"));
+        assertEquals(35, profile.getConnectsBalance());
+        verify(revenueRepository, times(1)).save(any(PlatformRevenue.class));
+    }
+
+    @Test
+    @DisplayName("Simulation Disabled: fails closed with GATEWAY_UNAVAILABLE and does not fulfill")
+    void shouldFailClosedWhenSimulationDisabled() {
+        String txRef = "CHP-1794773223333-C6CCC7";
+        PaymentTransaction tx = new PaymentTransaction(null, null, providerId, new BigDecimal("100.00"), "CHAPA", txRef, "INITIATED");
+        tx.setProviderResponse("CONNECTS_TOPUP:25");
+
+        when(paymentRepository.findByTransactionRef(txRef)).thenReturn(Optional.of(tx));
+
+        paymentService.setPaymentSimulationEnabled(false);
+        Map<String, Object> result = paymentService.verifyChapaPayment(txRef, providerId, false);
+
+        assertEquals("GATEWAY_UNAVAILABLE", result.get("status"));
+        assertEquals("INITIATED", tx.getStatus(), "Transaction must remain INITIATED and never fulfilled");
+        verify(revenueRepository, never()).save(any());
+        verify(providerProfileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Production Mode: strictly prohibits simulation even if simulation flag is true")
+    void shouldProhibitSimulationInProductionProfile() {
+        String txRef = "CHP-1794773223333-C6CCC7";
+        PaymentTransaction tx = new PaymentTransaction(null, null, providerId, new BigDecimal("100.00"), "CHAPA", txRef, "INITIATED");
+        when(paymentRepository.findByTransactionRef(txRef)).thenReturn(Optional.of(tx));
+
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"production"});
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(true); // Attempt to enable in prod
+
+        Map<String, Object> result = paymentService.verifyChapaPayment(txRef, providerId, false);
+
+        assertEquals("GATEWAY_UNAVAILABLE", result.get("status"));
+        assertNotEquals("SUCCESS", tx.getStatus());
+        verify(revenueRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Forged / Non-Existent Transaction: returns NOT_FOUND and blocks verification")
+    void shouldRejectForgedOrNonExistentTransaction() {
+        String forgedTx = "CHP-FAKE-TX-REF-999";
+        when(paymentRepository.findByTransactionRef(forgedTx)).thenReturn(Optional.empty());
+
+        Map<String, Object> result = paymentService.verifyChapaPayment(forgedTx, providerId, false);
+        assertEquals("NOT_FOUND", result.get("status"));
+    }
+
+    @Test
+    @DisplayName("Configuration Test: No active profile + default simulation property = simulation disabled")
+    void shouldDisableSimulationByDefaultWithNoProfile() {
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{});
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(false); // Global default
+
+        assertFalse(paymentService.isSimulationPermitted(), "Default configuration without active dev profile must not allow simulation");
+    }
+
+    @Test
+    @DisplayName("Configuration Test: Development profile + simulation enabled = simulation allowed")
+    void shouldAllowSimulationInDevProfileWhenEnabled() {
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"dev"});
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(true);
+
+        assertTrue(paymentService.isSimulationPermitted(), "Dev profile with explicit simulation enabled must permit simulation");
+    }
+
+    @Test
+    @DisplayName("Configuration Test: Development profile + simulation disabled = simulation prohibited")
+    void shouldProhibitSimulationInDevProfileWhenDisabled() {
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"dev"});
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(false);
+
+        assertFalse(paymentService.isSimulationPermitted(), "Dev profile with simulation disabled must not permit simulation");
+    }
+
+    @Test
+    @DisplayName("Configuration Test: Production profile + simulation enabled = simulation strictly prohibited")
+    void shouldStrictlyProhibitSimulationInProdEvenIfFlagIsTrue() {
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"prod"});
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(true);
+
+        assertFalse(paymentService.isSimulationPermitted(), "Production profile must strictly override and prohibit simulation");
+    }
+
+    @Test
+    @DisplayName("Configuration Test: Production profile + simulation disabled = simulation prohibited")
+    void shouldProhibitSimulationInProdWhenFlagIsFalse() {
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"production"});
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(false);
+
+        assertFalse(paymentService.isSimulationPermitted(), "Production profile with flag false must prohibit simulation");
+    }
+
+    @Test
+    @DisplayName("Production Security: Missing Chapa credentials in production cannot fulfill any transaction")
+    void shouldNeverFulfillInProductionWithoutCredentials() {
+        String txRef = "CHP-1794773223333-C6CCC7";
+        PaymentTransaction tx = new PaymentTransaction(null, null, providerId, new BigDecimal("100.00"), "CHAPA", txRef, "INITIATED");
+        when(paymentRepository.findByTransactionRef(txRef)).thenReturn(Optional.of(tx));
+
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"prod"});
+        paymentService.setEnvironment(mockEnv);
+        org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "chapaSecretKey", null);
+
+        Map<String, Object> result = paymentService.verifyChapaPayment(txRef, providerId, false);
+
+        assertEquals("GATEWAY_UNAVAILABLE", result.get("status"));
+        assertEquals("INITIATED", tx.getStatus());
+        verify(revenueRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Production Security: Malformed Chapa credentials in production cannot fulfill any transaction")
+    void shouldNeverFulfillInProductionWithMalformedCredentials() {
+        String txRef = "CHP-1794773223333-C6CCC7";
+        PaymentTransaction tx = new PaymentTransaction(null, null, providerId, new BigDecimal("100.00"), "CHAPA", txRef, "INITIATED");
+        when(paymentRepository.findByTransactionRef(txRef)).thenReturn(Optional.of(tx));
+
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"production"});
+        paymentService.setEnvironment(mockEnv);
+        // Malformed key (does not start with CHASECK_)
+        org.springframework.test.util.ReflectionTestUtils.setField(paymentService, "chapaSecretKey", "INVALID_MALFORMED_PREFIX_KEY");
+
+        Map<String, Object> result = paymentService.verifyChapaPayment(txRef, providerId, false);
+
+        assertEquals("GATEWAY_UNAVAILABLE", result.get("status"));
+        assertEquals("INITIATED", tx.getStatus());
+        verify(revenueRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Configuration Test: Render production environment + explicit simulation enabled = simulation strictly prohibited")
+    void shouldStrictlyProhibitSimulationOnRenderEvenIfFlagIsTrue() {
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{});
+        lenient().when(mockEnv.getProperty("RENDER")).thenReturn("true");
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(true);
+
+        assertFalse(paymentService.isSimulationPermitted(), "Render cloud deployment must never allow simulation even if flag is true");
+    }
+
+    @Test
+    @DisplayName("Configuration Test: Docker deployment profile + explicit simulation enabled = simulation strictly prohibited")
+    void shouldStrictlyProhibitSimulationInDockerProfileEvenIfFlagIsTrue() {
+        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"docker"});
+        paymentService.setEnvironment(mockEnv);
+        paymentService.setPaymentSimulationEnabled(true);
+
+        assertFalse(paymentService.isSimulationPermitted(), "Docker deployment profile must prohibit simulation even if flag is true");
     }
 }

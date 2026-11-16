@@ -37,6 +37,9 @@ app:
     base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
     internal-token: ${AI_SERVICE_INTERNAL_TOKEN:dev-secret-internal-token-local}
     timeout-ms: 1500
+  payment:
+    simulation:
+      enabled: ${APP_PAYMENT_SIMULATION_ENABLED:false} # Global default FALSE (fail-closed)
 
 eureka:
   client:

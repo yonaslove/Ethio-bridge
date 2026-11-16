@@ -84,7 +84,7 @@ public class MonetizationServiceTest {
         checkoutMap.put("txRef", "CHP-123");
         checkoutMap.put("status", "success");
 
-        when(paymentService.initializeChapaCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("150")), contains("CONNECTS_TOPUP")))
+        when(paymentService.initializeChapaCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("150")), contains("CONNECTS_TOPUP"), isNull()))
                 .thenReturn(checkoutMap);
 
         Map<String, Object> resp = monetizationService.topUpConnects(providerId, 30, "CHAPA");
@@ -115,7 +115,7 @@ public class MonetizationServiceTest {
     }
 
     @Test
-    @DisplayName("subscribeToPro grants 30-day Pro badge and +30 bonus Connects")
+    @DisplayName("subscribeToPro routes to hosted checkout for Pro membership")
     void testSubscribeToPro() {
         ProviderProfile profile = new ProviderProfile();
         profile.setId(UUID.randomUUID());
@@ -123,14 +123,20 @@ public class MonetizationServiceTest {
         profile.setConnectsBalance(20);
 
         when(providerProfileRepository.findByUserId(providerId)).thenReturn(Optional.of(profile));
-        when(providerProfileRepository.save(any(ProviderProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        Map<String, Object> checkoutMap = new HashMap<>();
+        checkoutMap.put("checkoutUrl", "https://checkout.chapa.co/test/CHP-PRO-123");
+        checkoutMap.put("txRef", "CHP-PRO-123");
+        checkoutMap.put("status", "success");
+
+        when(paymentService.initializeChapaCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("299.00")), eq("PRO_SUBSCRIPTION"), isNull()))
+                .thenReturn(checkoutMap);
 
         Map<String, Object> result = monetizationService.subscribeToPro(providerId, "CBE_BIRR");
 
-        assertTrue((Boolean) result.get("success"));
-        assertEquals(50, profile.getConnectsBalance()); // 20 + 30 bonus
-        assertNotNull(profile.getProExpiresAt());
-        verify(notificationService).sendNotification(eq(providerId), contains("EthioBridge Pro"), anyString(), eq("MEMBERSHIP"), anyString());
+        assertEquals("PENDING_PAYMENT", result.get("status"));
+        assertEquals(new BigDecimal("299.00"), result.get("price"));
+        assertEquals("https://checkout.chapa.co/test/CHP-PRO-123", result.get("checkoutUrl"));
     }
 
     @Test

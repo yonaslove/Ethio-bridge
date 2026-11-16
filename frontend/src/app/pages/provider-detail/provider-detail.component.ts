@@ -3,12 +3,14 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { FormsModule } from '@angular/forms';
+import { ToastService } from '../../services/toast.service';
 import { ProviderProfile } from '../../models/models';
 
 @Component({
   selector: 'app-provider-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   template: `
     <div class="container provider-detail-page" *ngIf="profile">
       <div class="page-top-nav">
@@ -45,8 +47,15 @@ import { ProviderProfile } from '../../models/models';
             <button
               *ngIf="authService.currentUser$ | async"
               (click)="startConversation()"
-              class="btn btn-primary btn-sm btn-message">
+              class="btn btn-outline btn-sm btn-message">
               💬 Send Message
+            </button>
+            <button
+              *ngIf="authService.currentUser$ | async"
+              (click)="openBookingModal()"
+              class="btn btn-primary btn-sm btn-message"
+              style="margin-top: 0.35rem;">
+              🛠️ Book Local Service
             </button>
           </div>
         </div>
@@ -104,6 +113,53 @@ import { ProviderProfile } from '../../models/models';
               <p class="review-comment">"Very reliable and skilled developer. Code clean and tested. Milestone released with pleasure."</p>
               <div class="review-date">Completed under Telebirr Escrow • 1 month ago</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Book Local Service Modal -->
+      <div *ngIf="showBookingModal" class="modal-backdrop">
+        <div class="modal-window" style="max-width: 480px;">
+          <div class="modal-header">
+            <h3>🛠️ Book Local Service Request</h3>
+            <button (click)="showBookingModal = false" class="btn-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="font-size: 0.85rem; color: var(--color-slate); margin-bottom: 1rem;">
+              Request an on-demand service appointment with <strong>{{ profile.fullName }}</strong>. Funds are locked securely under Ethiopian escrow rails.
+            </p>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Service Title *</label>
+              <input type="text" [(ngModel)]="bookingForm.title" class="form-control" placeholder="e.g. Electrical Wiring Repair, Plumbing Fix" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Service Address / Location *</label>
+              <input type="text" [(ngModel)]="bookingForm.serviceAddress" class="form-control" placeholder="e.g. Bole Medhanialem, House 402, Addis Ababa" />
+            </div>
+            <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Preferred Date & Time</label>
+                <input type="datetime-local" [(ngModel)]="bookingForm.scheduledAt" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Est. Hours</label>
+                <input type="number" [(ngModel)]="bookingForm.estimatedHours" (input)="updateBookingTotal()" class="form-control" min="1" max="40" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Task Description & Scope</label>
+              <textarea [(ngModel)]="bookingForm.description" rows="3" class="form-control" placeholder="Describe the issue, tools needed, or site access instructions..."></textarea>
+            </div>
+            <div style="background: var(--color-surface-subtle); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.85rem; color: var(--color-slate);">Estimated Total:</span>
+              <strong style="font-size: 1.15rem; color: var(--color-charcoal);">{{ bookingForm.totalAmount }} ETB</strong>
+            </div>
+          </div>
+          <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; padding-top: 1rem;">
+            <button (click)="showBookingModal = false" class="btn btn-outline btn-sm">Cancel</button>
+            <button (click)="submitBooking()" class="btn btn-primary btn-sm" [disabled]="submittingBooking || !bookingForm.title.trim() || !bookingForm.serviceAddress.trim()">
+              {{ submittingBooking ? 'Submitting...' : 'Confirm Service Booking 🛠️' }}
+            </button>
           </div>
         </div>
       </div>
@@ -329,18 +385,73 @@ import { ProviderProfile } from '../../models/models';
 export class ProviderDetailComponent implements OnInit {
   profile?: ProviderProfile;
 
+  showBookingModal = false;
+  submittingBooking = false;
+  bookingForm = {
+    title: '',
+    serviceAddress: '',
+    scheduledAt: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
+    estimatedHours: 2,
+    hourlyRate: 350,
+    totalAmount: 700,
+    description: ''
+  };
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private apiService: ApiService,
+    private toastService: ToastService,
     public authService: AuthService
   ) {}
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      this.apiService.getProvider(id).subscribe(p => this.profile = p);
+      this.apiService.getProvider(id).subscribe(p => {
+        this.profile = p;
+        if (p.hourlyRate) {
+          this.bookingForm.hourlyRate = p.hourlyRate;
+          this.updateBookingTotal();
+        }
+      });
     }
+  }
+
+  openBookingModal(): void {
+    this.showBookingModal = true;
+  }
+
+  updateBookingTotal(): void {
+    const hours = this.bookingForm.estimatedHours || 1;
+    const rate = this.bookingForm.hourlyRate || 350;
+    this.bookingForm.totalAmount = hours * rate;
+  }
+
+  submitBooking(): void {
+    if (!this.profile) return;
+    this.submittingBooking = true;
+    const payload = {
+      providerUserId: this.profile.userId,
+      title: this.bookingForm.title,
+      description: this.bookingForm.description,
+      serviceAddress: this.bookingForm.serviceAddress,
+      scheduledAt: new Date(this.bookingForm.scheduledAt).toISOString(),
+      estimatedHours: this.bookingForm.estimatedHours,
+      hourlyRate: this.bookingForm.hourlyRate
+    };
+
+    this.apiService.createServiceBooking(payload).subscribe({
+      next: () => {
+        this.submittingBooking = false;
+        this.showBookingModal = false;
+        this.toastService.success('Service request submitted! The provider has been notified.', 'Booking Created');
+      },
+      error: (err) => {
+        this.submittingBooking = false;
+        this.toastService.error(err?.error?.message || 'Failed to submit service booking.');
+      }
+    });
   }
 
   getInitials(name: string): string {

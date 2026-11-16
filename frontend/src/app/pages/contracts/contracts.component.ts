@@ -405,6 +405,18 @@ import { ContractItem } from '../../models/models';
               <label class="form-label">Detailed Explanation</label>
               <textarea [(ngModel)]="disputeDetails" rows="4" class="form-control" placeholder="Provide concrete evidence or milestone deficiencies..."></textarea>
             </div>
+            <div class="form-group">
+              <label class="form-label">Supporting Evidence File (PDF, DOCX, JPG, PNG)</label>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="file" (change)="onDisputeEvidenceFileSelected($event)" accept=".pdf,.docx,.jpg,.jpeg,.png" class="form-control" [disabled]="uploadingEvidence" />
+                <span *ngIf="uploadingEvidence" style="font-size: 0.8rem; color: #2563EB;">Uploading...</span>
+              </div>
+              <small *ngIf="uploadedEvidenceFilename" style="color: #059669; font-weight: 600;">✓ Attached: {{ uploadedEvidenceFilename }}</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Evidence URL / Reference Document</label>
+              <input type="text" [(ngModel)]="disputeEvidenceUrl" class="form-control" placeholder="Direct link or uploaded file URL" />
+            </div>
           </div>
           <div class="modal-footer">
             <button (click)="disputeModalContract = null" class="btn btn-outline">Cancel</button>
@@ -932,6 +944,9 @@ export class ContractsComponent implements OnInit {
   disputeModalContract: any = null;
   disputeReason = 'Incomplete Deliverable';
   disputeDetails = '';
+  disputeEvidenceUrl = '';
+  uploadingEvidence = false;
+  uploadedEvidenceFilename: string | null = null;
 
   showCreateContractModal = false;
   creatingContract = false;
@@ -1312,16 +1327,47 @@ export class ContractsComponent implements OnInit {
   openDisputeModal(contract: any): void {
     this.disputeModalContract = contract;
     this.disputeDetails = '';
+    this.disputeEvidenceUrl = '';
+    this.uploadedEvidenceFilename = null;
+    this.uploadingEvidence = false;
+  }
+
+  onDisputeEvidenceFileSelected(event: any): void {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.toastService.error('Evidence file exceeds maximum size of 5 MB.');
+      return;
+    }
+
+    this.uploadingEvidence = true;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', 'DISPUTE_EVIDENCE');
+
+    this.apiService.uploadFile(formData).subscribe({
+      next: (res: any) => {
+        this.uploadingEvidence = false;
+        this.uploadedEvidenceFilename = file.name;
+        this.disputeEvidenceUrl = res.signedUrl || res.fileUrl;
+        this.toastService.success('Evidence file uploaded and attached securely.', 'File Attached');
+      },
+      error: (err) => {
+        this.uploadingEvidence = false;
+        this.toastService.error('Failed to upload evidence file: ' + (err?.error?.message || 'Upload error'));
+      }
+    });
   }
 
   submitDispute(): void {
     if (!this.disputeModalContract || !this.disputeDetails.trim()) return;
 
-    this.apiService.raiseDispute(this.disputeModalContract.id, this.disputeReason, this.disputeDetails).subscribe({
+    this.apiService.raiseDispute(this.disputeModalContract.id, this.disputeReason, this.disputeDetails, this.disputeEvidenceUrl).subscribe({
       next: () => {
         this.disputeModalContract.status = 'DISPUTED';
         this.disputeModalContract = null;
-        this.toastService.info('Dispute submitted successfully. Our legal arbitration desk will review the milestone evidence.', 'Dispute Opened');
+        this.toastService.info('Dispute submitted successfully with supporting evidence. Our legal arbitration desk will review the milestone evidence.', 'Dispute Opened');
       }
     });
   }

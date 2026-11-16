@@ -412,6 +412,7 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                 <th>Contract ID</th>
                 <th>Reason</th>
                 <th>Claim Details</th>
+                <th>Supporting Evidence</th>
                 <th>Status</th>
                 <th>Mediation Action</th>
               </tr>
@@ -422,6 +423,12 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                 <td><code>{{ d.contractId }}</code></td>
                 <td><strong>{{ d.reason }}</strong></td>
                 <td style="max-width: 250px;">{{ d.details || '—' }}</td>
+                <td>
+                  <a *ngIf="d.evidenceFileUrls" [href]="d.evidenceFileUrls" target="_blank" class="btn btn-outline btn-xs" style="font-size: 0.75rem;">
+                    📁 View Evidence
+                  </a>
+                  <span *ngIf="!d.evidenceFileUrls" class="text-muted small">None</span>
+                </td>
                 <td>
                   <span class="badge" [ngClass]="d.status === 'RESOLVED' ? 'badge-status-closed' : 'badge-candidate-interview'">
                     {{ d.status }}

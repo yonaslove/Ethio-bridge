@@ -984,13 +984,24 @@ export class RegisterComponent implements OnInit {
       return;
     }
 
-    if (this.password.length < 6) {
-      this.errorMessage = 'Password must be at least 6 characters long.';
+    if (this.password.length < 8) {
+      this.errorMessage = this.i18n.translate('Password must be at least 8 characters long.', 'የይለፍ ቃል ቢያንስ 8 ፊደላት ወይም ቁጥሮች መሆን አለበት።');
+      return;
+    }
+
+    const hasUpper = /[A-Z]/.test(this.password);
+    const hasLower = /[a-z]/.test(this.password);
+    const hasDigit = /[0-9]/.test(this.password);
+    if (!hasUpper || !hasLower || !hasDigit) {
+      this.errorMessage = this.i18n.translate(
+        'Password must contain at least one uppercase letter, one lowercase letter, and one number.',
+        'የይለፍ ቃል ቢያንስ አንድ ትልቅ ፊደል፣ አንድ ትንሽ ፊደል እና አንድ ቁጥር ማካተት አለበት።'
+      );
       return;
     }
 
     if (this.password !== this.confirmPassword) {
-      this.errorMessage = 'Passwords do not match.';
+      this.errorMessage = this.i18n.translate('Passwords do not match.', 'የይለፍ ቃሎች አይዛመዱም።');
       return;
     }
 

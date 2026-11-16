@@ -256,6 +256,15 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         user.setStatus("ACTIVE");
 
+        Set<String> assignedRoles = new HashSet<>();
+        if ("DUAL".equals(role)) {
+            assignedRoles.add("SEEKER");
+            assignedRoles.add("PROVIDER");
+        } else {
+            assignedRoles.add(role);
+        }
+        user.setRoles(assignedRoles);
+
         if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) {
             String phone = req.getPhoneNumber().trim();
             if (smsService != null && smsService.isValidEthiopianPhone(phone)) {
@@ -265,7 +274,7 @@ public class AuthService {
             }
         }
 
-        user = appUserRepository.save(user);
+        user = appUserRepository.saveAndFlush(user);
 
         Location location = null;
         if (req.getLocationId() != null) {
@@ -309,7 +318,8 @@ public class AuthService {
             pp = providerProfileRepository.save(pp);
 
             if (req.getInitialSkillIds() != null && !req.getInitialSkillIds().isEmpty()) {
-                for (Long sId : req.getInitialSkillIds()) {
+                Set<Long> uniqueSkillIds = new LinkedHashSet<>(req.getInitialSkillIds());
+                for (Long sId : uniqueSkillIds) {
                     Optional<Skill> sk = skillRepository.findById(sId);
                     if (sk.isPresent()) {
                         ProviderSkill ps = new ProviderSkill(pp, sk.get(), 4, new BigDecimal("3.0"));
@@ -327,11 +337,19 @@ public class AuthService {
         ACTIVE_REFRESH_TOKENS.put(refreshToken, new RefreshSessionDetails(user.getId(), user.getEmail(), System.currentTimeMillis() + REFRESH_TTL_MILLIS));
 
         if (emailService != null) {
-            emailService.sendWelcomeEmail(user.getEmail(), user.getFullName());
+            try {
+                emailService.sendWelcomeEmail(user.getEmail(), user.getFullName());
+            } catch (Exception ex) {
+                log.warn("Failed to dispatch welcome email: {}", ex.getMessage());
+            }
         }
 
         if (auditLogService != null) {
-            auditLogService.log(user.getId(), "USER_REGISTER", "AppUser", user.getId().toString(), "Registered as " + role, null);
+            try {
+                auditLogService.log(user.getId(), "USER_REGISTER", "AppUser", user.getId().toString(), "Registered as " + role, null);
+            } catch (Exception ex) {
+                log.warn("Failed to log registration event: {}", ex.getMessage());
+            }
         }
 
         UserDto userDto = new UserDto(

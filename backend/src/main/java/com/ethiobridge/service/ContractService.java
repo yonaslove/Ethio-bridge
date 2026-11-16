@@ -373,6 +373,10 @@ public class ContractService {
     }
 
     public Dispute raiseDispute(UUID actorUserId, UUID contractId, String reason, String details) {
+        return raiseDispute(actorUserId, contractId, reason, details, null);
+    }
+
+    public Dispute raiseDispute(UUID actorUserId, UUID contractId, String reason, String details, String evidenceFileUrls) {
         Contract contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found"));
 
@@ -381,6 +385,7 @@ public class ContractService {
         }
 
         Dispute dispute = new Dispute(contractId, actorUserId, reason, details);
+        dispute.setEvidenceFileUrls(evidenceFileUrls);
         dispute = disputeRepository.save(dispute);
 
         contract.setStatus("DISPUTED");

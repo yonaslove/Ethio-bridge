@@ -359,8 +359,8 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/contracts/milestones/${milestoneId}/release`, {}, { headers: this.getHeaders() });
   }
 
-  raiseDispute(contractId: string, reason: string, details: string): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/contracts/${contractId}/dispute`, { reason, details }, { headers: this.getHeaders() });
+  raiseDispute(contractId: string, reason: string, details: string, evidenceFileUrls?: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/contracts/${contractId}/dispute`, { reason, details, evidenceFileUrls }, { headers: this.getHeaders() });
   }
 
   // Identity Verification
@@ -517,5 +517,67 @@ export class ApiService {
 
   verifyChapaPayment(txRef: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/payments/chapa/verify/${txRef}`, { headers: this.getHeaders() });
+  }
+
+  // Service Bookings (Local Trade Marketplace)
+  createServiceBooking(body: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/bookings`, body, { headers: this.getHeaders() });
+  }
+
+  getMyServiceBookings(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/bookings`, { headers: this.getHeaders() });
+  }
+
+  updateBookingStatus(bookingId: string, status: string, reason?: string): Observable<any> {
+    return this.http.patch<any>(`${this.baseUrl}/bookings/${bookingId}/status`, { status, reason }, { headers: this.getHeaders() });
+  }
+
+  // Interview Scheduling
+  scheduleInterview(body: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/interviews`, body, { headers: this.getHeaders() });
+  }
+
+  getMyInterviews(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/interviews`, { headers: this.getHeaders() });
+  }
+
+  updateInterviewStatus(interviewId: string, status: string, notes?: string): Observable<any> {
+    return this.http.patch<any>(`${this.baseUrl}/interviews/${interviewId}/status`, { status, notes }, { headers: this.getHeaders() });
+  }
+
+  // Saved Opportunities & Bookmarks
+  getMySavedListings(): Observable<Listing[]> {
+    return this.http.get<Listing[]>(`${this.baseUrl}/saved-listings`, { headers: this.getHeaders() });
+  }
+
+  saveListing(listingId: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/saved-listings/${listingId}`, {}, { headers: this.getHeaders() });
+  }
+
+  unsaveListing(listingId: string): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/saved-listings/${listingId}`, { headers: this.getHeaders() });
+  }
+
+  // CV & Resume Parsing
+  parseCvText(text: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/cv/parse-text`, { text }, { headers: this.getHeaders() });
+  }
+
+  parseCvFile(formData: FormData): Observable<any> {
+    const headers = this.authService.getAuthHeaders();
+    let httpHeaders = new HttpHeaders();
+    for (const [k, v] of Object.entries(headers)) {
+      httpHeaders = httpHeaders.set(k, v);
+    }
+    return this.http.post<any>(`${this.baseUrl}/cv/parse-file`, formData, { headers: httpHeaders });
+  }
+
+  uploadFile(formData: FormData): Observable<any> {
+    const headers = this.authService.getAuthHeaders();
+    let httpHeaders = new HttpHeaders();
+    for (const [k, v] of Object.entries(headers)) {
+      httpHeaders = httpHeaders.set(k, v);
+    }
+    return this.http.post<any>(`${this.baseUrl}/files/upload`, formData, { headers: httpHeaders });
   }
 }

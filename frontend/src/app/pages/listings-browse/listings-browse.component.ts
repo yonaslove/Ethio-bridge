@@ -136,7 +136,16 @@ import { Listing, ServiceCategory, Location, ListingType, ProviderProfile } from
                 <span *ngIf="l.budgetMax">{{ l.budgetMin ? l.budgetMin + ' - ' : '' }}{{ l.budgetMax }} {{ l.currency }}</span>
                 <span *ngIf="!l.budgetMax">{{ i18n.translate('Negotiable', 'ተደራዳሪ') }}</span>
               </div>
-              <a [routerLink]="['/listings', l.id]" class="btn btn-outline btn-sm">{{ i18n.translate('View & Apply →', 'ዝርዝር እና ማመልከቻ →') }}</a>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <button
+                  type="button"
+                  (click)="toggleBookmark(l)"
+                  class="btn btn-outline btn-sm"
+                  [title]="isBookmarked(l.id) ? 'Remove from Saved' : 'Save opportunity'">
+                  {{ isBookmarked(l.id) ? '★' : '☆' }}
+                </button>
+                <a [routerLink]="['/listings', l.id]" class="btn btn-outline btn-sm">{{ i18n.translate('View & Apply →', 'ዝርዝር እና ማመልከቻ →') }}</a>
+              </div>
             </div>
           </div>
         </div>
@@ -438,6 +447,7 @@ export class ListingsBrowseComponent implements OnInit {
   providersTotalPages = 0;
   loading = false;
   providersLoading = false;
+  bookmarkedIds = new Set<string>();
 
   constructor(
     private apiService: ApiService,
@@ -475,6 +485,32 @@ export class ListingsBrowseComponent implements OnInit {
   loadReferenceData(): void {
     this.apiService.getCategories().subscribe(res => this.categories = res || []);
     this.apiService.getLocations().subscribe(res => this.locations = res || []);
+    this.loadSavedListings();
+  }
+
+  loadSavedListings(): void {
+    this.apiService.getMySavedListings().subscribe({
+      next: (saved) => {
+        this.bookmarkedIds = new Set((saved || []).map(s => s.id));
+      },
+      error: () => {}
+    });
+  }
+
+  isBookmarked(id: string): boolean {
+    return this.bookmarkedIds.has(id);
+  }
+
+  toggleBookmark(listing: Listing): void {
+    if (this.isBookmarked(listing.id)) {
+      this.apiService.unsaveListing(listing.id).subscribe({
+        next: () => this.bookmarkedIds.delete(listing.id)
+      });
+    } else {
+      this.apiService.saveListing(listing.id).subscribe({
+        next: () => this.bookmarkedIds.add(listing.id)
+      });
+    }
   }
 
   fetchListings(): void {

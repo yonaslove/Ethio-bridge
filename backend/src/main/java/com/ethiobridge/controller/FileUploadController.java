@@ -38,7 +38,9 @@ public class FileUploadController {
             "image/jpeg",
             "image/png",
             "image/webp",
-            "application/pdf"
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/msword"
     );
 
     private final UserService userService;
@@ -70,7 +72,7 @@ public class FileUploadController {
 
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file format. Allowed types: JPG, PNG, WEBP, PDF");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file format. Allowed types: JPG, PNG, WEBP, PDF, DOCX");
         }
 
         // Magic Byte signature verification (protects against disguised executables/scripts)
@@ -79,7 +81,7 @@ public class FileUploadController {
             int read = is.read(magic);
             if (read < 4 || !matchesMagicBytes(magic, read)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Invalid file format. Binary magic bytes do not match allowed types (JPG, PNG, WEBP, PDF).");
+                        "Invalid file format. Binary magic bytes do not match allowed types (JPG, PNG, WEBP, PDF, DOCX).");
             }
         } catch (ResponseStatusException rse) {
             throw rse;
@@ -121,8 +123,8 @@ public class FileUploadController {
     @GetMapping("/{filename:.+}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Resource> downloadFile(@PathVariable String filename, Authentication auth) {
-        Path filePath = resolveAndVerifyPath(filename);
         verifyOwnershipOrAdmin(filename, auth);
+        Path filePath = resolveAndVerifyPath(filename);
         return serveResource(filePath, filename);
     }
 
@@ -185,6 +187,11 @@ public class FileUploadController {
         if (length >= 12 &&
                 header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F' &&
                 header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P') {
+            return true;
+        }
+        // DOCX / ZIP: PK (50 4B 03 04)
+        if ((header[0] & 0xFF) == 0x50 && (header[1] & 0xFF) == 0x4B &&
+                (header[2] & 0xFF) == 0x03 && (header[3] & 0xFF) == 0x04) {
             return true;
         }
         return false;

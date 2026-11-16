@@ -11,8 +11,56 @@ import { Application } from '../../models/models';
   template: `
     <div class="container my-apps-page">
       <div class="page-header">
-        <h1>My Applications</h1>
-        <p>Track the review, interview, and offer status of your submitted proposals</p>
+        <h1>My Applications & Interviews</h1>
+        <p>Track the review, interview schedules, and offer status of your submitted proposals</p>
+      </div>
+
+      <!-- Scheduled Interviews Section -->
+      <div *ngIf="interviews && interviews.length > 0" class="card" style="margin-bottom: 2rem; border-left: 4px solid var(--color-cyan);">
+        <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          📅 Upcoming Interview Invitations ({{ interviews.length }})
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--color-slate); margin-bottom: 1rem;">
+          Employers have scheduled interview meetings with you. Review date, time, and confirm your attendance.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div *ngFor="let iv of interviews" style="background: var(--color-surface-subtle); border: 1px solid var(--color-border); padding: 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <strong>{{ iv.title }}</strong>
+                <span class="badge" [ngClass]="iv.status === 'ACCEPTED' ? 'badge-status-open' : 'badge-candidate-interview'">{{ iv.status }}</span>
+              </div>
+              <div style="font-size: 0.85rem; color: var(--color-slate); margin-top: 0.25rem;">
+                <span>👤 Employer: {{ iv.employerName }}</span> &bull;
+                <span>⏰ {{ iv.scheduledAt | date:'medium' }} ({{ iv.durationMinutes }} min)</span>
+              </div>
+              <div *ngIf="iv.meetingLink" style="font-size: 0.85rem; margin-top: 0.35rem;">
+                <a [href]="iv.meetingLink" target="_blank" style="color: var(--color-cyan); font-weight: 600;">
+                  🔗 Join Video Meeting / Link
+                </a>
+              </div>
+              <div *ngIf="iv.locationNotes" style="font-size: 0.8rem; color: #555; margin-top: 0.25rem; font-style: italic;">
+                "{{ iv.locationNotes }}"
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem;">
+              <button
+                *ngIf="iv.status === 'INVITED'"
+                (click)="respondInterview(iv, 'ACCEPTED')"
+                class="btn btn-primary btn-sm">
+                ✓ Accept Interview
+              </button>
+              <button
+                *ngIf="iv.status === 'INVITED'"
+                (click)="respondInterview(iv, 'DECLINED')"
+                class="btn btn-outline btn-sm text-danger">
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div *ngIf="loading" class="card text-center state-card">
@@ -160,12 +208,14 @@ import { Application } from '../../models/models';
 })
 export class MyApplicationsComponent implements OnInit {
   applications: Application[] = [];
+  interviews: any[] = [];
   loading = false;
 
   constructor(private apiService: ApiService) {}
 
   ngOnInit(): void {
     this.fetchApplications();
+    this.fetchInterviews();
   }
 
   fetchApplications(): void {
@@ -176,6 +226,23 @@ export class MyApplicationsComponent implements OnInit {
         this.loading = false;
       },
       error: () => this.loading = false
+    });
+  }
+
+  fetchInterviews(): void {
+    this.apiService.getMyInterviews().subscribe({
+      next: (res) => {
+        this.interviews = res || [];
+      },
+      error: () => {}
+    });
+  }
+
+  respondInterview(iv: any, status: 'ACCEPTED' | 'DECLINED'): void {
+    this.apiService.updateInterviewStatus(iv.id, status).subscribe({
+      next: (updated) => {
+        iv.status = updated.status;
+      }
     });
   }
 

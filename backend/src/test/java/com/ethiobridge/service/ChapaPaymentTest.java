@@ -202,7 +202,7 @@ public class ChapaPaymentTest {
     }
 
     @Test
-    @DisplayName("Monetization: topUpConnects via TELEBIRR produces TB-CON- revenue reference and credits tokens")
+    @DisplayName("Monetization: topUpConnects via TELEBIRR routes to checkout with PENDING_PAYMENT")
     void testConnectsTopup() {
         ProviderProfile profile = new ProviderProfile();
         profile.setId(UUID.randomUUID());
@@ -210,20 +210,15 @@ public class ChapaPaymentTest {
         profile.setConnectsBalance(10);
 
         when(providerProfileRepository.findByUserId(providerId)).thenReturn(Optional.of(profile));
-        when(revenueRepository.save(any(PlatformRevenue.class))).thenAnswer(i -> i.getArgument(0));
 
         Map<String, Object> res = monetizationService.topUpConnects(providerId, 25, "TELEBIRR");
 
-        assertTrue((Boolean) res.get("success"));
-        assertEquals(35, res.get("newBalance"));
-        assertTrue(res.get("referenceId").toString().startsWith("TB-CON-"));
-
-        ArgumentCaptor<PlatformRevenue> revCaptor = ArgumentCaptor.forClass(PlatformRevenue.class);
-        verify(revenueRepository, times(1)).save(revCaptor.capture());
-        PlatformRevenue savedRev = revCaptor.getValue();
-        assertEquals("TELEBIRR", savedRev.getPaymentMethod());
-        assertEquals(new BigDecimal("100.00"), savedRev.getGrossAmount());
-        assertTrue(savedRev.getReferenceId().startsWith("TB-CON-"));
+        assertEquals("PENDING_PAYMENT", res.get("status"));
+        assertEquals(25, res.get("connectsAmount"));
+        assertEquals(new BigDecimal("100.00"), res.get("price"));
+        assertEquals("TELEBIRR", res.get("paymentMethod"));
+        assertNotNull(res.get("checkoutUrl"));
+        assertTrue(res.get("txRef").toString().startsWith("CHP-"));
     }
 
     @Test
@@ -246,7 +241,7 @@ public class ChapaPaymentTest {
     }
 
     @Test
-    @DisplayName("Chapa Monetization: subscribeToPro via CHAPA upgrades profile to Pro with CHP-PRO- reference")
+    @DisplayName("Chapa Monetization: subscribeToPro via CHAPA initiates hosted checkout for Pro membership")
     void testChapaProSubscription() {
         ProviderProfile profile = new ProviderProfile();
         profile.setId(UUID.randomUUID());
@@ -255,21 +250,13 @@ public class ChapaPaymentTest {
         profile.setConnectsBalance(5);
 
         when(providerProfileRepository.findByUserId(providerId)).thenReturn(Optional.of(profile));
-        when(revenueRepository.save(any(PlatformRevenue.class))).thenAnswer(i -> i.getArgument(0));
 
         Map<String, Object> res = monetizationService.subscribeToPro(providerId, "CHAPA");
 
-        assertTrue((Boolean) res.get("success"));
-        assertTrue(profile.isPro());
-        assertNotNull(profile.getProExpiresAt());
-        assertEquals(35, profile.getConnectsBalance()); // 5 + 30 bonus connects
-        assertTrue(res.get("referenceId").toString().startsWith("CHP-PRO-"));
-
-        ArgumentCaptor<PlatformRevenue> revCaptor = ArgumentCaptor.forClass(PlatformRevenue.class);
-        verify(revenueRepository, times(1)).save(revCaptor.capture());
-        PlatformRevenue savedRev = revCaptor.getValue();
-        assertEquals("CHAPA", savedRev.getPaymentMethod());
-        assertEquals(new BigDecimal("299.00"), savedRev.getGrossAmount());
-        assertTrue(savedRev.getReferenceId().startsWith("CHP-PRO-"));
+        assertEquals("PENDING_PAYMENT", res.get("status"));
+        assertEquals(new BigDecimal("299.00"), res.get("price"));
+        assertEquals("CHAPA", res.get("paymentMethod"));
+        assertNotNull(res.get("checkoutUrl"));
+        assertTrue(res.get("txRef").toString().startsWith("CHP-"));
     }
 }

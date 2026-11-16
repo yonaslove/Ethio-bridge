@@ -118,6 +118,65 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
             </div>
           </div>
 
+          <!-- CV / Resume Upload & Skill Auto-Detection Box -->
+          <div class="card" style="background: var(--color-surface-subtle); border: 2px dashed var(--color-border); padding: 1.25rem; border-radius: 8px; margin: 1rem 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              <div>
+                <strong style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem;">
+                  📄 Auto-Fill Profile from CV / Resume (PDF or DOCX)
+                </strong>
+                <small style="color: var(--color-slate);">Upload your CV to automatically detect skills, phone number, and years of experience.</small>
+              </div>
+              <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin: 0;">
+                {{ parsingCv ? 'Parsing Document...' : 'Choose CV File' }}
+                <input type="file" (change)="onCvFileSelected($event)" accept=".pdf,.docx,.txt" style="display: none;" [disabled]="parsingCv" />
+              </label>
+            </div>
+            <div *ngIf="cvParsedResult" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.85rem;">
+              <div style="margin-bottom: 0.75rem;">
+                <span style="color: #059669; font-weight: 700;">✓ Successfully scanned document!</span>
+                <span style="color: #64748B;"> Review the extracted fields below before confirming changes to your profile.</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; background: var(--color-surface-subtle); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                <div *ngIf="cvParsedResult.email">
+                  <span style="font-size: 0.75rem; color: #64748B; display: block;">Extracted Email</span>
+                  <strong>{{ cvParsedResult.email }}</strong>
+                </div>
+                <div *ngIf="cvParsedResult.phone">
+                  <span style="font-size: 0.75rem; color: #64748B; display: block;">Extracted Phone</span>
+                  <strong>{{ cvParsedResult.phone }}</strong>
+                </div>
+                <div>
+                  <span style="font-size: 0.75rem; color: #64748B; display: block;">Estimated Experience</span>
+                  <strong>{{ cvParsedResult.yearsExperience || 1 }} Years</strong>
+                </div>
+                <div *ngIf="cvParsedResult.education && cvParsedResult.education.length > 0">
+                  <span style="font-size: 0.75rem; color: #64748B; display: block;">Detected Education</span>
+                  <strong>{{ cvParsedResult.education[0] }}</strong>
+                </div>
+              </div>
+
+              <div *ngIf="cvParsedResult.skills && cvParsedResult.skills.length > 0" style="margin-bottom: 0.75rem;">
+                <span style="font-size: 0.75rem; color: #64748B; display: block; margin-bottom: 0.35rem;">Detected Skills ({{ cvParsedResult.skills.length }}):</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                  <span *ngFor="let sk of cvParsedResult.skills" class="badge-tech" style="font-size: 0.75rem;">
+                    {{ sk.skillName }}
+                  </span>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button type="button" (click)="applyCvDetectedData()" class="btn btn-primary btn-xs">
+                  ✓ Confirm & Apply Skills to Profile
+                </button>
+                <button type="button" (click)="cvParsedResult = null" class="btn btn-outline btn-xs">
+                  Discard
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="form-section-divider"></div>
 
           <!-- Skills Manager -->
@@ -885,6 +944,10 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
   submittingPro = false;
   proError = '';
 
+  // CV Parsing State
+  parsingCv = false;
+  cvParsedResult: any = null;
+
   get selectedConnectsPackage(): number {
     return this.selectedConnectsAmount;
   }
@@ -1083,6 +1146,56 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
     this.apiService.getProviderProfile().subscribe(p => {
       this.profile = p;
     });
+  }
+
+  onCvFileSelected(event: any): void {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    this.parsingCv = true;
+    this.cvParsedResult = null;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    this.apiService.parseCvFile(formData).subscribe({
+      next: (res) => {
+        this.parsingCv = false;
+        this.cvParsedResult = res;
+        this.toastService.success(`Scanned CV! Found ${res.skills?.length || 0} skills matching platform catalog.`, 'CV Parsed');
+      },
+      error: () => {
+        this.parsingCv = false;
+        this.toastService.error('Failed to parse CV document.');
+      }
+    });
+  }
+
+  applyCvDetectedData(): void {
+    if (!this.cvParsedResult || !this.profile) return;
+
+    if (this.cvParsedResult.yearsExperience && !this.profile.yearsExperience) {
+      this.profile.yearsExperience = this.cvParsedResult.yearsExperience;
+    }
+
+    if (this.cvParsedResult.skills && this.cvParsedResult.skills.length > 0) {
+      if (!this.profile.skills) this.profile.skills = [];
+      const existingSkillIds = new Set(this.profile.skills.map(s => s.skillId));
+
+      for (const sk of this.cvParsedResult.skills) {
+        if (!existingSkillIds.has(sk.skillId)) {
+          this.profile.skills.push({
+            skillId: sk.skillId,
+            skillName: sk.skillName,
+            skillSlug: sk.skillSlug,
+            category: sk.category,
+            proficiency: 4,
+            yearsExperience: this.profile.yearsExperience || 2.0
+          });
+          existingSkillIds.add(sk.skillId);
+        }
+      }
+      this.toastService.info('Applied detected skills to profile draft. Click Save Profile to persist.', 'Profile Updated');
+    }
   }
 
   addSkill(): void {

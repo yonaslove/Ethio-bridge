@@ -20,10 +20,16 @@ public class AuditLogService {
         this.auditLogRepository = auditLogRepository;
     }
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuditLogService.class);
+
+    @Transactional
     public void log(UUID actorUserId, String action, String entityType, String entityId, String details, String ipAddress) {
-        AuditLog auditLog = new AuditLog(actorUserId, action, entityType, entityId, details, ipAddress);
-        auditLogRepository.save(auditLog);
+        try {
+            AuditLog auditLog = new AuditLog(actorUserId, action, entityType, entityId, details, ipAddress);
+            auditLogRepository.save(auditLog);
+        } catch (Exception ex) {
+            log.warn("Failed to persist audit log [action={}, entityType={}, entityId={}]: {}", action, entityType, entityId, ex.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

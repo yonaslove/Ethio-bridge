@@ -2,12 +2,14 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
+import { FormsModule } from '@angular/forms';
+import { ToastService } from '../../services/toast.service';
 import { Application, Listing } from '../../models/models';
 
 @Component({
   selector: 'app-applications-received',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   template: `
     <div class="container applications-page">
       <div class="page-top-nav">
@@ -59,6 +61,15 @@ import { Application, Listing } from '../../models/models';
             <span class="submitted-date">Submitted on {{ app.createdAt | date:'mediumDate' }}</span>
 
             <div class="action-buttons">
+              <!-- Schedule Interview button -->
+              <button
+                *ngIf="app.status === 'SUBMITTED' || app.status === 'SHORTLISTED'"
+                (click)="openInterviewModal(app)"
+                class="btn btn-outline btn-sm"
+                style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                📅 Schedule Interview
+              </button>
+
               <!-- Shortlist button -->
               <button
                 *ngIf="app.status === 'SUBMITTED'"
@@ -111,6 +122,49 @@ import { Application, Listing } from '../../models/models';
                 Reject
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Interview Modal -->
+      <div *ngIf="showInterviewModal" class="modal-backdrop">
+        <div class="modal-window" style="max-width: 480px;">
+          <div class="modal-header">
+            <h3>📅 Schedule Candidate Interview</h3>
+            <button (click)="showInterviewModal = false" class="btn-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="font-size: 0.85rem; color: var(--color-slate); margin-bottom: 1rem;">
+              Send an official interview invitation to <strong>{{ selectedApp?.applicantName }}</strong>.
+            </p>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Interview Title *</label>
+              <input type="text" [(ngModel)]="interviewForm.title" class="form-control" />
+            </div>
+            <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Date & Time *</label>
+                <input type="datetime-local" [(ngModel)]="interviewForm.scheduledAt" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Duration (Min)</label>
+                <input type="number" [(ngModel)]="interviewForm.durationMinutes" class="form-control" min="15" max="180" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Meeting Link (Google Meet / Zoom / Phone)</label>
+              <input type="url" [(ngModel)]="interviewForm.meetingLink" class="form-control" placeholder="https://meet.google.com/... or phone number" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+              <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Notes / Preparation for Candidate</label>
+              <textarea [(ngModel)]="interviewForm.locationNotes" rows="3" class="form-control" placeholder="Provide interview instructions or required materials..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; padding-top: 1rem;">
+            <button (click)="showInterviewModal = false" class="btn btn-outline btn-sm">Cancel</button>
+            <button (click)="submitInterview()" class="btn btn-primary btn-sm" [disabled]="submittingInterview || !interviewForm.title.trim() || !interviewForm.scheduledAt">
+              {{ submittingInterview ? 'Sending Invitation...' : 'Send Interview Invite 📅' }}
+            </button>
           </div>
         </div>
       </div>
@@ -219,11 +273,59 @@ export class ApplicationsReceivedComponent implements OnInit {
   applications: Application[] = [];
   loading = false;
 
+  showInterviewModal = false;
+  submittingInterview = false;
+  selectedApp?: Application;
+  interviewForm = {
+    title: 'Candidate Interview & Technical Discussion',
+    scheduledAt: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
+    durationMinutes: 45,
+    meetingLink: '',
+    locationNotes: ''
+  };
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private toastService: ToastService
   ) {}
+
+  openInterviewModal(app: Application): void {
+    this.selectedApp = app;
+    this.interviewForm.title = `Interview for ${this.listing?.title || 'Position'} - ${app.applicantName}`;
+    this.showInterviewModal = true;
+  }
+
+  submitInterview(): void {
+    if (!this.selectedApp) return;
+    this.submittingInterview = true;
+    const payload = {
+      candidateUserId: this.selectedApp.applicantUserId,
+      applicationId: this.selectedApp.id,
+      listingId: this.listingId,
+      title: this.interviewForm.title,
+      scheduledAt: new Date(this.interviewForm.scheduledAt).toISOString(),
+      durationMinutes: this.interviewForm.durationMinutes,
+      meetingLink: this.interviewForm.meetingLink,
+      locationNotes: this.interviewForm.locationNotes
+    };
+
+    this.apiService.scheduleInterview(payload).subscribe({
+      next: () => {
+        this.submittingInterview = false;
+        this.showInterviewModal = false;
+        this.toastService.success('Interview invitation sent to candidate successfully!', 'Interview Scheduled');
+        if (this.selectedApp && this.selectedApp.status === 'SUBMITTED') {
+          this.updateStatus(this.selectedApp, 'SHORTLISTED');
+        }
+      },
+      error: (err) => {
+        this.submittingInterview = false;
+        this.toastService.error(err?.error?.message || 'Failed to schedule interview.');
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.listingId = this.route.snapshot.paramMap.get('id') || '';
