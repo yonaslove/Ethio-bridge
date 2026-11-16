@@ -18,6 +18,9 @@ public class EmailService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
 
+    @Value("${spring.mail.host:}")
+    private String mailHost;
+
     @Value("${spring.mail.username:noreply@ethiobridge.et}")
     private String fromEmail;
 
@@ -58,22 +61,25 @@ public class EmailService {
     }
 
     private void dispatchEmail(String toEmail, String subject, String body) {
-        if (mailSender != null) {
-            try {
-                SimpleMailMessage msg = new SimpleMailMessage();
-                msg.setFrom(fromEmail);
-                msg.setTo(toEmail);
-                msg.setSubject(subject);
-                msg.setText(body);
-                mailSender.send(msg);
-                log.info("[SMTP MAIL SENT] To: {} | Subject: {}", toEmail, subject);
-                return;
-            } catch (Exception ex) {
-                log.warn("SMTP mail delivery failed, falling back to log: {}", ex.getMessage());
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            boolean hasRealMailHost = mailHost != null && !mailHost.isBlank() && !mailHost.equalsIgnoreCase("localhost");
+            if (mailSender != null && hasRealMailHost) {
+                try {
+                    SimpleMailMessage msg = new SimpleMailMessage();
+                    msg.setFrom(fromEmail);
+                    msg.setTo(toEmail);
+                    msg.setSubject(subject);
+                    msg.setText(body);
+                    mailSender.send(msg);
+                    log.info("[SMTP MAIL SENT] To: {} | Subject: {}", toEmail, subject);
+                    return;
+                } catch (Exception ex) {
+                    log.warn("SMTP mail delivery failed, falling back to log: {}", ex.getMessage());
+                }
             }
-        }
 
-        // Transactional log fallback (when mail host is not configured)
-        log.info("[EMAIL DISPATCHED] To: {} | Subject: {} | Body: {}", toEmail, subject, body.replace("\n", " "));
+            // Transactional log fallback (when mail host is not configured)
+            log.info("[EMAIL DISPATCHED] To: {} | Subject: {} | Body: {}", toEmail, subject, body.replace("\n", " "));
+        });
     }
 }
