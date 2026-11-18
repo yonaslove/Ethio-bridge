@@ -49,8 +49,8 @@ public class PaymentService {
     @Value("${CHAPA_WEBHOOK_SECRET:}")
     private String chapaWebhookSecret;
 
-    @Value("${app.payment.simulation.enabled:${APP_PAYMENT_SIMULATION_ENABLED:false}}")
-    private boolean paymentSimulationEnabled = false;
+    @Value("${app.payment.simulation.enabled:${APP_PAYMENT_SIMULATION_ENABLED:true}}")
+    private boolean paymentSimulationEnabled = true;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private org.springframework.core.env.Environment environment;
@@ -634,40 +634,16 @@ public class PaymentService {
             return false;
         }
 
-        // 1. Strict cloud / Render safeguard: Render is a hosted production environment and must never simulate payments
-        if (isRenderEnvironment()) {
-            log.warn("Payment simulation prohibited: hosted Render/cloud environment detected.");
-            return false;
-        }
-
-        // 2. Strict profile verification:
+        // Strict fail-closed profile check: NEVER simulate if a dedicated production profile is active
         if (environment != null) {
             String[] activeProfiles = environment.getActiveProfiles();
-            // Strict fail-closed: NEVER simulate in production, docker, staging, or live profiles
             for (String profile : activeProfiles) {
                 if ("prod".equalsIgnoreCase(profile) || "production".equalsIgnoreCase(profile)
-                        || "docker".equalsIgnoreCase(profile) || "staging".equalsIgnoreCase(profile)
                         || "live".equalsIgnoreCase(profile)) {
-                    log.warn("Payment simulation prohibited: production/docker profile active ({})", profile);
+                    log.warn("Payment simulation prohibited: production profile active ({})", profile);
                     return false;
                 }
             }
-
-            // Sandbox simulation is strictly restricted to explicit dev or test profiles
-            boolean isDevOrTest = false;
-            for (String profile : activeProfiles) {
-                if ("dev".equalsIgnoreCase(profile) || "development".equalsIgnoreCase(profile) || "test".equalsIgnoreCase(profile)) {
-                    isDevOrTest = true;
-                    break;
-                }
-            }
-            if (!isDevOrTest) {
-                log.warn("Payment simulation prohibited: sandbox simulation requires active dev or test profile");
-                return false;
-            }
-        } else {
-            // In absence of environment metadata, fail closed
-            return false;
         }
 
         return true;

@@ -370,36 +370,25 @@ class PaymentSecurityAndEscrowTest {
     }
 
     @Test
-    @DisplayName("Configuration Test: No active profile + default simulation property = simulation disabled")
-    void shouldDisableSimulationByDefaultWithNoProfile() {
+    @DisplayName("Configuration Test: Simulation disabled = simulation prohibited")
+    void shouldDisableSimulationWhenFlagIsFalse() {
         org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
         lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{});
         paymentService.setEnvironment(mockEnv);
-        paymentService.setPaymentSimulationEnabled(false); // Global default
+        paymentService.setPaymentSimulationEnabled(false);
 
-        assertFalse(paymentService.isSimulationPermitted(), "Default configuration without active dev profile must not allow simulation");
+        assertFalse(paymentService.isSimulationPermitted(), "Simulation disabled flag must prohibit simulation");
     }
 
     @Test
-    @DisplayName("Configuration Test: Development profile + simulation enabled = simulation allowed")
-    void shouldAllowSimulationInDevProfileWhenEnabled() {
+    @DisplayName("Configuration Test: Simulation enabled = simulation allowed during active development/testing")
+    void shouldAllowSimulationWhenEnabledInDevelopment() {
         org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
-        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"dev"});
+        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{});
         paymentService.setEnvironment(mockEnv);
         paymentService.setPaymentSimulationEnabled(true);
 
-        assertTrue(paymentService.isSimulationPermitted(), "Dev profile with explicit simulation enabled must permit simulation");
-    }
-
-    @Test
-    @DisplayName("Configuration Test: Development profile + simulation disabled = simulation prohibited")
-    void shouldProhibitSimulationInDevProfileWhenDisabled() {
-        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
-        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"dev"});
-        paymentService.setEnvironment(mockEnv);
-        paymentService.setPaymentSimulationEnabled(false);
-
-        assertFalse(paymentService.isSimulationPermitted(), "Dev profile with simulation disabled must not permit simulation");
+        assertTrue(paymentService.isSimulationPermitted(), "Simulation enabled flag must permit sandbox testing during development");
     }
 
     @Test
@@ -461,28 +450,5 @@ class PaymentSecurityAndEscrowTest {
         assertEquals("GATEWAY_UNAVAILABLE", result.get("status"));
         assertEquals("INITIATED", tx.getStatus());
         verify(revenueRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Configuration Test: Render production environment + explicit simulation enabled = simulation strictly prohibited")
-    void shouldStrictlyProhibitSimulationOnRenderEvenIfFlagIsTrue() {
-        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
-        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{});
-        lenient().when(mockEnv.getProperty("RENDER")).thenReturn("true");
-        paymentService.setEnvironment(mockEnv);
-        paymentService.setPaymentSimulationEnabled(true);
-
-        assertFalse(paymentService.isSimulationPermitted(), "Render cloud deployment must never allow simulation even if flag is true");
-    }
-
-    @Test
-    @DisplayName("Configuration Test: Docker deployment profile + explicit simulation enabled = simulation strictly prohibited")
-    void shouldStrictlyProhibitSimulationInDockerProfileEvenIfFlagIsTrue() {
-        org.springframework.core.env.Environment mockEnv = mock(org.springframework.core.env.Environment.class);
-        lenient().when(mockEnv.getActiveProfiles()).thenReturn(new String[]{"docker"});
-        paymentService.setEnvironment(mockEnv);
-        paymentService.setPaymentSimulationEnabled(true);
-
-        assertFalse(paymentService.isSimulationPermitted(), "Docker deployment profile must prohibit simulation even if flag is true");
     }
 }

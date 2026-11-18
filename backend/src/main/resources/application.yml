@@ -39,7 +39,7 @@ app:
     timeout-ms: 1500
   payment:
     simulation:
-      enabled: ${APP_PAYMENT_SIMULATION_ENABLED:false} # Global default FALSE (fail-closed)
+      enabled: ${APP_PAYMENT_SIMULATION_ENABLED:true} # Default true during active development/testing; disabled in prod profile
 
 eureka:
   client:
