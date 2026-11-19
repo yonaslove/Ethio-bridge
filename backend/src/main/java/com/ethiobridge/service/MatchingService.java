@@ -66,7 +66,12 @@ public class MatchingService {
         this.matchRunRepository = matchRunRepository;
         this.matchResultRepository = matchResultRepository;
         this.objectMapper = objectMapper;
-        this.restClient = RestClient.builder().build();
+        java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(1200))
+                .build();
+        this.restClient = RestClient.builder()
+                .requestFactory(new org.springframework.http.client.JdkClientHttpRequestFactory(httpClient))
+                .build();
     }
 
     public MatchRunResponseDto getCandidatesForListing(UUID requesterUserId, UUID listingId, String requestedMethod, int k) {

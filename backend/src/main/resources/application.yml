@@ -43,11 +43,11 @@ app:
 
 eureka:
   client:
-    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    enabled: ${EUREKA_CLIENT_ENABLED:false}
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
-    register-with-eureka: ${EUREKA_CLIENT_REGISTER:true}
-    fetch-registry: ${EUREKA_CLIENT_FETCH:true}
+    register-with-eureka: ${EUREKA_CLIENT_REGISTER:false}
+    fetch-registry: ${EUREKA_CLIENT_FETCH:false}
   instance:
     prefer-ip-address: true
 
