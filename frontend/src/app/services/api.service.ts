@@ -506,12 +506,13 @@ export class ApiService {
     return this.http.get<any[]>(`${this.baseUrl}/payments/methods`, { headers: this.getHeaders() });
   }
 
-  initializeChapaCheckout(amount: number, contractId?: string, milestoneId?: string, purpose?: string): Observable<any> {
+  initializeChapaCheckout(amount: number, contractId?: string, milestoneId?: string, purpose?: string, paymentMethod: string = 'CHAPA'): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/payments/chapa/initialize`, {
       amount,
       contractId,
       milestoneId,
-      purpose: purpose || 'ESCROW_FUNDING'
+      purpose: purpose || 'ESCROW_FUNDING',
+      paymentMethod
     }, { headers: this.getHeaders() });
   }
 

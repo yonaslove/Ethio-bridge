@@ -142,11 +142,22 @@ public class PaymentService {
     }
 
     public Map<String, Object> initializeChapaCheckout(UUID contractId, UUID milestoneId, UUID userId, BigDecimal amount, String purpose) {
-        return initializeChapaCheckout(contractId, milestoneId, userId, amount, purpose, null);
+        return initializeCheckout(contractId, milestoneId, userId, amount, purpose, "CHAPA", null);
     }
 
     public Map<String, Object> initializeChapaCheckout(UUID contractId, UUID milestoneId, UUID userId, BigDecimal amount, String purpose, String clientBaseUrl) {
-        String ref = "CHP-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        return initializeCheckout(contractId, milestoneId, userId, amount, purpose, "CHAPA", clientBaseUrl);
+    }
+
+    public Map<String, Object> initializeCheckout(UUID contractId, UUID milestoneId, UUID userId, BigDecimal amount, String purpose, String paymentMethod, String clientBaseUrl) {
+        String method = (paymentMethod != null && !paymentMethod.isBlank()) ? paymentMethod.toUpperCase() : "CHAPA";
+        String refPrefix = switch (method) {
+            case "TELEBIRR" -> "TB-";
+            case "CBE_BIRR" -> "CBE-";
+            default -> "CHP-";
+        };
+
+        String ref = refPrefix + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
 
         AppUser user = userRepository.findById(userId).orElse(null);
         String email = sanitizeEmailForChapa(user != null ? user.getEmail() : null);
@@ -164,22 +175,28 @@ public class PaymentService {
         String title;
         String desc;
 
+        String railLabel = switch (method) {
+            case "TELEBIRR" -> "Telebirr";
+            case "CBE_BIRR" -> "CBE Birr";
+            default -> "Chapa";
+        };
+
         if (purpose != null && purpose.startsWith("CONNECTS_TOPUP")) {
-            returnUrl = baseUrl + "/profile/provider?chapa_connects=1&tx_ref=" + ref;
+            returnUrl = baseUrl + "/profile/provider?chapa_connects=1&tx_ref=" + ref + "&rail=" + method;
             title = "EB Connects";
-            desc = "Token purchase for job applications";
+            desc = "Token purchase for job applications via " + railLabel;
         } else if (purpose != null && purpose.startsWith("PRO_SUBSCRIPTION")) {
-            returnUrl = baseUrl + "/profile/provider?chapa_pro=1&tx_ref=" + ref;
+            returnUrl = baseUrl + "/profile/provider?chapa_pro=1&tx_ref=" + ref + "&rail=" + method;
             title = "EthioBridge Pro";
-            desc = "Pro Talent 30-Day Subscription (299 ETB)";
+            desc = "Pro Talent 30-Day Subscription (299 ETB) via " + railLabel;
         } else if (milestoneId != null) {
-            returnUrl = baseUrl + "/contracts?chapa_milestone=1&tx_ref=" + ref + "&milestone_id=" + milestoneId;
+            returnUrl = baseUrl + "/contracts?chapa_milestone=1&tx_ref=" + ref + "&milestone_id=" + milestoneId + "&rail=" + method;
             title = "EB Escrow";
-            desc = "Milestone escrow protection deposit";
+            desc = "Milestone escrow deposit via " + railLabel;
         } else {
-            returnUrl = baseUrl + "/contracts?chapa_payment=1&tx_ref=" + ref;
+            returnUrl = baseUrl + "/contracts?chapa_payment=1&tx_ref=" + ref + "&rail=" + method;
             title = "EthioBridge";
-            desc = "Service payment";
+            desc = "Service payment via " + railLabel;
         }
 
         if (title != null && title.length() > 16) {
@@ -188,11 +205,11 @@ public class PaymentService {
 
         String checkoutUrl = returnUrl + (returnUrl.contains("?") ? "&" : "?") + "simulated=1";
         String mode = "SANDBOX_SIMULATED";
-        String message = "Hosted Link [SIMULATED - CHAPA SANDBOX]";
+        String message = "Hosted Link [SIMULATED - " + railLabel.toUpperCase() + " SANDBOX]";
 
         String key = (chapaSecretKey != null && !chapaSecretKey.isBlank()) ? chapaSecretKey : System.getenv("CHAPA_SECRET_KEY");
 
-        if (key != null && key.startsWith("CHASECK_")) {
+        if ("CHAPA".equals(method) && key != null && key.startsWith("CHASECK_")) {
             try {
                 HttpClient client = HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(10))
@@ -242,12 +259,13 @@ public class PaymentService {
             }
         }
 
-        PaymentTransaction tx = new PaymentTransaction(contractId, milestoneId, userId, amount, "CHAPA", ref, "INITIATED");
+        PaymentTransaction tx = new PaymentTransaction(contractId, milestoneId, userId, amount, method, ref, "INITIATED");
         tx.setProviderResponse(purpose);
         PaymentTransaction saved = paymentRepository.save(tx);
 
         String txIdStr = (saved != null && saved.getId() != null) ? saved.getId().toString() : ref;
-        auditLogService.log(userId, "CHAPA_PAYMENT_INIT", "PaymentTransaction",
+        String auditAction = "CHAPA".equalsIgnoreCase(method) ? "CHAPA_PAYMENT_INIT" : ("PAYMENT_INIT_" + method);
+        auditLogService.log(userId, auditAction, "PaymentTransaction",
                 txIdStr, "Purpose: " + purpose + ", Amount: " + amount + " ETB, Ref: " + ref, null);
 
         Map<String, Object> resp = new HashMap<>();
@@ -577,8 +595,10 @@ public class PaymentService {
         boolean verified = false;
         String key = (chapaSecretKey != null && !chapaSecretKey.isBlank()) ? chapaSecretKey : System.getenv("CHAPA_SECRET_KEY");
 
-        // When a real Chapa Secret Key is configured, verify against Chapa Gateway API:
-        if (key != null && key.startsWith("CHASECK_")) {
+        // When a real Chapa Secret Key is configured and this is NOT an explicit sandbox simulation:
+        boolean isExplicitSimulation = txRef != null && (tx.getTransactionRef().contains("SIM") || "SANDBOX_SIMULATED".equals(tx.getPaymentMethod()));
+        
+        if (key != null && key.startsWith("CHASECK_") && !isExplicitSimulation) {
             try {
                 HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
                 HttpRequest request = HttpRequest.newBuilder()
@@ -601,16 +621,19 @@ public class PaymentService {
             } catch (Exception e) {
                 log.warn("Chapa verification call failed: {}", e.getMessage());
             }
-        } else {
+        }
+
+        // If not verified via live Chapa gateway API, check if development sandbox simulation applies:
+        if (!verified) {
             // SANDBOX / SIMULATED MODE: Only permitted in development/test when explicitly enabled.
             // In production, simulation is strictly prohibited and fails closed.
             if (isSimulationPermitted()) {
-                if (txRef != null && txRef.matches("^(CHP|TB|TX)-\\d{10,14}-[A-Z0-9]+$")) {
+                if (txRef != null && txRef.matches("^(CHP|TB|CBE|TX)-\\d{10,14}-[A-Z0-9]+$")) {
                     verified = true;
                     result.put("mode", "SANDBOX_SIMULATED");
                     result.put("note", "TEST TRANSACTION - SIMULATED ENVIRONMENT ONLY");
                 }
-            } else {
+            } else if (key == null || !key.startsWith("CHASECK_")) {
                 log.warn("Payment verification requested without valid live gateway key and simulation disabled/prohibited. txRef={}", txRef);
                 result.put("status", "GATEWAY_UNAVAILABLE");
                 result.put("message", "Live payment gateway credentials are not configured or verification is unavailable.");

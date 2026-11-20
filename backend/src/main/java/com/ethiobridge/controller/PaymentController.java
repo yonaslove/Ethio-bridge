@@ -93,7 +93,8 @@ public class PaymentController {
             clientBaseUrl = payload.get("clientUrl").toString();
         }
 
-        Map<String, Object> resp = paymentService.initializeChapaCheckout(contractId, milestoneId, user.getId(), amount, purpose, clientBaseUrl);
+        String paymentMethod = (String) payload.getOrDefault("paymentMethod", "CHAPA");
+        Map<String, Object> resp = paymentService.initializeCheckout(contractId, milestoneId, user.getId(), amount, purpose, paymentMethod, clientBaseUrl);
         return ResponseEntity.ok(resp);
     }
 

@@ -218,7 +218,7 @@ public class ChapaPaymentTest {
         assertEquals(new BigDecimal("100.00"), res.get("price"));
         assertEquals("TELEBIRR", res.get("paymentMethod"));
         assertNotNull(res.get("checkoutUrl"));
-        assertTrue(res.get("txRef").toString().startsWith("CHP-"));
+        assertTrue(res.get("txRef").toString().startsWith("TB-"));
     }
 
     @Test

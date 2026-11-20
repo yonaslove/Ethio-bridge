@@ -975,21 +975,25 @@ export class ContractsComponent implements OnInit {
     this.route.queryParams.subscribe(params => {
       if (params['chapa_milestone'] && params['tx_ref']) {
         const txRef = params['tx_ref'];
-        this.toastService.info('Verifying Chapa escrow deposit...', 'Chapa Gateway');
+        const rawRail = (params['rail'] || '').toUpperCase();
+        const railName = rawRail === 'TELEBIRR' ? 'Telebirr' : (rawRail === 'CBE_BIRR' ? 'CBE Birr' : 'Payment Gateway');
+        this.toastService.info(`Verifying ${railName} escrow deposit...`, 'Escrow Payment');
         this.apiService.verifyChapaPayment(txRef).subscribe({
           next: (res) => {
             if (res && res.status === 'SUCCESS') {
               this.toastService.success(
-                `🎉 Payment verified on Chapa! Escrow milestone of ${res.amount} ETB is now FUNDED and secured.`,
+                `🎉 Payment verified via ${railName}! Escrow milestone of ${res.amount} ETB is now FUNDED and secured in platform escrow.`,
                 'Escrow Funded'
               );
               this.loadContracts();
             } else {
-              this.toastService.warning('Payment verification is pending or incomplete on Chapa.', 'Chapa Verification');
+              this.toastService.warning(`Payment verification is pending or incomplete for ${railName}.`, 'Payment Verification');
             }
+            this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
           },
           error: () => {
-            this.toastService.error('Failed to verify payment with Chapa.', 'Verification Error');
+            this.toastService.error(`Failed to verify payment with ${railName}.`, 'Verification Error');
+            this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
           }
         });
       }
@@ -1176,30 +1180,32 @@ export class ContractsComponent implements OnInit {
   confirmFunding(): void {
     if (!this.fundingModalMilestone) return;
 
-    if (this.selectedRail === 'CHAPA') {
-      this.payMilestoneDirectWithChapa(this.fundingModalMilestone, this.fundingModalContract);
-      this.fundingModalMilestone = null;
-      return;
-    }
-
     this.processingPayment = true;
+    const milestone = this.fundingModalMilestone;
+    const contract = this.fundingModalContract;
+    const rail = this.selectedRail;
 
-    this.apiService.fundMilestone(this.fundingModalMilestone.id, this.selectedRail).subscribe({
-      next: (updated) => {
-        this.fundingModalMilestone.status = updated.status;
-        this.fundingModalMilestone.fundedAt = updated.fundedAt;
+    this.apiService.initializeChapaCheckout(
+      milestone.amount,
+      contract?.id,
+      milestone.id,
+      `Escrow deposit for: ${milestone.title}`,
+      rail
+    ).subscribe({
+      next: (res) => {
         this.processingPayment = false;
-        const railName = this.selectedRail === 'TELEBIRR' ? 'Telebirr' : 'CBE Birr';
-        this.toastService.success(
-          `Escrow milestone funded successfully via ${railName}! Funds are securely held in platform escrow.`,
-          'Milestone Funded'
-        );
         this.fundingModalMilestone = null;
-        this.loadContracts();
+        const targetUrl = res?.checkoutUrl || res?.checkout_url;
+        if (targetUrl) {
+          window.location.href = targetUrl;
+        } else {
+          const railTitle = rail === 'TELEBIRR' ? 'Telebirr' : (rail === 'CBE_BIRR' ? 'CBE Birr' : 'Chapa');
+          this.toastService.info(`${railTitle} payment reference generated: ${res.txRef}`, 'Escrow Payment');
+        }
       },
-      error: () => {
+      error: (err) => {
         this.processingPayment = false;
-        this.toastService.error('Failed to fund escrow milestone. Gateway rail reported an error.', 'Payment Failed');
+        this.toastService.error('Could not initialize payment: ' + (err?.error?.message || 'Network error'));
       }
     });
   }

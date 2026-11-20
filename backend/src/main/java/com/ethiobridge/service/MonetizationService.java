@@ -79,14 +79,15 @@ public class MonetizationService {
         };
 
         // All payment methods (Chapa Aggregator, Telebirr, CBE Birr) are securely routed
-        // through Chapa's official hosted checkout rail with full verification
+        // through official hosted checkout rails with full verification
         String purpose = "CONNECTS_TOPUP:" + connectsAmount;
-        Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
+        String method = paymentMethod != null ? paymentMethod.toUpperCase() : "CHAPA";
+        Map<String, Object> checkout = paymentService.initializeCheckout(null, null, providerUserId, price, purpose, method, clientBaseUrl);
         Map<String, Object> resp = new HashMap<>(checkout);
         resp.put("status", "PENDING_PAYMENT");
         resp.put("connectsAmount", connectsAmount);
         resp.put("price", price);
-        resp.put("paymentMethod", paymentMethod != null ? paymentMethod.toUpperCase() : "CHAPA");
+        resp.put("paymentMethod", method);
         resp.put("message", "Payment initiated. Please complete checkout on the secure gateway to receive your Connects.");
         return resp;
     }
@@ -156,13 +157,14 @@ public class MonetizationService {
 
         BigDecimal price = new BigDecimal("299.00");
 
-        // Route all Pro memberships through Chapa's official hosted gateway
+        // Route all Pro memberships through official hosted gateway
         String purpose = "PRO_SUBSCRIPTION";
-        Map<String, Object> checkout = paymentService.initializeChapaCheckout(null, null, providerUserId, price, purpose, clientBaseUrl);
+        String method = paymentMethod != null ? paymentMethod.toUpperCase() : "CHAPA";
+        Map<String, Object> checkout = paymentService.initializeCheckout(null, null, providerUserId, price, purpose, method, clientBaseUrl);
         Map<String, Object> resp = new HashMap<>(checkout);
         resp.put("status", "PENDING_PAYMENT");
         resp.put("price", price);
-        resp.put("paymentMethod", paymentMethod != null ? paymentMethod.toUpperCase() : "CHAPA");
+        resp.put("paymentMethod", method);
         resp.put("message", "Subscription checkout initiated. Please complete payment on the secure portal.");
         return resp;
     }
