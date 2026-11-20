@@ -642,7 +642,8 @@ public class PaymentService {
         }
 
         if (verified) {
-            Map<String, Object> fulfillResult = fulfillPaymentSuccess(tx, key != null && key.startsWith("CHASECK_") ? "CHAPA_GATEWAY_API" : "SANDBOX_SIMULATION");
+            String verifySource = "SANDBOX_SIMULATED".equals(result.get("mode")) ? "SANDBOX_SIMULATION" : "CHAPA_GATEWAY_API";
+            Map<String, Object> fulfillResult = fulfillPaymentSuccess(tx, verifySource);
             result.putAll(fulfillResult);
         } else {
             result.put("status", "PENDING_OR_FAILED");
