@@ -37,30 +37,157 @@ public class PaymentController {
     public ResponseEntity<List<Map<String, Object>>> getAvailablePaymentMethods() {
         List<Map<String, Object>> methods = List.of(
                 Map.of(
-                        "id", "CHAPA",
-                        "name", "Chapa Payment Gateway",
-                        "description", "Cards (Visa/Mastercard), Awash, Dashen, Bank Transfer, Telebirr via Chapa",
-                        "type", "AGGREGATOR",
-                        "mode", "CHAPA_LIVE_SANDBOX",
-                        "supportedCurrencies", List.of("ETB", "USD"),
-                        "active", true
-                ),
-                Map.of(
                         "id", "TELEBIRR",
                         "name", "Telebirr (ቴሌብር)",
-                        "description", "Ethio telecom instant USSD & SuperApp QR",
+                        "description", "Ethio telecom instant USSD & SuperApp QR (Min: 1 ETB, Max: 75,000 ETB)",
                         "type", "MOBILE_MONEY",
-                        "mode", "ESCROW_VAULT_SETTLED",
+                        "mode", "CHAPA_TEST_MODE",
                         "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 75000,
                         "active", true
                 ),
                 Map.of(
                         "id", "CBE_BIRR",
-                        "name", "CBE Birr (የኢትዮጵያ ንግድ ባንክ)",
-                        "description", "Commercial Bank of Ethiopia direct mobile banking",
-                        "type", "BANK_DIRECT",
-                        "mode", "ESCROW_VAULT_SETTLED",
+                        "name", "CBEBirr (ሲቢኢ ብር)",
+                        "description", "Commercial Bank of Ethiopia direct mobile money (Min: 1 ETB, Max: 150,000 ETB)",
+                        "type", "MOBILE_MONEY",
+                        "mode", "CHAPA_TEST_MODE",
                         "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 150000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "AWASH_BIRR",
+                        "name", "AwashBirr (አዋሽ ብር)",
+                        "description", "Awash Bank mobile wallet (Min: 1 ETB, Max: 600,000 ETB)",
+                        "type", "MOBILE_MONEY",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 600000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "AWASH_BANK",
+                        "name", "Awash Bank Direct",
+                        "description", "Awash Bank account direct transfer (Min: 1 ETB, Unlimited)",
+                        "type", "BANK_DIRECT",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 10000000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "COOPAY_EBIRR",
+                        "name", "Coopay-Ebirr (ኮኦፕ-ኢብር)",
+                        "description", "Cooperative Bank of Oromia mobile payment (Min: 1 ETB, Unlimited)",
+                        "type", "MOBILE_MONEY",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 10000000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "MPESA",
+                        "name", "M-Pesa (ኤም-ፔሳ)",
+                        "description", "Safaricom Ethiopia mobile money (Min: 20 ETB, Max: 75,000 ETB)",
+                        "type", "MOBILE_MONEY",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 20,
+                        "maxAmount", 75000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "CARD",
+                        "name", "Credit / Debit Card",
+                        "description", "Visa & Mastercard domestic and international (Min: 10 ETB, Max: 500,000 ETB)",
+                        "type", "CARD",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB", "USD"),
+                        "minAmount", 10,
+                        "maxAmount", 500000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "CBE_TRANSFER",
+                        "name", "CBE Bank Transfer",
+                        "description", "Commercial Bank of Ethiopia direct account transfer (Min: 1 ETB, Max: 9,999,999 ETB)",
+                        "type", "BANK_DIRECT",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 9999999,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "AMOLE",
+                        "name", "Amole (Dashen Bank)",
+                        "description", "Dashen Bank digital wallet (Min: 1 ETB, Unlimited)",
+                        "type", "MOBILE_MONEY",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 10000000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "ENAT_BANK",
+                        "name", "Enat Bank Direct",
+                        "description", "Enat Bank account transfer (Min: 1 ETB, Unlimited)",
+                        "type", "BANK_DIRECT",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 10000000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "AMHARA_BANK",
+                        "name", "Amhara Bank Direct",
+                        "description", "Amhara Bank mobile & account transfer (Min: 1 ETB, Unlimited)",
+                        "type", "BANK_DIRECT",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 10000000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "COOP",
+                        "name", "COOP Bank Direct",
+                        "description", "Cooperative Bank of Oromia account transfer (Min: 1 ETB, Max: 1,000,000 ETB)",
+                        "type", "BANK_DIRECT",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB"),
+                        "minAmount", 1,
+                        "maxAmount", 1000000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "PAYPAL",
+                        "name", "PayPal",
+                        "description", "PayPal international checkout via Chapa (Min: 10 ETB, Max: 500,000 ETB)",
+                        "type", "DIGITAL_WALLET",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB", "USD"),
+                        "minAmount", 10,
+                        "maxAmount", 500000,
+                        "active", true
+                ),
+                Map.of(
+                        "id", "CHAPA",
+                        "name", "Chapa Hosted Unified Portal",
+                        "description", "Auto-select any available Ethiopian bank or wallet on checkout",
+                        "type", "AGGREGATOR",
+                        "mode", "CHAPA_TEST_MODE",
+                        "supportedCurrencies", List.of("ETB", "USD"),
+                        "minAmount", 1,
+                        "maxAmount", 10000000,
                         "active", true
                 )
         );

@@ -102,7 +102,19 @@ public class PaymentService {
         String method = (paymentMethod != null && !paymentMethod.isBlank()) ? paymentMethod.toUpperCase() : "TELEBIRR";
         String refPrefix = switch (method) {
             case "TELEBIRR" -> "TB-";
-            case "CBE_BIRR" -> "CBE-";
+            case "CBE_BIRR", "CBEBIRR" -> "CBE-";
+            case "AWASH_BIRR", "AWASHBIRR" -> "AWB-";
+            case "AWASH_BANK" -> "AWK-";
+            case "COOPAY_EBIRR", "COOPAY" -> "CPY-";
+            case "MPESA" -> "MPS-";
+            case "CARD", "CREDIT_CARD", "DEBIT_CARD" -> "CRD-";
+            case "CBE_TRANSFER" -> "CBT-";
+            case "AMOLE" -> "AML-";
+            case "ENAT_BANK" -> "ENT-";
+            case "AMHARA_BANK" -> "AMH-";
+            case "COOP" -> "COP-";
+            case "PAYPAL" -> "PPL-";
+            case "BOA_CARD" -> "BOA-";
             case "CHAPA" -> "CHP-";
             default -> "TX-";
         };
@@ -153,7 +165,19 @@ public class PaymentService {
         String method = (paymentMethod != null && !paymentMethod.isBlank()) ? paymentMethod.toUpperCase() : "CHAPA";
         String refPrefix = switch (method) {
             case "TELEBIRR" -> "TB-";
-            case "CBE_BIRR" -> "CBE-";
+            case "CBE_BIRR", "CBEBIRR" -> "CBE-";
+            case "AWASH_BIRR", "AWASHBIRR" -> "AWB-";
+            case "AWASH_BANK" -> "AWK-";
+            case "COOPAY_EBIRR", "COOPAY" -> "CPY-";
+            case "MPESA" -> "MPS-";
+            case "CARD", "CREDIT_CARD", "DEBIT_CARD" -> "CRD-";
+            case "CBE_TRANSFER" -> "CBT-";
+            case "AMOLE" -> "AML-";
+            case "ENAT_BANK" -> "ENT-";
+            case "AMHARA_BANK" -> "AMH-";
+            case "COOP" -> "COP-";
+            case "PAYPAL" -> "PPL-";
+            case "BOA_CARD" -> "BOA-";
             default -> "CHP-";
         };
 
@@ -177,7 +201,18 @@ public class PaymentService {
 
         String railLabel = switch (method) {
             case "TELEBIRR" -> "Telebirr";
-            case "CBE_BIRR" -> "CBE Birr";
+            case "CBE_BIRR", "CBEBIRR" -> "CBEBirr";
+            case "AWASH_BIRR", "AWASHBIRR" -> "AwashBirr";
+            case "AWASH_BANK" -> "Awash Bank";
+            case "COOPAY_EBIRR", "COOPAY" -> "Coopay-Ebirr";
+            case "MPESA" -> "M-Pesa";
+            case "CARD", "CREDIT_CARD", "DEBIT_CARD" -> "Card (Visa/Mastercard)";
+            case "CBE_TRANSFER" -> "CBE Bank Transfer";
+            case "AMOLE" -> "Amole";
+            case "ENAT_BANK" -> "Enat Bank";
+            case "AMHARA_BANK" -> "Amhara Bank";
+            case "COOP" -> "COOP Bank";
+            case "PAYPAL" -> "PayPal";
             default -> "Chapa";
         };
 
@@ -627,7 +662,7 @@ public class PaymentService {
         if (!verified) {
             // SANDBOX / SIMULATED MODE: Allowed when simulation is permitted OR when running with a test key in non-prod
             if (isSimulationPermitted()) {
-                if (txRef != null && txRef.matches("^(CHP|TB|CBE|TX)-\\d{10,14}-[A-Z0-9]+$")) {
+                if (txRef != null && txRef.matches("^(CHP|TB|CBE|AWB|AWK|CPY|MPS|CRD|CBT|AML|ENT|AMH|COP|PPL|BOA|TX)-\\d{10,14}-[A-Z0-9]+$")) {
                     verified = true;
                     result.put("mode", "SANDBOX_SIMULATED");
                     result.put("note", "TEST TRANSACTION - SIMULATED ENVIRONMENT ONLY");

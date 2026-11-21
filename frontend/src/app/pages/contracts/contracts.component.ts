@@ -200,32 +200,20 @@ import { ContractItem } from '../../models/models';
               </div>
             </div>
 
-            <label class="form-label">Select Payment Rail</label>
-            <div class="rail-options">
-              <label class="rail-card" [class.selected]="selectedRail === 'TELEBIRR'">
-                <input type="radio" [(ngModel)]="selectedRail" name="rail" value="TELEBIRR" />
-                <div class="rail-icon tb-icon">TB</div>
-                <div class="rail-text">
-                  <strong>Telebirr</strong>
-                  <small>Ethio telecom instant USSD & SuperApp QR</small>
-                </div>
-              </label>
-
-              <label class="rail-card" [class.selected]="selectedRail === 'CBE_BIRR'">
-                <input type="radio" [(ngModel)]="selectedRail" name="rail" value="CBE_BIRR" />
-                <div class="rail-icon cbe-icon">CBE</div>
-                <div class="rail-text">
-                  <strong>CBE Birr</strong>
-                  <small>Commercial Bank of Ethiopia direct payment</small>
-                </div>
-              </label>
-
-              <label class="rail-card" [class.selected]="selectedRail === 'CHAPA'">
-                <input type="radio" [(ngModel)]="selectedRail" name="rail" value="CHAPA" />
-                <div class="rail-icon chp-icon">CH</div>
-                <div class="rail-text">
-                  <strong>Chapa Payment</strong>
-                  <small>Cards, Awash, Dashen, Bank transfer</small>
+            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Select Payment Method (Chapa Gateway)</span>
+              <span class="badge" style="background: #E8F5E9; color: #166534; font-size: 0.72rem; font-weight: 700;">🧪 TEST MODE ACTIVE</span>
+            </label>
+            <div class="rail-options" style="max-height: 280px; overflow-y: auto; padding-right: 0.25rem;">
+              <label *ngFor="let m of availablePaymentRails" class="rail-card" [class.selected]="selectedRail === m.id" style="margin-bottom: 0.4rem;">
+                <input type="radio" [(ngModel)]="selectedRail" name="rail" [value]="m.id" />
+                <div class="rail-icon" [ngClass]="getRailIconClass(m.id)">{{ getRailIconText(m.id) }}</div>
+                <div class="rail-text" style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>{{ m.name }}</strong>
+                    <span class="badge" style="font-size: 0.65rem; background: #F1F5F9; color: #475569;">{{ m.type }}</span>
+                  </div>
+                  <small>{{ m.description }}</small>
                 </div>
               </label>
             </div>
@@ -874,6 +862,12 @@ import { ContractItem } from '../../models/models';
     .tb-icon { background: #0072BC; }
     .cbe-icon { background: #562365; }
     .chp-icon { background: #00A651; }
+    .awb-icon { background: #003366; }
+    .coop-icon { background: #008080; }
+    .mps-icon { background: #E60000; }
+    .card-icon { background: #1E293B; }
+    .aml-icon { background: #E65100; }
+    .ppl-icon { background: #003087; }
     .rail-text {
       display: flex;
       flex-direction: column;
@@ -968,7 +962,65 @@ export class ContractsComponent implements OnInit {
     private route: ActivatedRoute
   ) {}
 
+  availablePaymentRails: any[] = [
+    { id: 'TELEBIRR', name: 'Telebirr (ቴሌብር)', type: 'MOBILE_MONEY', description: 'Ethio telecom instant USSD & SuperApp QR (Min: 1 ETB, Max: 75,000 ETB)' },
+    { id: 'CBE_BIRR', name: 'CBEBirr (ሲቢኢ ብር)', type: 'MOBILE_MONEY', description: 'Commercial Bank of Ethiopia direct mobile money (Min: 1 ETB, Max: 150,000 ETB)' },
+    { id: 'AWASH_BIRR', name: 'AwashBirr (አዋሽ ብር)', type: 'MOBILE_MONEY', description: 'Awash Bank mobile wallet (Min: 1 ETB, Max: 600,000 ETB)' },
+    { id: 'AWASH_BANK', name: 'Awash Bank Direct', type: 'BANK_DIRECT', description: 'Awash Bank account direct transfer (Min: 1 ETB, Unlimited)' },
+    { id: 'COOPAY_EBIRR', name: 'Coopay-Ebirr (ኮኦፕ-ኢብር)', type: 'MOBILE_MONEY', description: 'Cooperative Bank of Oromia mobile payment (Min: 1 ETB, Unlimited)' },
+    { id: 'MPESA', name: 'M-Pesa (ኤም-ፔሳ)', type: 'MOBILE_MONEY', description: 'Safaricom Ethiopia mobile money (Min: 20 ETB, Max: 75,000 ETB)' },
+    { id: 'CARD', name: 'Credit / Debit Card', type: 'CARD', description: 'Visa & Mastercard domestic and international (Min: 10 ETB, Max: 500,000 ETB)' },
+    { id: 'CBE_TRANSFER', name: 'CBE Bank Transfer', type: 'BANK_DIRECT', description: 'Commercial Bank of Ethiopia direct account transfer (Min: 1 ETB, Max: 9,999,999 ETB)' },
+    { id: 'AMOLE', name: 'Amole (Dashen Bank)', type: 'MOBILE_MONEY', description: 'Dashen Bank digital wallet (Min: 1 ETB, Unlimited)' },
+    { id: 'ENAT_BANK', name: 'Enat Bank Direct', type: 'BANK_DIRECT', description: 'Enat Bank account transfer (Min: 1 ETB, Unlimited)' },
+    { id: 'AMHARA_BANK', name: 'Amhara Bank Direct', type: 'BANK_DIRECT', description: 'Amhara Bank mobile & account transfer (Min: 1 ETB, Unlimited)' },
+    { id: 'COOP', name: 'COOP Bank Direct', type: 'BANK_DIRECT', description: 'Cooperative Bank of Oromia account transfer (Min: 1 ETB, Max: 1,000,000 ETB)' },
+    { id: 'PAYPAL', name: 'PayPal', type: 'DIGITAL_WALLET', description: 'PayPal international checkout via Chapa (Min: 10 ETB, Max: 500,000 ETB)' },
+    { id: 'CHAPA', name: 'Chapa Hosted Unified Portal', type: 'AGGREGATOR', description: 'Auto-select any available Ethiopian bank or wallet on checkout' }
+  ];
+
+  getRailIconClass(id: string): string {
+    switch (id) {
+      case 'TELEBIRR': return 'tb-icon';
+      case 'CBE_BIRR': case 'CBE_TRANSFER': return 'cbe-icon';
+      case 'AWASH_BIRR': case 'AWASH_BANK': return 'awb-icon';
+      case 'COOPAY_EBIRR': case 'COOP': return 'coop-icon';
+      case 'MPESA': return 'mps-icon';
+      case 'CARD': return 'card-icon';
+      case 'AMOLE': return 'aml-icon';
+      case 'PAYPAL': return 'ppl-icon';
+      default: return 'chp-icon';
+    }
+  }
+
+  getRailIconText(id: string): string {
+    switch (id) {
+      case 'TELEBIRR': return 'TB';
+      case 'CBE_BIRR': return 'CBE';
+      case 'AWASH_BIRR': return 'AWB';
+      case 'AWASH_BANK': return 'AWK';
+      case 'COOPAY_EBIRR': return 'CPY';
+      case 'MPESA': return 'MPS';
+      case 'CARD': return '💳';
+      case 'CBE_TRANSFER': return 'CBT';
+      case 'AMOLE': return 'AML';
+      case 'ENAT_BANK': return 'ENT';
+      case 'AMHARA_BANK': return 'AMH';
+      case 'COOP': return 'COP';
+      case 'PAYPAL': return 'PP';
+      default: return 'CH';
+    }
+  }
+
   ngOnInit(): void {
+    this.apiService.getPaymentMethods().subscribe({
+      next: (methods) => {
+        if (methods && methods.length > 0) {
+          this.availablePaymentRails = methods;
+        }
+      },
+      error: () => {}
+    });
     this.loadContracts();
     this.loadCandidateOptions();
 

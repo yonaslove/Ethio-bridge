@@ -334,14 +334,30 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
           </div>
 
           <div class="form-group" style="margin-top: 1rem;">
-            <label class="form-label">{{ i18n.translate('Payment Gateway (Ethiopian Rails)', 'የመክፈያ ዘዴ') }}</label>
-            <select [(ngModel)]="selectedPaymentMethod" class="form-select">
-              <option value="CHAPA">Chapa (Cards, Telebirr, CBE Birr, Awash, Dashen)</option>
-              <option value="TELEBIRR">Telebirr (ቴሌብር via Chapa Gateway)</option>
-              <option value="CBE_BIRR">CBE Birr (ሲቢኢ ብር via Chapa Gateway)</option>
-            </select>
-            <p style="font-size: 0.8rem; color: #64748B; margin-top: 0.35rem;">
-              🔒 {{ i18n.translate('Official Ethiopian banking gateway. Authorize safely with Telebirr PIN, CBE Birr, or Debit Card.', 'ደህንነቱ የተጠበቀ የኢትዮጵያ ባንክ ክፍያ በር። በቴሌብር፣ በሲቢኢ ብር ወይም በባንክ ካርድ ይክፈሉ።') }}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <label class="form-label" style="margin: 0;">{{ i18n.translate('Payment Gateway (All Chapa Supported Rails)', 'የመክፈያ ዘዴ') }}</label>
+              <span style="font-size: 0.7rem; font-weight: 800; background: #FEF3C7; color: #92400E; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                🧪 {{ i18n.translate('TEST MODE ACTIVE', 'የሙከራ ሁነታ') }}
+              </span>
+            </div>
+
+            <div class="rail-select-list">
+              <div *ngFor="let rail of availablePaymentRails"
+                   class="rail-card-small"
+                   [class.selected]="selectedPaymentMethod === rail.id"
+                   (click)="selectedPaymentMethod = rail.id">
+                <div class="rail-icon-sm" [ngClass]="getRailIconClass(rail.id)">
+                  {{ rail.id.substring(0, 3) }}
+                </div>
+                <div class="rail-info-sm">
+                  <div class="rail-name-sm">{{ rail.name }}</div>
+                  <div class="rail-desc-sm">{{ rail.description }}</div>
+                </div>
+              </div>
+            </div>
+
+            <p style="font-size: 0.775rem; color: #64748B; margin-top: 0.5rem; margin-bottom: 0;">
+              🔒 {{ i18n.translate('Official Ethiopian banking gateway (Chapa). Authorize safely with Telebirr, CBE Birr, Awash, M-Pesa, Cards or Direct Bank Transfer.', 'ደህንነቱ የተጠበቀ የኢትዮጵያ ባንክ ክፍያ በር (ቻፓ)። በቴሌብር፣ በሲቢኢ ብር፣ በአዋሽ፣ በኤም-ፔሳ፣ በካርድ ወይም በቀጥታ የባንክ ማስተላለፍ ይክፈሉ።') }}
             </p>
           </div>
 
@@ -356,7 +372,7 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
 
       <!-- Professional Pro Subscription Checkout Modal -->
       <div *ngIf="showProModal" class="modal-backdrop">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 520px;">
           <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <span style="font-size: 1.5rem;">⭐</span>
@@ -382,20 +398,26 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
           </div>
 
           <div class="form-group" style="margin-bottom: 1.25rem;">
-            <label class="form-label">{{ i18n.translate('Select Payment Method', 'የመክፈያ ዘዴ ይምረጡ') }}</label>
-            <div style="display: flex; gap: 0.75rem;">
-              <label class="package-pill" style="flex: 1;" [class.selected]="proPaymentMethod === 'TELEBIRR'" (click)="proPaymentMethod = 'TELEBIRR'">
-                <div class="pkg-num">Telebirr</div>
-                <div class="pkg-price">299 ETB / mo</div>
-              </label>
-              <label class="package-pill" style="flex: 1;" [class.selected]="proPaymentMethod === 'CBE_BIRR'" (click)="proPaymentMethod = 'CBE_BIRR'">
-                <div class="pkg-num">CBE Birr</div>
-                <div class="pkg-price">299 ETB / mo</div>
-              </label>
-              <label class="package-pill" style="flex: 1;" [class.selected]="proPaymentMethod === 'CHAPA'" (click)="proPaymentMethod = 'CHAPA'">
-                <div class="pkg-num">Chapa / Card</div>
-                <div class="pkg-price">299 ETB / mo</div>
-              </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <label class="form-label" style="margin: 0;">{{ i18n.translate('Select Payment Method (299 ETB / month)', 'የመክፈያ ዘዴ ይምረጡ (299 ብር በወር)') }}</label>
+              <span style="font-size: 0.7rem; font-weight: 800; background: #FEF3C7; color: #92400E; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                🧪 {{ i18n.translate('TEST MODE ACTIVE', 'የሙከራ ሁነታ') }}
+              </span>
+            </div>
+
+            <div class="rail-select-list">
+              <div *ngFor="let rail of availablePaymentRails"
+                   class="rail-card-small"
+                   [class.selected]="proPaymentMethod === rail.id"
+                   (click)="proPaymentMethod = rail.id">
+                <div class="rail-icon-sm" [ngClass]="getRailIconClass(rail.id)">
+                  {{ rail.id.substring(0, 3) }}
+                </div>
+                <div class="rail-info-sm">
+                  <div class="rail-name-sm">{{ rail.name }}</div>
+                  <div class="rail-desc-sm">{{ rail.description }}</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -741,6 +763,74 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
       font-weight: 700;
       margin-top: 0.2rem;
     }
+    .rail-select-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 250px;
+      overflow-y: auto;
+      margin-top: 0.5rem;
+      padding-right: 0.25rem;
+    }
+    .rail-card-small {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border: 1.5px solid var(--color-border);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      cursor: pointer;
+      background: #FFFFFF;
+      transition: all 0.2s ease;
+    }
+    .rail-card-small:hover {
+      border-color: var(--color-cyan);
+      background: rgba(28, 184, 205, 0.02);
+    }
+    .rail-card-small.selected {
+      border-color: var(--color-cyan);
+      background: rgba(28, 184, 205, 0.08);
+    }
+    .rail-icon-sm {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: 6px;
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+    .tb-icon { background: #0072BC; }
+    .cbe-icon { background: #562365; }
+    .chp-icon { background: #00A651; }
+    .awb-icon { background: #003366; }
+    .coop-icon { background: #008080; }
+    .mps-icon { background: #E60000; }
+    .card-icon { background: #1E293B; }
+    .aml-icon { background: #E65100; }
+    .ppl-icon { background: #003087; }
+    .rail-info-sm {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      flex: 1;
+      min-width: 0;
+    }
+    .rail-name-sm {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--color-charcoal);
+    }
+    .rail-desc-sm {
+      font-size: 0.72rem;
+      color: var(--color-slate);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .pkg-badge {
       position: absolute;
       top: -9px;
@@ -944,6 +1034,38 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
   submittingPro = false;
   proError = '';
 
+  // Available Payment Rails (Chapa Official Supported Rails)
+  availablePaymentRails: any[] = [
+    { id: 'TELEBIRR', name: 'Telebirr (ቴሌብር)', type: 'MOBILE_MONEY', description: 'Ethio telecom instant USSD & SuperApp QR (Min: 1 ETB, Max: 75,000 ETB)' },
+    { id: 'CBE_BIRR', name: 'CBEBirr (ሲቢኢ ብር)', type: 'MOBILE_MONEY', description: 'Commercial Bank of Ethiopia direct mobile money (Min: 1 ETB, Max: 150,000 ETB)' },
+    { id: 'AWASH_BIRR', name: 'AwashBirr (አዋሽ ብር)', type: 'MOBILE_MONEY', description: 'Awash Bank mobile wallet (Min: 1 ETB, Max: 600,000 ETB)' },
+    { id: 'AWASH_BANK', name: 'Awash Bank Direct', type: 'BANK_DIRECT', description: 'Awash Bank account direct transfer (Min: 1 ETB, Unlimited)' },
+    { id: 'COOPAY_EBIRR', name: 'Coopay-Ebirr (ኮኦፕ-ኢብር)', type: 'MOBILE_MONEY', description: 'Cooperative Bank of Oromia mobile payment (Min: 1 ETB, Unlimited)' },
+    { id: 'MPESA', name: 'M-Pesa (ኤም-ፔሳ)', type: 'MOBILE_MONEY', description: 'Safaricom Ethiopia mobile money (Min: 20 ETB, Max: 75,000 ETB)' },
+    { id: 'CARD', name: 'Credit / Debit Card', type: 'CARD', description: 'Visa & Mastercard domestic and international (Min: 10 ETB, Max: 500,000 ETB)' },
+    { id: 'CBE_TRANSFER', name: 'CBE Bank Transfer', type: 'BANK_DIRECT', description: 'Commercial Bank of Ethiopia direct account transfer (Min: 1 ETB, Max: 9,999,999 ETB)' },
+    { id: 'AMOLE', name: 'Amole (Dashen Bank)', type: 'MOBILE_MONEY', description: 'Dashen Bank digital wallet (Min: 1 ETB, Unlimited)' },
+    { id: 'ENAT_BANK', name: 'Enat Bank Direct', type: 'BANK_DIRECT', description: 'Enat Bank account transfer (Min: 1 ETB, Unlimited)' },
+    { id: 'AMHARA_BANK', name: 'Amhara Bank Direct', type: 'BANK_DIRECT', description: 'Amhara Bank mobile & account transfer (Min: 1 ETB, Unlimited)' },
+    { id: 'COOP', name: 'COOP Bank Direct', type: 'BANK_DIRECT', description: 'Cooperative Bank of Oromia account transfer (Min: 1 ETB, Max: 1,000,000 ETB)' },
+    { id: 'PAYPAL', name: 'PayPal', type: 'DIGITAL_WALLET', description: 'PayPal international checkout via Chapa (Min: 10 ETB, Max: 500,000 ETB)' },
+    { id: 'CHAPA', name: 'Chapa Hosted Unified Portal', type: 'AGGREGATOR', description: 'Auto-select any available Ethiopian bank or wallet on checkout' }
+  ];
+
+  getRailIconClass(id: string): string {
+    switch (id) {
+      case 'TELEBIRR': return 'tb-icon';
+      case 'CBE_BIRR': case 'CBE_TRANSFER': return 'cbe-icon';
+      case 'AWASH_BIRR': case 'AWASH_BANK': return 'awb-icon';
+      case 'COOPAY_EBIRR': case 'COOP': return 'coop-icon';
+      case 'MPESA': return 'mps-icon';
+      case 'CARD': return 'card-icon';
+      case 'AMOLE': return 'aml-icon';
+      case 'PAYPAL': return 'ppl-icon';
+      default: return 'chp-icon';
+    }
+  }
+
   // CV Parsing State
   parsingCv = false;
   cvParsedResult: any = null;
@@ -1071,6 +1193,14 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.apiService.getLocations().subscribe(l => this.locations = l || []);
     this.apiService.getSkills().subscribe(s => this.catalogSkills = s || []);
+    this.apiService.getPaymentMethods().subscribe({
+      next: (methods) => {
+        if (methods && methods.length > 0) {
+          this.availablePaymentRails = methods;
+        }
+      },
+      error: () => {}
+    });
     this.loadProfile();
 
     this.route.queryParams.subscribe(params => {
