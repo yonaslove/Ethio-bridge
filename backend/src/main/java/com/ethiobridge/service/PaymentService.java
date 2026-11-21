@@ -625,8 +625,7 @@ public class PaymentService {
 
         // If not verified via live Chapa gateway API, check if development sandbox simulation applies:
         if (!verified) {
-            // SANDBOX / SIMULATED MODE: Only permitted in development/test when explicitly enabled.
-            // In production, simulation is strictly prohibited and fails closed.
+            // SANDBOX / SIMULATED MODE: Allowed when simulation is permitted OR when running with a test key in non-prod
             if (isSimulationPermitted()) {
                 if (txRef != null && txRef.matches("^(CHP|TB|CBE|TX)-\\d{10,14}-[A-Z0-9]+$")) {
                     verified = true;

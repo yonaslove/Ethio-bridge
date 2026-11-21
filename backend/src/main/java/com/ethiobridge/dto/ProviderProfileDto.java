@@ -24,6 +24,7 @@ public class ProviderProfileDto {
     private String education;
     private String languages;
     private Integer connectsBalance;
+    @com.fasterxml.jackson.annotation.JsonProperty("isPro")
     private boolean isPro;
     private java.time.OffsetDateTime proExpiresAt;
     private List<ProviderSkillDto> skills = new ArrayList<>();
@@ -87,8 +88,12 @@ public class ProviderProfileDto {
     public Integer getConnectsBalance() { return connectsBalance; }
     public void setConnectsBalance(Integer connectsBalance) { this.connectsBalance = connectsBalance; }
 
+    @com.fasterxml.jackson.annotation.JsonProperty("isPro")
     public boolean isPro() { return isPro; }
     public void setPro(boolean pro) { isPro = pro; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("pro")
+    public boolean getPro() { return isPro; }
 
     public java.time.OffsetDateTime getProExpiresAt() { return proExpiresAt; }
     public void setProExpiresAt(java.time.OffsetDateTime proExpiresAt) { this.proExpiresAt = proExpiresAt; }

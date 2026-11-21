@@ -84,7 +84,7 @@ public class MonetizationServiceTest {
         checkoutMap.put("txRef", "CHP-123");
         checkoutMap.put("status", "success");
 
-        when(paymentService.initializeChapaCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("150")), contains("CONNECTS_TOPUP"), isNull()))
+        when(paymentService.initializeCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("150")), contains("CONNECTS_TOPUP"), eq("CHAPA"), isNull()))
                 .thenReturn(checkoutMap);
 
         Map<String, Object> resp = monetizationService.topUpConnects(providerId, 30, "CHAPA");
@@ -129,7 +129,7 @@ public class MonetizationServiceTest {
         checkoutMap.put("txRef", "CHP-PRO-123");
         checkoutMap.put("status", "success");
 
-        when(paymentService.initializeChapaCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("299.00")), eq("PRO_SUBSCRIPTION"), isNull()))
+        when(paymentService.initializeCheckout(isNull(), isNull(), eq(providerId), eq(new BigDecimal("299.00")), eq("PRO_SUBSCRIPTION"), eq("CBE_BIRR"), isNull()))
                 .thenReturn(checkoutMap);
 
         Map<String, Object> result = monetizationService.subscribeToPro(providerId, "CBE_BIRR");

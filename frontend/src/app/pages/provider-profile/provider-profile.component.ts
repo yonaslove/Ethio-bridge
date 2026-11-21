@@ -1144,6 +1144,9 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
 
   loadProfile(): void {
     this.apiService.getProviderProfile().subscribe(p => {
+      if (p) {
+        p.isPro = !!(p.isPro || (p as any).pro);
+      }
       this.profile = p;
     });
   }

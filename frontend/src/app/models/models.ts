@@ -72,6 +72,7 @@ export interface ProviderProfile {
   languages?: string;
   connectsBalance?: number;
   isPro?: boolean;
+  pro?: boolean;
   proExpiresAt?: string;
   skills: ProviderSkill[];
 }
