@@ -792,8 +792,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.pollSub = interval(5000).subscribe(() => {
-      if (this.currentUser) {
+    // Poll unread counts every 30 seconds instead of hammering the backend every 5 seconds
+    this.pollSub = interval(30000).subscribe(() => {
+      if (this.currentUser && this.authService.token) {
         this.fetchAlerts();
       }
     });
@@ -825,6 +826,10 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   fetchAlerts(): void {
+    if (!this.authService.token) {
+      return;
+    }
+
     this.apiService.getUnreadNotificationCount().subscribe({
       next: (res) => this.unreadNotificationsCount = res.unreadCount,
       error: () => {}
