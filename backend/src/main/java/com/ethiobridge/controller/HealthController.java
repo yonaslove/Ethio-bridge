@@ -36,6 +36,15 @@ public class HealthController {
         try {
             Integer result = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
             report.put("database", result != null && result == 1 ? "UP" : "DOWN");
+            
+            // Check provider_profile table structure / queries
+            try {
+                java.util.List<Map<String, Object>> profiles = jdbcTemplate.queryForList("SELECT id, user_id, headline, is_pro FROM provider_profile LIMIT 1");
+                report.put("providerProfileQuery", "UP");
+                report.put("providerProfileCount", profiles.size());
+            } catch (Exception pe) {
+                report.put("providerProfileQuery", "ERROR: " + pe.getMessage());
+            }
         } catch (Exception e) {
             report.put("database", "DOWN");
             report.put("databaseError", e.getMessage());
