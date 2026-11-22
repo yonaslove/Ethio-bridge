@@ -50,6 +50,7 @@ public class HealthController {
                 try {
                     Object profileDto = profileService.getProviderProfile(UUID.fromString("a2222222-2222-2222-2222-222222222201"));
                     report.put("diagnosticProfileCall", "SUCCESS");
+                    report.put("diagnosticProfileDto", profileDto != null ? "HAS_DTO" : "NULL");
                 } catch (Throwable t) {
                     java.io.StringWriter sw = new java.io.StringWriter();
                     t.printStackTrace(new java.io.PrintWriter(sw));

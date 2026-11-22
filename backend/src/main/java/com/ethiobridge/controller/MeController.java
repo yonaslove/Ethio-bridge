@@ -46,9 +46,19 @@ public class MeController {
     }
 
     @GetMapping("/provider-profile")
-    public ProviderProfileDto getProviderProfile(Authentication authentication) {
-        AppUser user = userService.getOrCreateCurrentUser(authentication);
-        return profileService.getProviderProfile(user.getId());
+    public Object getProviderProfile(Authentication authentication) {
+        try {
+            AppUser user = userService.getOrCreateCurrentUser(authentication);
+            return profileService.getProviderProfile(user.getId());
+        } catch (Throwable t) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            t.printStackTrace(new java.io.PrintWriter(sw));
+            java.util.Map<String, Object> err = new java.util.HashMap<>();
+            err.put("error", t.getClass().getName());
+            err.put("message", t.getMessage());
+            err.put("trace", sw.toString().substring(0, Math.min(sw.toString().length(), 2000)));
+            return org.springframework.http.ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+        }
     }
 
     @PutMapping("/provider-profile")
