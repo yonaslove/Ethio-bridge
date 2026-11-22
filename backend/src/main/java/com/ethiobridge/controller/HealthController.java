@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/health")
@@ -17,12 +18,14 @@ public class HealthController {
 
     private final JdbcTemplate jdbcTemplate;
     private final RestClient restClient;
+    private final com.ethiobridge.service.ProfileService profileService;
 
     @Value("${app.ai-service.base-url:http://localhost:8000}")
     private String aiServiceBaseUrl;
 
-    public HealthController(JdbcTemplate jdbcTemplate) {
+    public HealthController(JdbcTemplate jdbcTemplate, com.ethiobridge.service.ProfileService profileService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.profileService = profileService;
         this.restClient = RestClient.builder().build();
     }
 
@@ -42,6 +45,17 @@ public class HealthController {
                 java.util.List<Map<String, Object>> profiles = jdbcTemplate.queryForList("SELECT id, user_id, headline, is_pro FROM provider_profile LIMIT 1");
                 report.put("providerProfileQuery", "UP");
                 report.put("providerProfileCount", profiles.size());
+                
+                // Diagnostic test invocation of ProfileService.getProviderProfile for provider1 user
+                try {
+                    Object profileDto = profileService.getProviderProfile(UUID.fromString("a2222222-2222-2222-2222-222222222201"));
+                    report.put("diagnosticProfileCall", "SUCCESS");
+                } catch (Throwable t) {
+                    java.io.StringWriter sw = new java.io.StringWriter();
+                    t.printStackTrace(new java.io.PrintWriter(sw));
+                    report.put("diagnosticProfileError", t.getClass().getName() + ": " + t.getMessage());
+                    report.put("diagnosticProfileTrace", sw.toString().substring(0, Math.min(sw.toString().length(), 1000)));
+                }
             } catch (Exception pe) {
                 report.put("providerProfileQuery", "ERROR: " + pe.getMessage());
             }
