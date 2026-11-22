@@ -36,6 +36,27 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
         Profile and skills successfully updated!
       </div>
 
+      <!-- Loading State Skeleton -->
+      <div *ngIf="loadingProfile && !profile" class="card" style="padding: 2.5rem; text-align: center; margin-bottom: 1.5rem;">
+        <div style="font-size: 2.5rem; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 1rem;">⏳</div>
+        <h3 style="margin-bottom: 0.5rem; color: var(--color-charcoal);">Loading Provider Profile & Skills...</h3>
+        <p style="color: var(--color-slate); font-size: 0.9rem;">Connecting to Ethiopian talent cloud...</p>
+      </div>
+
+      <!-- Load Error Fallback -->
+      <div *ngIf="loadError && !profile" class="card" style="padding: 2rem; border-left: 4px solid var(--color-danger); margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h3 style="color: var(--color-danger); margin-bottom: 0.25rem;">⚠️ Unable to retrieve profile data from server</h3>
+            <p style="color: var(--color-slate); font-size: 0.85rem; margin: 0;">{{ loadError }}</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button (click)="retryLoadProfile()" class="btn btn-primary btn-sm">🔄 Retry</button>
+            <button (click)="initializeLocalProfile()" class="btn btn-secondary btn-sm">Create / Edit Here</button>
+          </div>
+        </div>
+      </div>
+
       <div class="profile-layout" *ngIf="profile">
         <!-- Main Profile Form -->
         <div class="card form-column">
@@ -1011,6 +1032,8 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
 })
 export class ProviderProfileComponent implements OnInit, OnDestroy {
   profile?: ProviderProfile;
+  loadingProfile = true;
+  loadError = '';
   locations: Location[] = [];
   catalogSkills: Skill[] = [];
 
@@ -1273,12 +1296,44 @@ export class ProviderProfileComponent implements OnInit, OnDestroy {
   }
 
   loadProfile(): void {
-    this.apiService.getProviderProfile().subscribe(p => {
-      if (p) {
-        p.isPro = !!(p.isPro || (p as any).pro);
+    this.loadingProfile = true;
+    this.loadError = '';
+    this.apiService.getProviderProfile().subscribe({
+      next: (p) => {
+        this.loadingProfile = false;
+        if (p) {
+          p.isPro = !!(p.isPro || (p as any).pro);
+        }
+        this.profile = p;
+      },
+      error: (err) => {
+        this.loadingProfile = false;
+        this.loadError = err?.error?.message || 'Server error loading profile. You can initialize your profile below.';
+        // Auto-initialize fallback so the user can immediately see and edit their profile without waiting
+        if (!this.profile) {
+          this.initializeLocalProfile();
+        }
       }
-      this.profile = p;
     });
+  }
+
+  retryLoadProfile(): void {
+    this.loadProfile();
+  }
+
+  initializeLocalProfile(): void {
+    this.loadError = '';
+    this.profile = {
+      headline: '',
+      bio: '',
+      yearsExperience: 1,
+      availability: 'FULL_TIME',
+      hourlyRate: 500,
+      categoryFocus: 'ANY',
+      connectsBalance: 20,
+      isPro: false,
+      skills: []
+    } as any;
   }
 
   onCvFileSelected(event: any): void {
