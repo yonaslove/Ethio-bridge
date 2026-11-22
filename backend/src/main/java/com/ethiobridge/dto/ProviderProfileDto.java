@@ -92,9 +92,6 @@ public class ProviderProfileDto {
     public boolean isPro() { return isPro; }
     public void setPro(boolean pro) { isPro = pro; }
 
-    @com.fasterxml.jackson.annotation.JsonProperty("pro")
-    public boolean getPro() { return isPro; }
-
     public java.time.OffsetDateTime getProExpiresAt() { return proExpiresAt; }
     public void setProExpiresAt(java.time.OffsetDateTime proExpiresAt) { this.proExpiresAt = proExpiresAt; }
 }
