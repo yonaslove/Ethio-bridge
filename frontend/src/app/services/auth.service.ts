@@ -7,19 +7,13 @@ import { environment } from '../../environments/environment';
 
 export interface PersonaQuickOption {
   id: string;
+  userId?: string;
   name: string;
   email: string;
   roleBadge: string;
   description: string;
+  roles?: string[];
 }
-
-export const TEST_PERSONAS: PersonaQuickOption[] = [
-  { id: 'seeker1', name: 'Sara Bekele', email: 'seeker1@ethiobridge.et', roleBadge: 'Talent Seeker / Client', description: 'Tech recruiter posting jobs & projects' },
-  { id: 'provider1', name: 'Dawit Tadesse', email: 'provider1@ethiobridge.et', roleBadge: 'Senior Backend Provider', description: 'Java, Spring Boot & PostgreSQL developer' },
-  { id: 'provider2', name: 'Bethlehem Haile', email: 'provider2@ethiobridge.et', roleBadge: 'Full-Stack Provider', description: 'Angular, TypeScript & UI designer' },
-  { id: 'dualuser', name: 'Abebe Kebede', email: 'dualuser@ethiobridge.et', roleBadge: 'Dual Role (Client & Electrician)', description: 'Contract client & licensed trade professional' },
-  { id: 'admin', name: 'System Administrator', email: 'admin@ethiobridge.et', roleBadge: 'Platform Admin', description: 'Governance, taxonomy & verification' }
-];
 
 @Injectable({
   providedIn: 'root'
@@ -40,6 +34,10 @@ export class AuthService {
   ) {
     this.restoreSession();
     this.pingWarmup();
+  }
+
+  public getDemoPersonas(): Observable<PersonaQuickOption[]> {
+    return this.http.get<PersonaQuickOption[]>(`${this.apiBaseUrl}/auth/demo-personas`);
   }
 
   public pingWarmup(): void {
@@ -89,9 +87,10 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/register`, payload);
   }
 
-  public quickLoginAs(personaId: string): Observable<AuthResponse> {
-    const persona = TEST_PERSONAS.find(p => p.id === personaId);
-    const email = persona ? persona.email : `${personaId}@ethiobridge.et`;
+  public quickLoginAs(personaOrId: string | PersonaQuickOption): Observable<AuthResponse> {
+    const email = typeof personaOrId === 'object'
+      ? personaOrId.email
+      : (personaOrId.includes('@') ? personaOrId : `${personaOrId}@ethiobridge.et`);
     return this.login({ emailOrUsername: email, password: 'password123' });
   }
 

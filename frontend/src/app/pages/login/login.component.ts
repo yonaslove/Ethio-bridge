@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { AuthService, TEST_PERSONAS, PersonaQuickOption } from '../../services/auth.service';
+import { AuthService, PersonaQuickOption } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
 
 @Component({
@@ -490,7 +490,7 @@ export class LoginComponent implements OnInit {
   noticeMessage = '';
   successMessage = '';
   returnUrl = '/';
-  personas: PersonaQuickOption[] = TEST_PERSONAS;
+  personas: PersonaQuickOption[] = [];
 
   // Forgot password modal state
   showForgotModal = false;
@@ -557,6 +557,27 @@ export class LoginComponent implements OnInit {
   ngOnInit(): void {
     // Proactively ping the cloud container to ensure it is awake immediately while user types credentials
     this.authService.pingWarmup();
+
+    // Dynamically load personas from backend database
+    this.authService.getDemoPersonas().subscribe({
+      next: (list) => {
+        if (list && list.length > 0) {
+          this.personas = list;
+        }
+      },
+      error: () => {
+        // Fallback gracefully if network/offline
+        if (!this.personas || this.personas.length === 0) {
+          this.personas = [
+            { id: 'seeker1', name: 'Sara Bekele', email: 'seeker1@ethiobridge.et', roleBadge: 'Talent Seeker / Client', description: 'Tech recruiter posting jobs & projects' },
+            { id: 'provider1', name: 'Dawit Tadesse', email: 'provider1@ethiobridge.et', roleBadge: 'Senior Backend Provider', description: 'Java, Spring Boot & PostgreSQL developer' },
+            { id: 'provider2', name: 'Bethlehem Haile', email: 'provider2@ethiobridge.et', roleBadge: 'Full-Stack Provider', description: 'Angular, TypeScript & UI designer' },
+            { id: 'dualuser', name: 'Abebe Kebede', email: 'dualuser@ethiobridge.et', roleBadge: 'Dual Role (Client & Electrician)', description: 'Contract client & licensed trade professional' },
+            { id: 'admin', name: 'System Administrator', email: 'admin@ethiobridge.et', roleBadge: 'Platform Admin', description: 'Governance, taxonomy & verification' }
+          ];
+        }
+      }
+    });
 
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
     if (this.route.snapshot.queryParams['registered'] === 'true') {

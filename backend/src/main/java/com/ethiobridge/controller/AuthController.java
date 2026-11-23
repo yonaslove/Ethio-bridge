@@ -123,6 +123,11 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
+    @GetMapping("/demo-personas")
+    public ResponseEntity<java.util.List<com.ethiobridge.dto.DemoPersonaDto>> getDemoPersonas() {
+        return ResponseEntity.ok(authService.getDemoPersonas());
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UserDto> getMe(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {

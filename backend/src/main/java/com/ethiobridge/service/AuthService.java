@@ -546,4 +546,65 @@ public class AuthService {
 
         return new UsernamePasswordAuthenticationToken(session.username, token, authorities);
     }
+
+    @Transactional(readOnly = true)
+    public List<com.ethiobridge.dto.DemoPersonaDto> getDemoPersonas() {
+        List<String> emails = List.of(
+                "seeker1@ethiobridge.et",
+                "provider1@ethiobridge.et",
+                "provider2@ethiobridge.et",
+                "dualuser@ethiobridge.et",
+                "admin@ethiobridge.et"
+        );
+
+        List<com.ethiobridge.dto.DemoPersonaDto> personas = new ArrayList<>();
+        for (String email : emails) {
+            Optional<AppUser> userOpt = appUserRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                AppUser u = userOpt.get();
+                String personaKey = email.split("@")[0];
+                List<String> userRoles = resolveRoles(u);
+
+                String roleBadge = "Member";
+                String description = "";
+
+                if (userRoles.contains("ADMIN")) {
+                    roleBadge = "Platform Admin";
+                    description = "Governance, taxonomy & platform verification";
+                } else if (userRoles.contains("SEEKER") && userRoles.contains("PROVIDER")) {
+                    roleBadge = "Dual Role (Client & Electrician)";
+                    description = "Contract client & licensed trade professional";
+                } else if (userRoles.contains("PROVIDER")) {
+                    Optional<ProviderProfile> profOpt = providerProfileRepository.findByUserId(u.getId());
+                    if (profOpt.isPresent() && profOpt.get().getHeadline() != null) {
+                        roleBadge = profOpt.get().getHeadline();
+                        description = profOpt.get().getBio() != null ? profOpt.get().getBio() : "";
+                    } else {
+                        roleBadge = "Verified Talent Provider";
+                        description = "Professional service provider & talent specialist";
+                    }
+                } else if (userRoles.contains("SEEKER")) {
+                    Optional<SeekerProfile> seekerOpt = seekerProfileRepository.findByUserId(u.getId());
+                    if (seekerOpt.isPresent() && seekerOpt.get().getHeadline() != null) {
+                        roleBadge = seekerOpt.get().getHeadline();
+                        description = seekerOpt.get().getBio() != null ? seekerOpt.get().getBio() : "";
+                    } else {
+                        roleBadge = "Talent Seeker / Client";
+                        description = "Hiring top engineering and trade talent across Ethiopia";
+                    }
+                }
+
+                personas.add(new com.ethiobridge.dto.DemoPersonaDto(
+                        personaKey,
+                        u.getId(),
+                        u.getFullName(),
+                        u.getEmail(),
+                        roleBadge,
+                        description,
+                        userRoles
+                ));
+            }
+        }
+        return personas;
+    }
 }
