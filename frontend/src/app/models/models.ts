@@ -73,6 +73,7 @@ export interface ProviderProfile {
   connectsBalance?: number;
   isPro?: boolean;
   pro?: boolean;
+  isVerified?: boolean;
   proExpiresAt?: string;
   skills: ProviderSkill[];
 }

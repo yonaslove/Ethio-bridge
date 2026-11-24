@@ -11,6 +11,8 @@ public class SeekerProfileDto {
     private String bio;
     private Long locationId;
     private String locationName;
+    @com.fasterxml.jackson.annotation.JsonProperty("isVerified")
+    private boolean isVerified;
 
     public SeekerProfileDto() {}
 
@@ -37,4 +39,8 @@ public class SeekerProfileDto {
 
     public String getLocationName() { return locationName; }
     public void setLocationName(String locationName) { this.locationName = locationName; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isVerified")
+    public boolean isVerified() { return isVerified; }
+    public void setVerified(boolean verified) { isVerified = verified; }
 }

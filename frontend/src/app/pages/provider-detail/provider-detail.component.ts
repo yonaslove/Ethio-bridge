@@ -26,7 +26,8 @@ import { ProviderProfile } from '../../models/models';
             <div class="name-badge-row">
               <h1>{{ profile.fullName || 'Professional Provider' }}</h1>
               <span *ngIf="profile.isPro" class="badge-pro-pill" title="Verified Pro Talent">⭐ PRO</span>
-              <span class="verified-badge">✓ Fayda ID Verified</span>
+              <span *ngIf="profile.isVerified" class="verified-badge">✓ {{ i18n.translate('Fayda ID Verified', 'በፋይዳ የተረጋገጠ') }}</span>
+              <span *ngIf="!profile.isVerified" class="unverified-badge">{{ i18n.translate('ID Pending / Unverified', 'መታወቂያ ያልተረጋገጠ') }}</span>
             </div>
             <div class="headline-text">{{ profile.headline }}</div>
             <div class="meta-row">
@@ -228,6 +229,14 @@ import { ProviderProfile } from '../../models/models';
       color: #059669;
       font-size: 0.75rem;
       font-weight: 800;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+    }
+    .unverified-badge {
+      background: rgba(100, 116, 139, 0.12);
+      color: #64748B;
+      font-size: 0.75rem;
+      font-weight: 700;
       padding: 0.2rem 0.6rem;
       border-radius: 12px;
     }

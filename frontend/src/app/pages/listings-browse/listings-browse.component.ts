@@ -5,11 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { I18nService } from '../../services/i18n.service';
 import { Listing, ServiceCategory, Location, ListingType, ProviderProfile } from '../../models/models';
+import { EthioMapComponent, MapMarkerItem } from '../../components/map/ethio-map.component';
 
 @Component({
   selector: 'app-listings-browse',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, EthioMapComponent],
   template: `
     <div class="container browse-page">
       <div class="browse-header">
@@ -77,10 +78,21 @@ import { Listing, ServiceCategory, Location, ListingType, ProviderProfile } from
           <!-- Action buttons -->
           <div class="filter-item filter-actions">
             <button (click)="applyFilters()" class="btn btn-primary" style="margin-top: auto;">{{ i18n.translate('Filter', 'አጣራ') }}</button>
+            <button (click)="toggleMapView()" class="btn btn-outline" style="margin-top: auto;">
+              {{ showMap ? '📋 List View' : '🗺️ Map View' }}
+            </button>
             <button (click)="resetFilters()" class="btn btn-secondary" style="margin-top: auto;">{{ i18n.translate('Reset', 'አጽዳ') }}</button>
           </div>
         </div>
       </div>
+
+      <!-- Interactive Geographic Map View -->
+      <app-ethio-map
+        *ngIf="showMap"
+        [title]="activeTab === 'listings' ? 'Opportunities by Ethiopian City / Zone' : 'Verified Talent Providers Map'"
+        [markers]="mapMarkers"
+        height="380px">
+      </app-ethio-map>
 
       <!-- Listings Results List -->
       <ng-container *ngIf="activeTab === 'listings'">
@@ -180,7 +192,8 @@ import { Listing, ServiceCategory, Location, ListingType, ProviderProfile } from
                     <h4 class="provider-name">{{ p.fullName || 'Verified Provider' }}</h4>
                     <span *ngIf="p.isPro" class="badge-pro-pill" title="EthioBridge Verified Pro Talent">⭐ PRO</span>
                   </div>
-                  <span class="verified-pill">✓ {{ i18n.translate('Fayda ID Verified', 'በፋይዳ የተረጋገጠ') }}</span>
+                  <span *ngIf="p.isVerified" class="verified-pill">✓ {{ i18n.translate('Fayda ID Verified', 'በፋይዳ የተረጋገጠ') }}</span>
+                  <span *ngIf="!p.isVerified" class="unverified-pill">{{ i18n.translate('ID Pending / Unverified', 'መታወቂያ ያልተረጋገጠ') }}</span>
                 </div>
               </div>
               <span class="badge badge-freelance" *ngIf="p.hourlyRate">{{ p.hourlyRate }} ETB/hr</span>
@@ -345,6 +358,11 @@ import { Listing, ServiceCategory, Location, ListingType, ProviderProfile } from
       color: #0E7F8F;
       font-weight: 700;
     }
+    .unverified-pill {
+      font-size: 0.68rem;
+      color: #64748B;
+      font-weight: 600;
+    }
     .badge-pro-pill {
       background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
       color: #FFFFFF;
@@ -449,6 +467,9 @@ export class ListingsBrowseComponent implements OnInit {
   providersLoading = false;
   bookmarkedIds = new Set<string>();
 
+  showMap = false;
+  mapMarkers: MapMarkerItem[] = [];
+
   constructor(
     private apiService: ApiService,
     private route: ActivatedRoute,
@@ -513,6 +534,81 @@ export class ListingsBrowseComponent implements OnInit {
     }
   }
 
+  toggleMapView(): void {
+    this.showMap = !this.showMap;
+    if (this.showMap) {
+      this.rebuildMapMarkers();
+    }
+  }
+
+  private rebuildMapMarkers(): void {
+    const locMap = new Map<number, Location>();
+    for (const loc of this.locations) {
+      if (loc.id) locMap.set(loc.id, loc);
+    }
+
+    const markers: MapMarkerItem[] = [];
+
+    if (this.activeTab === 'listings') {
+      for (const l of this.listings) {
+        let lat = 9.0000;
+        let lng = 38.7800;
+        let locName = l.locationName || 'Addis Ababa';
+
+        if (l.locationId && locMap.has(l.locationId)) {
+          const loc = locMap.get(l.locationId)!;
+          if (loc.latitude && loc.longitude) {
+            lat = Number(loc.latitude);
+            lng = Number(loc.longitude);
+            locName = loc.name;
+          }
+        }
+        // slight jitter so multiple pins at same city don't completely overlap
+        const jitterLat = (Math.random() - 0.5) * 0.015;
+        const jitterLng = (Math.random() - 0.5) * 0.015;
+
+        markers.push({
+          id: l.id,
+          title: l.title,
+          subtitle: `📍 ${locName} • ${l.budgetMax ? l.budgetMax + ' ' + l.currency : 'Negotiable'}`,
+          badge: l.listingType,
+          lat: lat + jitterLat,
+          lng: lng + jitterLng,
+          linkUrl: `/listings/${l.id}`
+        });
+      }
+    } else {
+      for (const p of this.providers) {
+        let lat = 9.0000;
+        let lng = 38.7800;
+        let locName = p.locationName || 'Addis Ababa';
+
+        if (p.locationId && locMap.has(p.locationId)) {
+          const loc = locMap.get(p.locationId)!;
+          if (loc.latitude && loc.longitude) {
+            lat = Number(loc.latitude);
+            lng = Number(loc.longitude);
+            locName = loc.name;
+          }
+        }
+        const jitterLat = (Math.random() - 0.5) * 0.015;
+        const jitterLng = (Math.random() - 0.5) * 0.015;
+
+        markers.push({
+          id: p.id,
+          title: p.fullName || 'Talent Provider',
+          subtitle: `💼 ${p.headline || 'Specialist'} • ${p.hourlyRate ? p.hourlyRate + ' ETB/hr' : 'Available'}`,
+          badge: p.isPro ? '⭐ PRO' : (p.isVerified ? '✓ VERIFIED' : 'TALENT'),
+          lat: lat + jitterLat,
+          lng: lng + jitterLng,
+          linkUrl: `/providers/${p.id}`
+        });
+      }
+    }
+
+    this.mapMarkers = markers;
+  }
+
   fetchListings(): void {
     this.loading = true;
     const params: any = {
@@ -533,6 +629,7 @@ export class ListingsBrowseComponent implements OnInit {
         this.currentPage = res.page;
         this.totalPages = res.totalPages;
         this.loading = false;
+        if (this.showMap) this.rebuildMapMarkers();
       },
       error: () => {
         this.loading = false;
@@ -555,6 +652,7 @@ export class ListingsBrowseComponent implements OnInit {
         this.currentPage = res.page;
         this.providersTotalPages = res.totalPages;
         this.providersLoading = false;
+        if (this.showMap) this.rebuildMapMarkers();
       },
       error: () => {
         this.providersLoading = false;

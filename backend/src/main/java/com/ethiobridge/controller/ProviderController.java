@@ -40,13 +40,13 @@ public class ProviderController {
 
         String[] sortParts = sort != null ? sort.split(",") : new String[]{"updatedAt", "desc"};
         String prop = sortParts[0].trim();
-        java.util.Set<String> allowedSorts = java.util.Set.of("updatedAt", "createdAt", "hourlyRate", "yearsExperience", "isPro");
+        java.util.Set<String> allowedSorts = java.util.Set.of("updatedAt", "createdAt", "hourlyRate", "yearsExperience", "isPro", "connectsBalance", "rank");
         if (!allowedSorts.contains(prop)) {
             prop = "updatedAt";
         }
         Sort.Direction dir = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
 
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(dir, prop));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(dir, prop.equals("rank") ? "isPro" : prop));
         return profileService.browseProviders(q, skillId, locationId, availability, categoryFocus, pageRequest);
     }
 

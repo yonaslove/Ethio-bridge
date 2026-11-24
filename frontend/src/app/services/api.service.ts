@@ -284,6 +284,10 @@ export class ApiService {
     return this.http.put<void>(`${this.baseUrl}/notifications/${id}/read`, {}, { headers: this.getHeaders() });
   }
 
+  deleteNotification(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/notifications/${id}`, { headers: this.getHeaders() });
+  }
+
   markAllNotificationsRead(): Observable<void> {
     return this.http.put<void>(`${this.baseUrl}/notifications/mark-all-read`, {}, { headers: this.getHeaders() });
   }
@@ -307,6 +311,10 @@ export class ApiService {
 
   createOrGetThread(recipientUserId: string, listingId?: string, subject?: string): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/messages/threads`, { recipientUserId, listingId, subject }, { headers: this.getHeaders() });
+  }
+
+  createThreadByEmail(recipientEmail: string, subject?: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/messages/threads`, { recipientEmail, subject }, { headers: this.getHeaders() });
   }
 
   getUnreadMessageCount(): Observable<{ unreadCount: number }> {

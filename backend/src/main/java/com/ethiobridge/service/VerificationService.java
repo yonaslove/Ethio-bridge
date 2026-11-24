@@ -26,17 +26,42 @@ public class VerificationService {
     private final NotificationService notificationService;
     private final AuditLogService auditLogService;
     private final DocumentAiInspector documentAiInspector;
+    private final SmsService smsService;
 
     public VerificationService(UserVerificationRepository verificationRepository,
                                AppUserRepository userRepository,
                                NotificationService notificationService,
                                AuditLogService auditLogService,
-                               DocumentAiInspector documentAiInspector) {
+                               DocumentAiInspector documentAiInspector,
+                               SmsService smsService) {
         this.verificationRepository = verificationRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.auditLogService = auditLogService;
         this.documentAiInspector = documentAiInspector;
+        this.smsService = smsService;
+    }
+
+    public String sendVerificationOtp(UUID userId, String phoneNumber) {
+        if (smsService == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SMS Service is unavailable");
+        }
+        return smsService.sendVerificationOtp(phoneNumber);
+    }
+
+    public boolean verifyOtpCode(UUID userId, String phoneNumber, String code) {
+        if (smsService == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SMS Service is unavailable");
+        }
+        boolean ok = smsService.verifyOtp(phoneNumber, code);
+        if (ok) {
+            userRepository.findById(userId).ifPresent(u -> {
+                u.setPhoneVerified(true);
+                u.setPhoneNumber(smsService.normalizeEthiopianPhone(phoneNumber));
+                userRepository.save(u);
+            });
+        }
+        return ok;
     }
 
     public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber) {

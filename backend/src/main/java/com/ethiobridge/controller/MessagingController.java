@@ -34,7 +34,21 @@ public class MessagingController {
     @PostMapping("/threads")
     public ResponseEntity<MessageThread> createOrGetThread(@RequestBody Map<String, Object> req, Authentication auth) {
         AppUser user = userService.getOrCreateCurrentUser(auth);
-        UUID recipientId = UUID.fromString(req.get("recipientUserId").toString());
+        UUID recipientId = null;
+
+        // Support lookup by recipientEmail or recipientUserId
+        if (req.containsKey("recipientEmail") && req.get("recipientEmail") != null && !req.get("recipientEmail").toString().isBlank()) {
+            String email = req.get("recipientEmail").toString().trim();
+            recipientId = messagingService.findUserIdByEmail(email);
+        } else if (req.containsKey("recipientUserId") && req.get("recipientUserId") != null) {
+            recipientId = UUID.fromString(req.get("recipientUserId").toString());
+        }
+
+        if (recipientId == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "A valid registered recipientEmail or recipientUserId is required");
+        }
+
         UUID listingId = null;
         if (req.get("listingId") != null && !req.get("listingId").toString().isBlank() && !"null".equalsIgnoreCase(req.get("listingId").toString())) {
             listingId = UUID.fromString(req.get("listingId").toString());

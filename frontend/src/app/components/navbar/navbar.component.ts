@@ -116,7 +116,10 @@ import { Subscription, interval } from 'rxjs';
                     class="notification-item"
                     [class.unread]="!n.isRead"
                     (click)="openNotification(n)">
-                    <div class="item-title">{{ n.title }}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                      <div class="item-title">{{ n.title }}</div>
+                      <button type="button" class="btn-dismiss-notif" (click)="dismissNotification($event, n)" title="Dismiss Notification">✕</button>
+                    </div>
                     <div class="item-body">{{ n.message }}</div>
                     <div class="item-time">{{ n.createdAt | date:'short' }}</div>
                   </div>
@@ -521,6 +524,21 @@ import { Subscription, interval } from 'rxjs';
       color: var(--color-charcoal);
       margin-bottom: 0.2rem;
     }
+    .btn-dismiss-notif {
+      background: none;
+      border: none;
+      color: #94A3B8;
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0 0.2rem;
+      line-height: 1;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+    }
+    .btn-dismiss-notif:hover {
+      color: #EF4444;
+      background: #FEE2E2;
+    }
     .item-body {
       font-size: 0.8125rem;
       color: var(--color-slate);
@@ -847,21 +865,33 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   openNotification(n: NotificationItem): void {
-    if (!n.isRead) {
-      this.apiService.markNotificationRead(n.id).subscribe(() => {
-        n.isRead = true;
-        if (this.unreadNotificationsCount > 0) this.unreadNotificationsCount--;
-      });
-    }
+    // Once seen/clicked, mark read on backend and remove immediately from notifications list
+    this.apiService.markNotificationRead(n.id).subscribe(() => {
+      this.notifications = this.notifications.filter(item => item.id !== n.id);
+      if (!n.isRead && this.unreadNotificationsCount > 0) {
+        this.unreadNotificationsCount--;
+      }
+    });
     this.showNotifications = false;
     if (n.linkUrl) {
       this.router.navigateByUrl(n.linkUrl);
     }
   }
 
+  dismissNotification(event: Event, n: NotificationItem): void {
+    event.stopPropagation();
+    this.apiService.deleteNotification(n.id).subscribe(() => {
+      this.notifications = this.notifications.filter(item => item.id !== n.id);
+      if (!n.isRead && this.unreadNotificationsCount > 0) {
+        this.unreadNotificationsCount--;
+      }
+    });
+  }
+
   markAllAsRead(): void {
     this.apiService.markAllNotificationsRead().subscribe(() => {
-      this.notifications.forEach(n => n.isRead = true);
+      // User requested seen & read notifications to be removed
+      this.notifications = [];
       this.unreadNotificationsCount = 0;
     });
   }

@@ -39,6 +39,15 @@ public class MessagingService {
         this.contractService = contractService;
     }
 
+    public UUID findUserIdByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email address cannot be empty");
+        }
+        AppUser recipient = userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No registered user found with email: " + email.trim()));
+        return recipient.getId();
+    }
+
     public MessageThread getOrCreateThread(UUID currentUserId, UUID recipientUserId, UUID listingId, String subject) {
         if (currentUserId.equals(recipientUserId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot start a conversation with yourself");

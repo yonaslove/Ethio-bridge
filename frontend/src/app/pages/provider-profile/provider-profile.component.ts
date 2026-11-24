@@ -144,9 +144,9 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <div>
                 <strong style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem;">
-                  📄 Auto-Fill Profile from CV / Resume (PDF or DOCX)
+                  📄 Auto-Fill Profile from CV / Resume (NLP Resume AI Scanner)
                 </strong>
-                <small style="color: var(--color-slate);">Upload your CV to automatically detect skills, phone number, and years of experience.</small>
+                <small style="color: var(--color-slate);">Powered by external Neural Language Processing Resume AI. Automatically extracts semantic skills, experience, and contact details.</small>
               </div>
               <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin: 0;">
                 {{ parsingCv ? 'Parsing Document...' : 'Choose CV File' }}
@@ -154,9 +154,25 @@ import { ProviderProfile, Location, Skill, ProviderSkill } from '../../models/mo
               </label>
             </div>
             <div *ngIf="cvParsedResult" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.85rem;">
-              <div style="margin-bottom: 0.75rem;">
-                <span style="color: #059669; font-weight: 700;">✓ Successfully scanned document!</span>
-                <span style="color: #64748B;"> Review the extracted fields below before confirming changes to your profile.</span>
+              <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <div>
+                  <span style="color: #059669; font-weight: 700;">✓ Successfully scanned document!</span>
+                  <span style="color: #64748B;"> Review the extracted fields below before confirming changes to your profile.</span>
+                </div>
+                <span *ngIf="cvParsedResult.source === 'NLP_RESUME_AI'" class="badge badge-job" style="font-size: 0.75rem;">
+                  🧠 Neural NLP Scanner Verified
+                </span>
+              </div>
+
+              <!-- AI Match Score & Summary if provided by model -->
+              <div *ngIf="cvParsedResult.score || cvParsedResult.summary" style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                <div *ngIf="cvParsedResult.score" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.4rem;">
+                  <strong style="color: #4F46E5;">Semantic Fit Score: {{ cvParsedResult.score }}%</strong>
+                  <span *ngIf="cvParsedResult.category" style="color: #64748B;">• {{ cvParsedResult.category }} Specialist</span>
+                </div>
+                <p *ngIf="cvParsedResult.summary" style="margin: 0; color: #334155; font-size: 0.8rem; line-height: 1.4;">
+                  {{ cvParsedResult.summary }}
+                </p>
               </div>
 
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; background: var(--color-surface-subtle); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.75rem;">

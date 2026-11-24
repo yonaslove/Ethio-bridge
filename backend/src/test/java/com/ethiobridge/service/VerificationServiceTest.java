@@ -34,6 +34,9 @@ public class VerificationServiceTest {
     @Mock
     private AuditLogService auditLogService;
 
+    @Mock
+    private SmsService smsService;
+
     private VerificationService verificationService;
 
     private final UUID userId = UUID.randomUUID();
@@ -47,7 +50,8 @@ public class VerificationServiceTest {
                 userRepository,
                 notificationService,
                 auditLogService,
-                new DocumentAiInspector()
+                new DocumentAiInspector(),
+                smsService
         );
 
         lenient().when(verificationRepository.save(any(UserVerification.class)))

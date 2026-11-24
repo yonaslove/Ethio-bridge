@@ -37,6 +37,9 @@ app:
     base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}
     internal-token: ${AI_SERVICE_INTERNAL_TOKEN:dev-secret-internal-token-local}
     timeout-ms: 1500
+  cv-ai:
+    service-url: ${CV_AI_SERVICE_URL:https://natural-language-processing-resume-ai.onrender.com}
+    timeout-ms: 15000
   payment:
     simulation:
       enabled: ${APP_PAYMENT_SIMULATION_ENABLED:true} # Default true during active development/testing; disabled in prod profile

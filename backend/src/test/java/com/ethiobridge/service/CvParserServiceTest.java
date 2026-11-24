@@ -23,6 +23,9 @@ class CvParserServiceTest {
     @Mock
     private SkillRepository skillRepository;
 
+    @Mock
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
     @InjectMocks
     private CvParserService cvParserService;
 

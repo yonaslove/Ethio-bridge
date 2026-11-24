@@ -28,10 +28,13 @@ public class CvParserController {
 
     @PostMapping("/parse-file")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, Object>> parseFile(@RequestParam("file") MultipartFile file) {
-        try (InputStream is = file.getInputStream()) {
-            String extractedText = CvParserService.extractPlainTextFromStream(is, file.getOriginalFilename());
-            return ResponseEntity.ok(cvParserService.parseCvText(extractedText));
+    public ResponseEntity<Map<String, Object>> parseFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "jobDescription", required = false) String jobDescription) {
+        try {
+            byte[] fileBytes = file.getBytes();
+            Map<String, Object> result = cvParserService.parseCvFile(fileBytes, file.getOriginalFilename(), jobDescription);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Could not parse document: " + e.getMessage()));
         }

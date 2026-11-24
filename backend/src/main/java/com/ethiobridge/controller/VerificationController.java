@@ -28,6 +28,32 @@ public class VerificationController {
         return ResponseEntity.ok(verificationService.getVerificationStatus(user.getId()));
     }
 
+    @PostMapping("/send-otp")
+    public ResponseEntity<Map<String, String>> sendOtp(@RequestBody Map<String, String> body, Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        String phone = body.get("phoneNumber");
+        if (phone == null || phone.isBlank()) {
+            phone = user.getPhoneNumber();
+        }
+        String masked = verificationService.sendVerificationOtp(user.getId(), phone);
+        return ResponseEntity.ok(Map.of("message", "OTP successfully dispatched via SMS to " + masked));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Map<String, Object>> verifyOtp(@RequestBody Map<String, String> body, Authentication auth) {
+        AppUser user = userService.getOrCreateCurrentUser(auth);
+        String phone = body.get("phoneNumber");
+        if (phone == null || phone.isBlank()) {
+            phone = user.getPhoneNumber();
+        }
+        String code = body.get("code");
+        boolean ok = verificationService.verifyOtpCode(user.getId(), phone, code);
+        if (!ok) {
+            return ResponseEntity.badRequest().body(Map.of("verified", false, "message", "Invalid or expired OTP code"));
+        }
+        return ResponseEntity.ok(Map.of("verified", true, "message", "Phone number verified via SMS"));
+    }
+
     @PostMapping("/submit")
     public ResponseEntity<UserVerification> submitVerification(@RequestBody Map<String, String> body, Authentication auth) {
         AppUser user = userService.getOrCreateCurrentUser(auth);

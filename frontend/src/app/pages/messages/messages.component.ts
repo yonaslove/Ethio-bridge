@@ -25,6 +25,9 @@ import { I18nService } from '../../services/i18n.service';
         <aside class="threads-sidebar">
           <div class="threads-header">
             <h4>{{ i18n.translate('Conversations', 'የውይይት መዝገብ') }} ({{ threads.length }})</h4>
+            <button type="button" class="btn btn-primary btn-xs" (click)="showNewChatModal = true" title="New Message by Email">
+              + New Chat
+            </button>
           </div>
           <div *ngIf="loadingThreads" class="loading-state">{{ i18n.translate('Loading chats...', 'መልዕክቶችን በመጫን ላይ...') }}</div>
           <div *ngIf="!loadingThreads && threads.length === 0" class="empty-threads">
@@ -201,6 +204,59 @@ import { I18nService } from '../../services/i18n.service';
             </button>
             <button type="button" class="btn btn-primary" (click)="submitOffer()" [disabled]="submittingOffer || !offerForm.title.trim() || !offerForm.totalAmount">
               {{ submittingOffer ? i18n.translate('Sending Offer...', 'በመላክ ላይ...') : i18n.translate('Send Official Contract Offer', 'ይፋዊ ውል ላክ') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Start New Chat with Registered User Modal -->
+      <div class="modal-backdrop" *ngIf="showNewChatModal" (click)="showNewChatModal = false">
+        <div class="modal-dialog" (click)="$event.stopPropagation()" style="max-width: 440px;">
+          <div class="modal-header">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">
+              ✉️ {{ i18n.translate('New Conversation by Email', 'በኢሜይል አዲስ ውይይት ይጀምሩ') }}
+            </h3>
+            <button type="button" class="btn-close" (click)="showNewChatModal = false">✕</button>
+          </div>
+          <div class="modal-body" style="padding: 1.25rem;">
+            <p style="font-size: 0.85rem; color: #64748B; margin-top: 0; margin-bottom: 1rem;">
+              {{ i18n.translate('Enter the email address of any registered client, freelancer, or provider on EthioBridge to start an instant direct message thread.', 'የማንኛውንም የተመዘገበ ተጠቃሚ ኢሜይል በማስገባት ወዲያውኑ ውይይት ይጀምሩ።') }}
+            </p>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem;">
+                {{ i18n.translate('Recipient Email Address', 'የተቀባዩ ኢሜይል አድራሻ') }}
+              </label>
+              <input
+                type="email"
+                [(ngModel)]="newChatEmail"
+                placeholder="e.g. provider1@ethiobridge.et or sara@gmail.com"
+                class="form-control"
+                [disabled]="startingNewChat" />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem;">
+                {{ i18n.translate('Conversation Topic / Subject', 'የውይይቱ ርዕስ') }}
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="newChatSubject"
+                placeholder="e.g. Project Inquiry & Technical Discussion"
+                class="form-control"
+                [disabled]="startingNewChat" />
+            </div>
+
+            <div *ngIf="newChatError" style="color: #DC2626; font-size: 0.825rem; background: #FEF2F2; padding: 0.5rem; border-radius: 6px; margin-bottom: 0.75rem;">
+              ⚠️ {{ newChatError }}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="showNewChatModal = false" [disabled]="startingNewChat">
+              {{ i18n.translate('Cancel', 'ይቅር') }}
+            </button>
+            <button type="button" class="btn btn-primary" (click)="startChatByEmail()" [disabled]="startingNewChat || !newChatEmail.trim()">
+              {{ startingNewChat ? 'Connecting...' : 'Start Chat' }}
             </button>
           </div>
         </div>
@@ -627,6 +683,13 @@ export class MessagesComponent implements OnInit, OnDestroy {
   targetThreadId: string | null = null;
   private routeSub?: Subscription;
 
+  // New Chat Modal state
+  showNewChatModal = false;
+  newChatEmail = '';
+  newChatSubject = '';
+  startingNewChat = false;
+  newChatError = '';
+
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
@@ -843,5 +906,32 @@ export class MessagesComponent implements OnInit, OnDestroy {
   getOfferPlainContent(msg: any): string {
     if (!msg?.content) return '';
     return msg.content.replace(/\[CONTRACT_OFFER:\{.*?\}\]/, '').trim();
+  }
+
+  startChatByEmail(): void {
+    const email = this.newChatEmail.trim();
+    if (!email || this.startingNewChat) return;
+
+    this.startingNewChat = true;
+    this.newChatError = '';
+    const subject = this.newChatSubject.trim() || 'Direct Inquiry';
+
+    this.apiService.createThreadByEmail(email, subject).subscribe({
+      next: (thread) => {
+        this.startingNewChat = false;
+        this.showNewChatModal = false;
+        this.newChatEmail = '';
+        this.newChatSubject = '';
+
+        // Add or select thread
+        this.loadThreads();
+        this.targetThreadId = thread.id;
+        this.selectThread(thread);
+      },
+      error: (err) => {
+        this.startingNewChat = false;
+        this.newChatError = err?.error?.message || 'Could not find registered user with that email.';
+      }
+    });
   }
 }

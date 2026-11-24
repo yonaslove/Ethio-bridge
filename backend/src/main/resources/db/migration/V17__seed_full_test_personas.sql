@@ -5,17 +5,16 @@
 -- BCrypt: $2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe ('password123')
 INSERT INTO app_user (id, keycloak_subject, email, full_name, password_hash, phone_number, is_verified, phone_verified, email_verified, status)
 VALUES
-('a1111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111101', 'seeker1@ethiobridge.et', 'Sara Bekele', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251911223344', true, true, true, 'ACTIVE'),
+('a1111111-1111-1111-1111-111111111101', '11111111-1111-1111-1111-111111111101', 'seeker1@ethiobridge.et', 'Sara Bekele', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251911223344', false, true, true, 'ACTIVE'),
 ('a2222222-2222-2222-2222-222222222201', '22222222-2222-2222-2222-222222222201', 'provider1@ethiobridge.et', 'Dawit Tadesse', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251922334455', true, true, true, 'ACTIVE'),
-('a2222222-2222-2222-2222-222222222202', '22222222-2222-2222-2222-222222222202', 'provider2@ethiobridge.et', 'Bethlehem Haile', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251933445566', true, true, true, 'ACTIVE'),
-('a3333333-3333-3333-3333-333333333301', '33333333-3333-3333-3333-333333333301', 'dualuser@ethiobridge.et', 'Abebe Kebede', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251944556677', true, true, true, 'ACTIVE'),
+('a2222222-2222-2222-2222-222222222202', '22222222-2222-2222-2222-222222222202', 'provider2@ethiobridge.et', 'Bethlehem Haile', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251933445566', false, true, true, 'ACTIVE'),
+('a3333333-3333-3333-3333-333333333301', '33333333-3333-3333-3333-333333333301', 'dualuser@ethiobridge.et', 'Abebe Kebede', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251944556677', false, true, true, 'ACTIVE'),
 ('a4444444-4444-4444-4444-444444444401', '44444444-4444-4444-4444-444444444401', 'admin@ethiobridge.et', 'System Administrator', '$2a$10$QKpQPglvSBO5R.HDHcJzGO0sR5vfbVkaXW8NIkGQPWoJ8P69zNbDe', '+251955667788', true, true, true, 'ACTIVE')
 ON CONFLICT (keycloak_subject) DO UPDATE SET
     email = EXCLUDED.email,
     full_name = EXCLUDED.full_name,
     password_hash = COALESCE(app_user.password_hash, EXCLUDED.password_hash),
     phone_number = COALESCE(app_user.phone_number, EXCLUDED.phone_number),
-    is_verified = true,
     phone_verified = true,
     email_verified = true,
     status = 'ACTIVE';

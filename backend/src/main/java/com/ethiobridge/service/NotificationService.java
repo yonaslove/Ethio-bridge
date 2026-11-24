@@ -42,6 +42,14 @@ public class NotificationService {
         });
     }
 
+    public void deleteNotification(UUID notificationId, UUID userId) {
+        notificationRepository.findById(notificationId).ifPresent(n -> {
+            if (n.getUserId().equals(userId)) {
+                notificationRepository.delete(n);
+            }
+        });
+    }
+
     public void markAllAsRead(UUID userId) {
         List<Notification> unread = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
         for (Notification n : unread) {

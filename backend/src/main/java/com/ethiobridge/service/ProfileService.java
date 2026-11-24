@@ -176,11 +176,39 @@ public class ProfileService {
         };
 
         Page<ProviderProfile> page = providerProfileRepository.findAll(spec, pageable);
-        List<ProviderProfileDto> dtos = page.getContent().stream()
+        List<ProviderProfileDto> dtos = new ArrayList<>(page.getContent().stream()
                 .map(this::toProviderProfileDto)
-                .toList();
+                .toList());
+
+        // Multi-criterion Priority Advantage Scoring:
+        // 1. Pro tier status: +10,000 pts
+        // 2. National ID / Fayda verified user: +5,000 pts
+        // 3. Passed verified skill assessments: +1,000 pts per assessment badge + assessment score
+        // 4. Connects balance: +5 pts per connect
+        // 5. Years of experience: +50 pts per year
+        dtos.sort((a, b) -> {
+            double scoreA = calculateAdvantageScore(a);
+            double scoreB = calculateAdvantageScore(b);
+            return Double.compare(scoreB, scoreA);
+        });
 
         return new PagedResponse<>(dtos, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
+    }
+
+    private double calculateAdvantageScore(ProviderProfileDto p) {
+        double score = 0;
+        if (p.isPro()) score += 10000.0;
+        if (p.isVerified()) score += 5000.0;
+        if (p.getConnectsBalance() != null) score += p.getConnectsBalance() * 5.0;
+        if (p.getYearsExperience() != null) score += p.getYearsExperience() * 50.0;
+        if (p.getSkills() != null) {
+            for (ProviderSkillDto s : p.getSkills()) {
+                if (s.isVerified()) {
+                    score += 1000.0 + (s.getAssessmentScore() != null ? s.getAssessmentScore() : 50.0);
+                }
+            }
+        }
+        return score;
     }
 
     @Transactional(readOnly = true)
@@ -237,6 +265,7 @@ public class ProfileService {
         appUserRepository.findById(p.getUserId()).ifPresent(user -> {
             dto.setFullName(user.getFullName());
             dto.setEmail(user.getEmail());
+            dto.setVerified(user.isVerified());
         });
 
         if (p.getSkills() != null) {
@@ -271,6 +300,7 @@ public class ProfileService {
         appUserRepository.findById(p.getUserId()).ifPresent(user -> {
             dto.setFullName(user.getFullName());
             dto.setEmail(user.getEmail());
+            dto.setVerified(user.isVerified());
         });
         return dto;
     }
