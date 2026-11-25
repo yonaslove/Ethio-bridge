@@ -241,22 +241,52 @@ public class MatchingService {
         return dto;
     }
 
+    private static final Set<String> GENERIC_SOFT_SKILLS = Set.of(
+            "communication", "teamwork", "leadership", "time management",
+            "problem solving", "adaptability", "work ethic", "interpersonal",
+            "flexibility", "punctuality", "organization", "listening"
+    );
+
+    private Set<String> extractSignificantTokens(String text) {
+        if (text == null || text.isBlank()) return Collections.emptySet();
+        Set<String> stopWords = Set.of(
+                "a", "an", "the", "and", "or", "in", "on", "at", "by", "for", "with",
+                "about", "against", "between", "into", "through", "during", "before",
+                "after", "above", "below", "to", "from", "up", "down", "is", "are",
+                "was", "were", "be", "been", "being", "have", "has", "had", "do",
+                "does", "did", "i", "am", "you", "he", "she", "it", "we", "they", "my"
+        );
+        Set<String> tokens = new HashSet<>();
+        for (String w : text.toLowerCase().split("[^a-zA-Z0-9]+")) {
+            if (w.length() >= 3 && !stopWords.contains(w)) {
+                tokens.add(w);
+            }
+        }
+        return tokens;
+    }
+
     private MatchRunResponseDto runKeywordMatching(Listing listing, List<ProviderProfile> pool, int k) {
         Set<String> reqSkillNames = listing.getSkills().stream()
                 .filter(s -> s.getRequirement().name().equals("REQUIRED"))
-                .map(s -> s.getSkill().getName().toLowerCase())
+                .map(s -> s.getSkill().getName().toLowerCase().trim())
                 .collect(Collectors.toSet());
 
         Set<String> prefSkillNames = listing.getSkills().stream()
                 .filter(s -> s.getRequirement().name().equals("PREFERRED"))
-                .map(s -> s.getSkill().getName().toLowerCase())
+                .map(s -> s.getSkill().getName().toLowerCase().trim())
                 .collect(Collectors.toSet());
+
+        String listingTitle = listing.getTitle() != null ? listing.getTitle().toLowerCase().trim() : "";
+        String listingCategory = (listing.getServiceCategory() != null && listing.getServiceCategory().getName() != null)
+                ? listing.getServiceCategory().getName().toLowerCase().trim() : "";
+        String listingText = (listingTitle + " " + listingCategory + " " + (listing.getDescription() != null ? listing.getDescription().toLowerCase() : "")).trim();
+        Set<String> listingKeywords = extractSignificantTokens(listingText);
 
         List<ScoredProvider> scoredList = new ArrayList<>();
 
         for (ProviderProfile p : pool) {
             Set<String> providerSkills = p.getSkills().stream()
-                    .map(s -> s.getSkill().getName().toLowerCase())
+                    .map(s -> s.getSkill().getName().toLowerCase().trim())
                     .collect(Collectors.toSet());
 
             Set<String> matchedReq = new HashSet<>(reqSkillNames);
@@ -270,6 +300,24 @@ public class MatchingService {
 
             double skillScore = reqSkillNames.isEmpty() ? 0.7 : (0.75 * reqScore + 0.25 * prefScore);
 
+            // Domain alignment check between listing domain and candidate headline/bio
+            String providerHeadline = p.getHeadline() != null ? p.getHeadline().toLowerCase().trim() : "";
+            String providerBio = p.getBio() != null ? p.getBio().toLowerCase().trim() : "";
+            Set<String> providerKeywords = extractSignificantTokens(providerHeadline + " " + providerBio);
+
+            Set<String> domainOverlap = new HashSet<>(listingKeywords);
+            domainOverlap.retainAll(providerKeywords);
+            boolean hasDomainAlignment = !domainOverlap.isEmpty();
+
+            boolean onlySoftSkillsMatched = !matchedReq.isEmpty() && matchedReq.stream().allMatch(GENERIC_SOFT_SKILLS::contains);
+
+            // Domain gating: if only generic soft skills matched without profession/title relevance, severely penalize
+            boolean isCrossDomainMismatch = onlySoftSkillsMatched && !hasDomainAlignment;
+
+            if (isCrossDomainMismatch) {
+                skillScore = Math.min(skillScore * 0.20, 0.15); // Cap skill contribution to max 15%
+            }
+
             double availScore = (listing.getAvailabilityRequired() == null ||
                     listing.getAvailabilityRequired().equalsIgnoreCase(p.getAvailability())) ? 1.0 : 0.4;
 
@@ -278,14 +326,28 @@ public class MatchingService {
                 locScore = listing.getLocation().getId().equals(p.getLocation().getId()) ? 1.0 : 0.3;
             }
 
-            double totalScore = (0.60 * skillScore) + (0.25 * availScore) + (0.15 * locScore);
+            double totalScore;
+            if (isCrossDomainMismatch) {
+                // Irrelevant profession penalty: maximum total score capped at 25%
+                totalScore = (0.50 * skillScore) + (0.10 * availScore) + (0.05 * locScore);
+                totalScore = Math.min(totalScore, 0.25);
+            } else {
+                totalScore = (0.60 * skillScore) + (0.25 * availScore) + (0.15 * locScore);
+            }
 
             ExplanationDto exp = new ExplanationDto();
-            exp.setSummary(String.format("Keyword overlap match with %d matched skills.", matchedReq.size() + matchedPref.size()));
+            if (isCrossDomainMismatch) {
+                exp.setSummary(String.format("Cross-domain mismatch: Candidate profession (%s) does not match role (%s). Only generic soft skill matched.",
+                        p.getHeadline() != null ? p.getHeadline() : "Unspecified", listing.getTitle()));
+            } else {
+                exp.setSummary(String.format("Keyword overlap match with %d matched skills.", matchedReq.size() + matchedPref.size()));
+            }
 
             List<FactorDto> factors = new ArrayList<>();
             factors.add(new FactorDto("skill.match", String.join(", ", matchedReq), 0.60, reqScore,
-                    String.format("%d of %d required skills matched via keyword tokens", matchedReq.size(), reqSkillNames.size())));
+                    isCrossDomainMismatch
+                            ? String.format("%d soft skill matched, but candidate profession (%s) lacks domain alignment with %s", matchedReq.size(), p.getHeadline(), listing.getTitle())
+                            : String.format("%d of %d required skills matched via keyword tokens", matchedReq.size(), reqSkillNames.size())));
             factors.add(new FactorDto("availability", p.getAvailability(), 0.25, availScore, "Availability check"));
             factors.add(new FactorDto("location", listing.isRemote() ? "Remote" : (p.getLocation() != null ? p.getLocation().getName() : "Unspecified"), 0.15, locScore, "Location constraint"));
 

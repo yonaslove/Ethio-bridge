@@ -16,6 +16,12 @@ from app.schemas import (
 MODEL_NAME = os.getenv("MODEL_NAME", "sublinear-tfidf-char3gram-v1")
 MODEL_VERSION = "1.0.0"
 
+GENERIC_SOFT_SKILLS = {
+    "communication", "teamwork", "leadership", "time management",
+    "problem solving", "adaptability", "work ethic", "interpersonal",
+    "flexibility", "punctuality", "organization", "listening"
+}
+
 _text_cache: Dict[str, float] = {}
 
 def compute_text_hash(text: str) -> str:
@@ -301,6 +307,8 @@ def score_candidate(listing: ListingDto, candidate: CandidateDto) -> Tuple[float
     gating_penalty = 1.0
     is_unrelated = False
 
+    only_soft_skills = bool(matched_req and all(s.lower().strip() in GENERIC_SOFT_SKILLS for s in matched_req))
+
     if total_req_count > 0 and len(matched_req) == 0:
         # Zero required skills matched
         if sem_score < 0.10:
@@ -310,6 +318,10 @@ def score_candidate(listing: ListingDto, candidate: CandidateDto) -> Tuple[float
         else:
             # Some semantic proximity but missing all required skills -> heavy penalty
             gating_penalty = 0.25
+    elif only_soft_skills and sem_score < 0.12:
+        # Only generic soft skills matched without domain semantic alignment
+        gating_penalty = 0.18
+        is_unrelated = True
     elif total_req_count == 0 and sem_score < 0.05:
         # No explicit skills provided, but semantic similarity is practically zero
         gating_penalty = 0.10
