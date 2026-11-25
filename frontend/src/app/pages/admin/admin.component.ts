@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { ToastService } from '../../services/toast.service';
 import { User, Skill, SkillCategory, UserVerificationStatus, TrustReport, AuditLogItem, MonetizationStats } from '../../models/models';
 
 type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disputes' | 'skills' | 'audit';
@@ -436,10 +437,10 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                 </td>
                 <td>
                   <div class="action-btn-group" *ngIf="!isDisputeResolved(d.status)">
-                    <button (click)="resolveDisputeItem(d, 'RELEASE_PROVIDER')" class="btn btn-primary btn-sm">
+                    <button (click)="openArbitrationModal(d, 'RELEASE_PROVIDER')" class="btn btn-primary btn-sm">
                       Release to Provider
                     </button>
-                    <button (click)="resolveDisputeItem(d, 'REFUND_SEEKER')" class="btn btn-outline btn-sm text-danger">
+                    <button (click)="openArbitrationModal(d, 'REFUND_SEEKER')" class="btn btn-outline btn-sm text-danger">
                       Refund Seeker
                     </button>
                   </div>
@@ -642,9 +643,217 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
           </div>
         </div>
       </div>
+
+      <!-- MODAL: MODERN ESCROW ARBITRATION MEDIATION -->
+      <div class="modal-backdrop" *ngIf="arbitrationModal && arbitrationDispute" (click)="closeArbitrationModal()">
+        <div class="modal-card-arbitration" (click)="$event.stopPropagation()">
+          <div class="arbitration-header">
+            <div class="arbitration-title">
+              <span class="gavel-icon">⚖️</span>
+              <div>
+                <h3>Escrow Dispute Arbitration</h3>
+                <p>Contract: <code>{{ arbitrationDispute.contractId }}</code></p>
+              </div>
+            </div>
+            <button class="close-btn" (click)="closeArbitrationModal()">✕</button>
+          </div>
+
+          <div class="arbitration-body">
+            <!-- Action Directive Banner -->
+            <div class="directive-banner" [ngClass]="arbitrationAction === 'RELEASE_PROVIDER' ? 'banner-release' : 'banner-refund'">
+              <div class="directive-icon">{{ arbitrationAction === 'RELEASE_PROVIDER' ? '✓' : '↺' }}</div>
+              <div>
+                <h4>{{ arbitrationAction === 'RELEASE_PROVIDER' ? 'Release Escrow to Provider' : 'Refund Escrow to Seeker' }}</h4>
+                <p>
+                  {{ arbitrationAction === 'RELEASE_PROVIDER'
+                    ? 'Disburse milestone escrow funds to the provider. The platform 10% commission will be retained and contract marked Completed.'
+                    : 'Refund 100% of milestone escrow funds back to the seeker. The disputed contract will be marked Cancelled.' }}
+                </p>
+              </div>
+            </div>
+
+            <div class="arbitration-details-grid">
+              <div class="detail-box">
+                <span class="detail-lbl">Dispute Reason</span>
+                <strong>{{ arbitrationDispute.reason || 'Contract Conflict' }}</strong>
+              </div>
+              <div class="detail-box">
+                <span class="detail-lbl">Claim Details</span>
+                <span class="detail-val">{{ arbitrationDispute.details || 'None provided' }}</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label class="form-label" style="font-weight: 700;">Official Arbitration Verdict & Notes *</label>
+              <textarea
+                [(ngModel)]="arbitrationNotes"
+                rows="3"
+                class="form-control"
+                placeholder="Enter mediation finding, settlement reason, or justification..."
+                required></textarea>
+            </div>
+          </div>
+
+          <div class="arbitration-footer">
+            <button (click)="closeArbitrationModal()" class="btn btn-secondary" [disabled]="arbitrationSubmitting">
+              Cancel
+            </button>
+            <button
+              (click)="confirmArbitration()"
+              class="btn"
+              [ngClass]="arbitrationAction === 'RELEASE_PROVIDER' ? 'btn-primary' : 'btn-danger'"
+              [disabled]="arbitrationSubmitting">
+              {{ arbitrationSubmitting ? 'Settling Escrow...' : (arbitrationAction === 'RELEASE_PROVIDER' ? 'Confirm & Release Funds' : 'Confirm & Refund Seeker') }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
+    .modal-card-arbitration {
+      background: #FFFFFF;
+      border-radius: 16px;
+      max-width: 580px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+      animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .arbitration-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #FAFAFA;
+    }
+    .arbitration-title {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .gavel-icon {
+      font-size: 1.75rem;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 10px;
+      padding: 0.35rem 0.5rem;
+    }
+    .arbitration-title h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--color-charcoal);
+      margin: 0;
+    }
+    .arbitration-title p {
+      font-size: 0.8rem;
+      color: var(--color-slate);
+      margin: 0.2rem 0 0;
+    }
+    .arbitration-body {
+      padding: 1.5rem;
+    }
+    .directive-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 1rem 1.25rem;
+      border-radius: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .directive-icon {
+      font-size: 1.25rem;
+      font-weight: bold;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .banner-release {
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      color: #166534;
+    }
+    .banner-release .directive-icon {
+      background: #22C55E;
+      color: #FFFFFF;
+    }
+    .banner-release h4 {
+      color: #15803D;
+      margin: 0 0 0.25rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .banner-release p {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: #166534;
+    }
+    .banner-refund {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #991B1B;
+    }
+    .banner-refund .directive-icon {
+      background: #EF4444;
+      color: #FFFFFF;
+    }
+    .banner-refund h4 {
+      color: #B91C1C;
+      margin: 0 0 0.25rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .banner-refund p {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: #991B1B;
+    }
+    .arbitration-details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+    }
+    .detail-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .detail-lbl {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--color-slate);
+      font-weight: 600;
+    }
+    .detail-val {
+      font-size: 0.85rem;
+      color: var(--color-charcoal);
+    }
+    .arbitration-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      background: #FAFAFA;
+    }
     .admin-page {
       padding: 2.5rem 1.5rem 5rem;
       display: flex;
@@ -1146,7 +1355,13 @@ export class AdminComponent implements OnInit {
   newSkillName = '';
   newSkillCategory: SkillCategory = 'TECH';
 
-  constructor(private apiService: ApiService) {}
+  arbitrationModal = false;
+  arbitrationDispute: any = null;
+  arbitrationAction: 'RELEASE_PROVIDER' | 'REFUND_SEEKER' = 'RELEASE_PROVIDER';
+  arbitrationNotes = '';
+  arbitrationSubmitting = false;
+
+  constructor(private apiService: ApiService, private toastService: ToastService) {}
 
   ngOnInit(): void {
     this.loadMonetizationStats();
@@ -1361,6 +1576,46 @@ export class AdminComponent implements OnInit {
     if (!status) return false;
     const s = status.toUpperCase();
     return s.includes('RESOLVED') || s === 'SETTLED' || s === 'CLOSED' || s === 'CANCELLED';
+  }
+
+  openArbitrationModal(d: any, action: 'RELEASE_PROVIDER' | 'REFUND_SEEKER'): void {
+    this.arbitrationDispute = d;
+    this.arbitrationAction = action;
+    this.arbitrationNotes = action === 'RELEASE_PROVIDER'
+      ? 'Mediation decision: Release Escrow to Provider'
+      : 'Mediation decision: Refund Escrow to Seeker';
+    this.arbitrationModal = true;
+  }
+
+  closeArbitrationModal(): void {
+    this.arbitrationModal = false;
+    this.arbitrationDispute = null;
+    this.arbitrationSubmitting = false;
+  }
+
+  confirmArbitration(): void {
+    if (!this.arbitrationDispute || this.arbitrationSubmitting) return;
+    const d = this.arbitrationDispute;
+    const action = this.arbitrationAction;
+    const notes = this.arbitrationNotes.trim() || (action === 'RELEASE_PROVIDER' ? 'Release Escrow to Provider' : 'Refund Escrow to Seeker');
+    const actionLabel = action === 'RELEASE_PROVIDER' ? 'Release Escrow to Provider' : 'Refund Escrow to Seeker';
+
+    this.arbitrationSubmitting = true;
+    this.apiService.resolveDispute(d.id, 'RESOLVED', notes, action).subscribe({
+      next: (res) => {
+        d.status = res.status;
+        d.adminResolution = res.adminResolution;
+        this.arbitrationSubmitting = false;
+        this.closeArbitrationModal();
+        this.loadDisputes();
+        this.loadMonetizationStats();
+        this.toastService.success(`Dispute settled: ${actionLabel}`, 'Escrow Resolved');
+      },
+      error: (err) => {
+        this.arbitrationSubmitting = false;
+        this.toastService.error(err?.error?.message || 'Failed to settle dispute', 'Arbitration Error');
+      }
+    });
   }
 
   resolveDisputeItem(d: any, resolution: string): void {
