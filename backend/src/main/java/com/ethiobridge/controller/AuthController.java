@@ -128,6 +128,23 @@ public class AuthController {
         return ResponseEntity.ok(authService.getDemoPersonas());
     }
 
+    @GetMapping("/lookup")
+    public ResponseEntity<Map<String, Object>> lookupUserByEmail(@RequestParam("email") String email) {
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email parameter is required");
+        }
+        AppUser user = authService.findUserByEmail(email.trim());
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No registered user found with email: " + email.trim());
+        }
+        return ResponseEntity.ok(Map.of(
+                "userId", user.getId().toString(),
+                "fullName", user.getFullName() != null ? user.getFullName() : "Member",
+                "email", user.getEmail(),
+                "isVerified", user.isVerified()
+        ));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UserDto> getMe(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {

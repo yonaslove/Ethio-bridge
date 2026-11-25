@@ -313,6 +313,12 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/messages/threads`, { recipientUserId, listingId, subject }, { headers: this.getHeaders() });
   }
 
+  lookupUserByEmail(email: string): Observable<{ userId: string; fullName: string; email: string; isVerified: boolean }> {
+    return this.http.get<{ userId: string; fullName: string; email: string; isVerified: boolean }>(`${this.baseUrl}/auth/lookup`, {
+      params: { email }
+    });
+  }
+
   createThreadByEmail(recipientEmail: string, subject?: string): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/messages/threads`, { recipientEmail, subject }, { headers: this.getHeaders() });
   }

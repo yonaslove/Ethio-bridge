@@ -548,6 +548,12 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
+    public AppUser findUserByEmail(String email) {
+        if (email == null || email.isBlank()) return null;
+        return appUserRepository.findByEmail(email.trim().toLowerCase()).orElse(null);
+    }
+
+    @Transactional(readOnly = true)
     public List<com.ethiobridge.dto.DemoPersonaDto> getDemoPersonas() {
         List<String> emails = List.of(
                 "seeker1@ethiobridge.et",

@@ -211,46 +211,62 @@ import { I18nService } from '../../services/i18n.service';
 
       <!-- Start New Chat with Registered User Modal -->
       <div class="modal-backdrop" *ngIf="showNewChatModal" (click)="showNewChatModal = false">
-        <div class="modal-dialog" (click)="$event.stopPropagation()" style="max-width: 440px;">
+        <div class="modal-card" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800;">
-              ✉️ {{ i18n.translate('New Conversation by Email', 'በኢሜይል አዲስ ውይይት ይጀምሩ') }}
-            </h3>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1.4rem;">✉️</span>
+              <div>
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #1E293B;">
+                  {{ i18n.translate('New Conversation by Email', 'በኢሜይል አዲስ ውይይት ይጀምሩ') }}
+                </h3>
+                <small style="color: #64748B;">Direct end-to-end messaging</small>
+              </div>
+            </div>
             <button type="button" class="btn-close" (click)="showNewChatModal = false">✕</button>
           </div>
-          <div class="modal-body" style="padding: 1.25rem;">
-            <p style="font-size: 0.85rem; color: #64748B; margin-top: 0; margin-bottom: 1rem;">
+
+          <div class="modal-body">
+            <p class="modal-intro">
               {{ i18n.translate('Enter the email address of any registered client, freelancer, or provider on EthioBridge to start an instant direct message thread.', 'የማንኛውንም የተመዘገበ ተጠቃሚ ኢሜይል በማስገባት ወዲያውኑ ውይይት ይጀምሩ።') }}
             </p>
 
-            <div class="form-group" style="margin-bottom: 1rem;">
-              <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem;">
+            <div class="form-group" style="margin-bottom: 1.15rem;">
+              <label class="modal-label">
                 {{ i18n.translate('Recipient Email Address', 'የተቀባዩ ኢሜይል አድራሻ') }}
+                <span style="color: #EF4444;">*</span>
               </label>
-              <input
-                type="email"
-                [(ngModel)]="newChatEmail"
-                placeholder="e.g. provider1@ethiobridge.et or sara@gmail.com"
-                class="form-control"
-                [disabled]="startingNewChat" />
+              <div class="input-wrapper">
+                <span class="input-icon">👤</span>
+                <input
+                  type="email"
+                  [(ngModel)]="newChatEmail"
+                  placeholder="e.g. provider1@ethiobridge.et or yonas@gmail.com"
+                  class="modal-input"
+                  [disabled]="startingNewChat" />
+              </div>
             </div>
 
-            <div class="form-group" style="margin-bottom: 1rem;">
-              <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem;">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label class="modal-label">
                 {{ i18n.translate('Conversation Topic / Subject', 'የውይይቱ ርዕስ') }}
               </label>
-              <input
-                type="text"
-                [(ngModel)]="newChatSubject"
-                placeholder="e.g. Project Inquiry & Technical Discussion"
-                class="form-control"
-                [disabled]="startingNewChat" />
+              <div class="input-wrapper">
+                <span class="input-icon">💬</span>
+                <input
+                  type="text"
+                  [(ngModel)]="newChatSubject"
+                  placeholder="e.g. Project Inquiry & Technical Discussion"
+                  class="modal-input"
+                  [disabled]="startingNewChat" />
+              </div>
             </div>
 
-            <div *ngIf="newChatError" style="color: #DC2626; font-size: 0.825rem; background: #FEF2F2; padding: 0.5rem; border-radius: 6px; margin-bottom: 0.75rem;">
-              ⚠️ {{ newChatError }}
+            <div *ngIf="newChatError" class="modal-alert-error">
+              <span style="font-size: 1.1rem; flex-shrink: 0;">⚠️</span>
+              <span>{{ newChatError }}</span>
             </div>
           </div>
+
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" (click)="showNewChatModal = false" [disabled]="startingNewChat">
               {{ i18n.translate('Cancel', 'ይቅር') }}
@@ -667,6 +683,76 @@ import { I18nService } from '../../services/i18n.service';
       cursor: pointer;
       color: var(--color-slate);
     }
+    .modal-card {
+      background: #FFFFFF;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 440px;
+      padding: 1.75rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-intro {
+      font-size: 0.85rem;
+      color: #64748B;
+      margin: 0 0 1.25rem 0;
+      line-height: 1.45;
+    }
+    .modal-label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #1E293B;
+      margin-bottom: 0.4rem;
+    }
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-icon {
+      position: absolute;
+      left: 0.85rem;
+      font-size: 1rem;
+      pointer-events: none;
+      user-select: none;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 0.7rem 0.85rem 0.7rem 2.4rem;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      color: #1E293B;
+      background: #F8FAFC;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+    }
+    .modal-input:focus {
+      outline: none;
+      border-color: #0E7F8F;
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(14, 127, 143, 0.15);
+    }
+    .modal-alert-error {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #FEF2F2;
+      border-left: 4px solid #EF4444;
+      color: #B91C1C;
+      padding: 0.75rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.825rem;
+      margin-top: 0.75rem;
+      line-height: 1.4;
+    }
   `]
 })
 export class MessagesComponent implements OnInit, OnDestroy {
@@ -916,21 +1002,51 @@ export class MessagesComponent implements OnInit, OnDestroy {
     this.newChatError = '';
     const subject = this.newChatSubject.trim() || 'Direct Inquiry';
 
-    this.apiService.createThreadByEmail(email, subject).subscribe({
-      next: (thread) => {
-        this.startingNewChat = false;
-        this.showNewChatModal = false;
-        this.newChatEmail = '';
-        this.newChatSubject = '';
+    // Step 1: Look up registered user by email to get their user ID (compatible with all backend versions)
+    this.apiService.lookupUserByEmail(email).subscribe({
+      next: (user) => {
+        if (!user || !user.userId) {
+          this.startingNewChat = false;
+          this.newChatError = `No registered user found with email "${email}". Please verify the address.`;
+          return;
+        }
 
-        // Add or select thread
-        this.loadThreads();
-        this.targetThreadId = thread.id;
-        this.selectThread(thread);
+        // Step 2: Create thread with recipientUserId and recipientEmail
+        this.apiService.createOrGetThread(user.userId, undefined, subject).subscribe({
+          next: (thread) => {
+            this.startingNewChat = false;
+            this.showNewChatModal = false;
+            this.newChatEmail = '';
+            this.newChatSubject = '';
+
+            // Load and select the thread
+            this.loadThreads();
+            this.targetThreadId = thread.id;
+            this.selectThread(thread);
+          },
+          error: (threadErr) => {
+            this.startingNewChat = false;
+            this.newChatError = threadErr?.error?.message || 'Could not start conversation with this user.';
+          }
+        });
       },
-      error: (err) => {
-        this.startingNewChat = false;
-        this.newChatError = err?.error?.message || 'Could not find registered user with that email.';
+      error: (lookupErr) => {
+        // Fallback: Attempt direct thread creation with recipientEmail in case backend is upgraded
+        this.apiService.createThreadByEmail(email, subject).subscribe({
+          next: (thread) => {
+            this.startingNewChat = false;
+            this.showNewChatModal = false;
+            this.newChatEmail = '';
+            this.newChatSubject = '';
+            this.loadThreads();
+            this.targetThreadId = thread.id;
+            this.selectThread(thread);
+          },
+          error: () => {
+            this.startingNewChat = false;
+            this.newChatError = lookupErr?.error?.message || `No registered account found with email "${email}". Ensure the user has registered on EthioBridge.`;
+          }
+        });
       }
     });
   }
