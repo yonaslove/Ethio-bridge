@@ -9,6 +9,13 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:ethiobridge}
     password: ${SPRING_DATASOURCE_PASSWORD:ethiobridge_password_123}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 2              # keep 2 connections warm always
+      maximum-pool-size: 5         # Render free tier DB limit
+      idle-timeout: 300000         # 5 min – release idle connections
+      connection-timeout: 10000    # fail fast if DB unreachable (10s)
+      keepalive-time: 60000        # ping DB every 60s to keep connections alive
+      max-lifetime: 1800000        # recycle connections every 30 min
   jpa:
     hibernate:
       ddl-auto: none

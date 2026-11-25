@@ -127,7 +127,8 @@ public class SecurityConfig {
 
     @Bean
     public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder() {
-        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+        // strength=8 is still secure for web auth and ~4x faster than default 10
+        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(8);
     }
 
     @Bean

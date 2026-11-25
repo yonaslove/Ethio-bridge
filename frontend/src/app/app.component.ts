@@ -1,12 +1,14 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
 import { NavbarComponent } from './components/navbar/navbar.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { ToastContainerComponent } from './components/toast-container/toast-container.component';
 import { SidebarService } from './services/sidebar.service';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
@@ -63,9 +65,11 @@ import { SidebarService } from './services/sidebar.service';
     }
   `]
 })
-export class AppComponent {
+export class AppComponent implements OnInit, OnDestroy {
   private router = inject(Router);
+  private http = inject(HttpClient);
   readonly isLandingPage = signal<boolean>(true);
+  private keepAliveInterval: any;
 
   constructor(public sidebarService: SidebarService) {
     const initialUrl = this.getEffectiveUrl();
@@ -79,6 +83,19 @@ export class AppComponent {
       this.updateRouteState(url);
       this.sidebarService.updateRouteState(url);
     });
+  }
+
+  ngOnInit(): void {
+    // Ping backend every 10 minutes to prevent Render free-tier cold start (sleeps after 15min idle)
+    const backendRoot = environment.apiUrl.replace('/api/v1', '');
+    const ping = () => this.http.get(`${backendRoot}/actuator/health`, { responseType: 'json' })
+      .subscribe({ error: () => {} }); // silent – just keeping it warm
+    ping(); // immediate first ping on page load
+    this.keepAliveInterval = setInterval(ping, 10 * 60 * 1000); // every 10 min
+  }
+
+  ngOnDestroy(): void {
+    if (this.keepAliveInterval) clearInterval(this.keepAliveInterval);
   }
 
   private getEffectiveUrl(): string {
