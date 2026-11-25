@@ -1,5 +1,7 @@
 package com.ethiobridge.config;
 
+import com.ethiobridge.entity.AppUser;
+import com.ethiobridge.repository.AppUserRepository;
 import com.ethiobridge.service.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,22 +21,15 @@ import java.util.*;
 @Component
 public class DemoAuthFilter extends OncePerRequestFilter {
 
-    private static final Map<String, List<String>> DEMO_USERS = new HashMap<>();
-
-    static {
-        DEMO_USERS.put("seeker1", List.of("ROLE_SEEKER"));
-        DEMO_USERS.put("provider1", List.of("ROLE_PROVIDER"));
-        DEMO_USERS.put("provider2", List.of("ROLE_PROVIDER"));
-        DEMO_USERS.put("dualuser", List.of("ROLE_SEEKER", "ROLE_PROVIDER"));
-        DEMO_USERS.put("admin", List.of("ROLE_ADMIN"));
-    }
-
     private final AuthService authService;
+    private final AppUserRepository appUserRepository;
     private final boolean demoAuthEnabled;
 
     public DemoAuthFilter(@Lazy AuthService authService,
+                          @Lazy AppUserRepository appUserRepository,
                           @org.springframework.beans.factory.annotation.Value("${app.security.demo-auth.enabled:false}") boolean demoAuthEnabled) {
         this.authService = authService;
+        this.appUserRepository = appUserRepository;
         this.demoAuthEnabled = demoAuthEnabled;
     }
 
@@ -72,6 +67,7 @@ public class DemoAuthFilter extends OncePerRequestFilter {
         }
 
         // 2. Check demo user headers only if explicitly enabled in configuration
+        // Dynamically looked up from the database to eliminate hardcoding
         if (demoAuthEnabled) {
             String selectedUser = null;
             boolean hideAuthHeader = false;
@@ -82,19 +78,24 @@ public class DemoAuthFilter extends OncePerRequestFilter {
                 hideAuthHeader = true;
             }
 
-            if (selectedUser != null && DEMO_USERS.containsKey(selectedUser)) {
-                List<SimpleGrantedAuthority> authorities = DEMO_USERS.get(selectedUser).stream()
-                        .map(SimpleGrantedAuthority::new)
-                        .toList();
+            if (selectedUser != null) {
+                String searchEmail = selectedUser.contains("@") ? selectedUser : selectedUser + "@ethiobridge.et";
+                Optional<AppUser> userOpt = appUserRepository.findByEmail(searchEmail);
+                if (userOpt.isPresent()) {
+                    AppUser user = userOpt.get();
+                    List<SimpleGrantedAuthority> authorities = authService.resolveRoles(user).stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                            .toList();
 
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(selectedUser, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(user.getEmail(), null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
 
-                if (hideAuthHeader) {
-                    HttpServletRequest wrapped = createHeaderHidingRequest(request, "Authorization");
-                    filterChain.doFilter(wrapped, response);
-                    return;
+                    if (hideAuthHeader) {
+                        HttpServletRequest wrapped = createHeaderHidingRequest(request, "Authorization");
+                        filterChain.doFilter(wrapped, response);
+                        return;
+                    }
                 }
             }
         }
