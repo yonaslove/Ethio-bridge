@@ -1,6 +1,15 @@
+import os
 import re
-from typing import Dict, Any, List
+import json
+import logging
+import urllib.request
+import urllib.error
+from typing import Dict, Any, List, Optional
 from app.schemas import ModerationScanRequest, ModerationScanResponse
+
+logger = logging.getLogger(__name__)
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 # Ethiopian Banking & Payment Regular Expressions
 CBE_ACCOUNT_REGEX = re.compile(r'\b1000\d{8,11}\b')
@@ -24,8 +33,9 @@ UPFRONT_FEE_KEYWORDS = [
     "registration fee", "application fee", "deposit required", "interview fee",
     "security deposit", "training fee", "pay before start", "processing fee",
     "materials fee", "equipment deposit", "hiring fee", "prepayment required",
+    "pay upfront", "upfront fee", "upfront payment", "advance fee", "advance payment",
     # Amharic
-    "የምዝገባ ክፍያ", "ቅድመ ክፍያ", "የማመልከቻ ክፍያ", "ተቀማጭ ገንዘብ", "የስልጠና ክፍያ", "የመሳሪያ ክፍያ"
+    "የምዝገባ ክፍያ", "ቅድመ ክፍያ", "ቅድሚያ ክፍያ", "የማመልከቻ ክፍያ", "ተቀማጭ ገንዘብ", "የስልጠና ክፍያ", "የመሳሪያ ክፍያ"
 ]
 
 # Unrealistic Earnings / Pyramid / MLMs
@@ -39,6 +49,68 @@ HARASSMENT_KEYWORDS = [
     "kill you", "i will beat you", "steal your money", "cheat you",
     "ውሸታም ሌባ", "አጭበርባሪ", "እገድልሃለሁ"
 ]
+
+
+def investigate_with_gemini(text: str, content_type: str) -> Optional[Dict[str, Any]]:
+    """Calls Google Gemini Flash API for deep semantic and cross-lingual fraud investigation."""
+    api_key = os.getenv("GEMINI_API_KEY", "").strip() or GEMINI_API_KEY
+    if not api_key:
+        return None
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+
+    prompt = f"""You are the Chief Trust & Safety Investigator for EthioBridge, an Ethiopian talent marketplace connecting seekers and providers.
+Analyze the following {content_type} submitted on the platform.
+
+Detect any of these violations:
+1. ESCROW_EVASION: Attempting to bypass EthioBridge escrow (asking for direct payment via CBE Commercial Bank of Ethiopia, Telebirr, cash, or wire transfer to avoid platform commission).
+2. UPFRONT_FEE_SCAM: Demanding upfront registration, training, equipment, or application fees from job seekers.
+3. CONTACT_LEAK: Soliciting direct private communication (Telegram handles/links, WhatsApp, phone numbers) to circumvent platform contracts.
+4. HARASSMENT: Verbal abuse, intimidation, extortion, threats, or vulgarity.
+5. DECEPTIVE_LISTING: Unrealistic income claims, pyramid schemes, or fake employment opportunities.
+
+Understand both English and Amharic text and slang.
+
+Content to investigate:
+\"\"\"{text}\"\"\"
+
+Respond strictly in valid JSON matching this schema:
+{{
+  "flagged": true,
+  "riskLevel": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+  "categories": ["ESCROW_EVASION"],
+  "confidenceScore": 95,
+  "matchedSnippets": ["snippet"],
+  "investigationSummary": "1-2 sentence executive investigation finding for the platform admin."
+}}
+If no violation, set flagged: false, riskLevel: "LOW", categories: [], matchedSnippets: [], investigationSummary: "Content compliant with community standards."
+"""
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "response_mime_type": "application/json",
+            "temperature": 0.1
+        }
+    }
+
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=6) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            candidates = res_data.get("candidates", [])
+            if candidates:
+                text_out = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                return json.loads(text_out)
+    except Exception as e:
+        logger.warning("Gemini AI API moderation call failed or timed out: %s", e)
+    return None
+
 
 def scan_text_for_violations(request: ModerationScanRequest) -> ModerationScanResponse:
     text = request.text or ""
@@ -119,13 +191,29 @@ def scan_text_for_violations(request: ModerationScanRequest) -> ModerationScanRe
             matched_patterns.append(f"HARASSMENT:{kw}")
             break
 
-    # Determine risk level
-    if "UPFRONT_FEE_SCAM" in categories or "ESCROW_EVASION" in categories:
-        risk_level = "HIGH"
-    elif "HARASSMENT" in categories or "DECEPTIVE_LISTING" in categories:
-        risk_level = "HIGH"
-    elif "CONTACT_LEAK" in categories:
-        risk_level = "MEDIUM"
+    # 7. Deep Investigation with Google Gemini API (if GEMINI_API_KEY is configured)
+    gemini_result = investigate_with_gemini(text, request.contentType or "GENERAL")
+    if gemini_result and gemini_result.get("flagged"):
+        flagged = True
+        g_cats = gemini_result.get("categories", [])
+        for c in g_cats:
+            if c not in categories:
+                categories.append(c)
+        g_summary = gemini_result.get("investigationSummary")
+        if g_summary:
+            reasons.append(f"Gemini AI Investigation: {g_summary}")
+        g_risk = gemini_result.get("riskLevel", "HIGH")
+        if g_risk in ["HIGH", "CRITICAL"]:
+            risk_level = g_risk
+
+    # Fallback risk level calculation if not set by Gemini
+    if risk_level == "LOW" and flagged:
+        if "UPFRONT_FEE_SCAM" in categories or "ESCROW_EVASION" in categories:
+            risk_level = "HIGH"
+        elif "HARASSMENT" in categories or "DECEPTIVE_LISTING" in categories:
+            risk_level = "HIGH"
+        elif "CONTACT_LEAK" in categories:
+            risk_level = "MEDIUM"
         
     explanation = " ".join(reasons) if reasons else "No risk indicators detected. Content compliant."
     
