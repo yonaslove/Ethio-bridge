@@ -435,7 +435,17 @@ public class ContractService {
         Dispute dispute = disputeRepository.findById(disputeId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispute not found"));
 
-        dispute.setStatus(status);
+        // Normalize dispute status to match DB check constraints
+        String normalizedDisputeStatus = status;
+        if ("RELEASE_PROVIDER".equalsIgnoreCase(resolutionAction)) {
+            normalizedDisputeStatus = "RESOLVED_PROVIDER";
+        } else if ("REFUND_SEEKER".equalsIgnoreCase(resolutionAction)) {
+            normalizedDisputeStatus = "RESOLVED_SEEKER";
+        } else if ("RESOLVED".equalsIgnoreCase(status)) {
+            normalizedDisputeStatus = "SETTLED";
+        }
+
+        dispute.setStatus(normalizedDisputeStatus);
         dispute.setAdminResolution(adminResolution);
         dispute.setResolvedBy(adminUserId);
         dispute.setResolvedAt(OffsetDateTime.now());
@@ -452,16 +462,16 @@ public class ContractService {
                                 "Dispute resolved in favor of Seeker: " + adminResolution);
                     }
                 }
-                contract.setStatus("RESOLVED_REFUNDED");
+                contract.setStatus("CANCELLED");
             } else if ("RELEASE_PROVIDER".equalsIgnoreCase(resolutionAction) || "PAY_PROVIDER".equalsIgnoreCase(resolutionAction)) {
                 for (ContractMilestone m : milestones) {
                     if ("FUNDED".equalsIgnoreCase(m.getStatus()) || "DELIVERED".equalsIgnoreCase(m.getStatus()) || "IN_REVISION".equalsIgnoreCase(m.getStatus())) {
                         releaseMilestone(adminUserId, m.getId());
                     }
                 }
-                contract.setStatus("RESOLVED_RELEASED");
+                contract.setStatus("COMPLETED");
             } else {
-                contract.setStatus("RESOLVED".equals(status) || "SETTLED".equals(status) ? "COMPLETED" : "ACTIVE");
+                contract.setStatus("COMPLETED");
             }
             contractRepository.save(contract);
         }

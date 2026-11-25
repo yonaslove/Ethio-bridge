@@ -430,12 +430,12 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                   <span *ngIf="!d.evidenceFileUrls" class="text-muted small">None</span>
                 </td>
                 <td>
-                  <span class="badge" [ngClass]="d.status === 'RESOLVED' ? 'badge-status-closed' : 'badge-candidate-interview'">
+                  <span class="badge" [ngClass]="isDisputeResolved(d.status) ? 'badge-status-closed' : 'badge-candidate-interview'">
                     {{ d.status }}
                   </span>
                 </td>
                 <td>
-                  <div class="action-btn-group" *ngIf="d.status !== 'RESOLVED'">
+                  <div class="action-btn-group" *ngIf="!isDisputeResolved(d.status)">
                     <button (click)="resolveDisputeItem(d, 'RELEASE_PROVIDER')" class="btn btn-primary btn-sm">
                       Release to Provider
                     </button>
@@ -443,7 +443,7 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                       Refund Seeker
                     </button>
                   </div>
-                  <span *ngIf="d.status === 'RESOLVED'" class="text-muted small">
+                  <span *ngIf="isDisputeResolved(d.status)" class="text-muted small">
                     {{ d.adminResolution || 'Settled' }}
                   </span>
                 </td>
@@ -1355,6 +1355,12 @@ export class AdminComponent implements OnInit {
       r.status = res.status;
       r.adminNotes = res.adminNotes;
     });
+  }
+
+  isDisputeResolved(status?: string): boolean {
+    if (!status) return false;
+    const s = status.toUpperCase();
+    return s.includes('RESOLVED') || s === 'SETTLED' || s === 'CLOSED' || s === 'CANCELLED';
   }
 
   resolveDisputeItem(d: any, resolution: string): void {
