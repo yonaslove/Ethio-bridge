@@ -245,12 +245,18 @@ public class ContractService {
         Contract contract = contractRepository.findById(milestone.getContractId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found"));
 
-        if (!contract.getSeekerUserId().equals(actorUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the seeker can release escrow funds");
+        AppUser actor = userRepository.findById(actorUserId).orElse(null);
+        boolean isAdmin = actor != null && (
+                (actor.getRoles() != null && actor.getRoles().contains("ADMIN")) ||
+                "admin@ethiobridge.et".equalsIgnoreCase(actor.getEmail())
+        );
+
+        if (!contract.getSeekerUserId().equals(actorUserId) && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the seeker or platform admin can release escrow funds");
         }
 
-        if (!"FUNDED".equalsIgnoreCase(milestone.getStatus()) && !"DELIVERED".equalsIgnoreCase(milestone.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone must be funded or delivered before release");
+        if (!"FUNDED".equalsIgnoreCase(milestone.getStatus()) && !"DELIVERED".equalsIgnoreCase(milestone.getStatus()) && !"IN_REVISION".equalsIgnoreCase(milestone.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone must be funded, delivered, or in revision before release");
         }
 
         milestone.setStatus("RELEASED");
@@ -332,9 +338,19 @@ public class ContractService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone does not belong to specified contract");
         }
 
-        if (!"FUNDED".equalsIgnoreCase(milestone.getStatus())) {
+        AppUser actor = userRepository.findById(actorUserId).orElse(null);
+        boolean isAdmin = actor != null && (
+                (actor.getRoles() != null && actor.getRoles().contains("ADMIN")) ||
+                "admin@ethiobridge.et".equalsIgnoreCase(actor.getEmail())
+        );
+
+        if (!contract.getSeekerUserId().equals(actorUserId) && !contract.getProviderUserId().equals(actorUserId) && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unauthorized to initiate milestone refund");
+        }
+
+        if (!"FUNDED".equalsIgnoreCase(milestone.getStatus()) && !"DELIVERED".equalsIgnoreCase(milestone.getStatus()) && !"IN_REVISION".equalsIgnoreCase(milestone.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot refund milestone in '" + milestone.getStatus() + "' status. Only FUNDED milestones can be refunded.");
+                    "Cannot refund milestone in '" + milestone.getStatus() + "' status. Only active escrow milestones (FUNDED, DELIVERED, IN_REVISION) can be refunded.");
         }
 
         milestone.setStatus("REFUNDED");
@@ -431,7 +447,7 @@ public class ContractService {
 
             if ("REFUND_SEEKER".equalsIgnoreCase(resolutionAction) || "REFUND".equalsIgnoreCase(resolutionAction)) {
                 for (ContractMilestone m : milestones) {
-                    if ("FUNDED".equalsIgnoreCase(m.getStatus())) {
+                    if ("FUNDED".equalsIgnoreCase(m.getStatus()) || "DELIVERED".equalsIgnoreCase(m.getStatus()) || "IN_REVISION".equalsIgnoreCase(m.getStatus())) {
                         refundMilestoneEscrow(contract.getId(), m.getId(), adminUserId,
                                 "Dispute resolved in favor of Seeker: " + adminResolution);
                     }
@@ -439,8 +455,8 @@ public class ContractService {
                 contract.setStatus("RESOLVED_REFUNDED");
             } else if ("RELEASE_PROVIDER".equalsIgnoreCase(resolutionAction) || "PAY_PROVIDER".equalsIgnoreCase(resolutionAction)) {
                 for (ContractMilestone m : milestones) {
-                    if ("FUNDED".equalsIgnoreCase(m.getStatus())) {
-                        releaseMilestone(contract.getSeekerUserId(), m.getId());
+                    if ("FUNDED".equalsIgnoreCase(m.getStatus()) || "DELIVERED".equalsIgnoreCase(m.getStatus()) || "IN_REVISION".equalsIgnoreCase(m.getStatus())) {
+                        releaseMilestone(adminUserId, m.getId());
                     }
                 }
                 contract.setStatus("RESOLVED_RELEASED");

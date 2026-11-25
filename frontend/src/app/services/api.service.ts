@@ -484,8 +484,16 @@ export class ApiService {
     return this.http.get<any[]>(`${this.baseUrl}/admin/disputes`, { headers: this.getHeaders() });
   }
 
-  resolveDispute(id: string, status: string, adminResolution?: string): Observable<any> {
-    return this.http.put<any>(`${this.baseUrl}/admin/disputes/${id}`, { status, adminResolution }, { headers: this.getHeaders() });
+  resolveDispute(id: string, status: string, adminResolution?: string, action?: string): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/disputes/${id}`, { status, adminResolution, action }, { headers: this.getHeaders() });
+  }
+
+  adminReleaseMilestone(contractId: string, milestoneId: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/contracts/${contractId}/milestones/${milestoneId}/release`, {}, { headers: this.getHeaders() });
+  }
+
+  adminRefundMilestone(contractId: string, milestoneId: string, reason?: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/contracts/${contractId}/milestones/${milestoneId}/refund`, { reason }, { headers: this.getHeaders() });
   }
 
   getAdminAuditLogs(): Observable<any[]> {

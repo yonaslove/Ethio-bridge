@@ -1358,11 +1358,20 @@ export class AdminComponent implements OnInit {
   }
 
   resolveDisputeItem(d: any, resolution: string): void {
-    const notes = prompt(`Enter arbitration notes:`, `Mediation decision: ${resolution}`);
+    const actionLabel = resolution === 'RELEASE_PROVIDER' ? 'Release Escrow to Provider' : 'Refund Escrow to Seeker';
+    const notes = prompt(`Enter arbitration notes for ${actionLabel}:`, `Mediation decision: ${actionLabel}`);
     if (!notes) return;
-    this.apiService.resolveDispute(d.id, 'RESOLVED', notes).subscribe(res => {
-      d.status = res.status;
-      d.adminResolution = res.adminResolution;
+    this.apiService.resolveDispute(d.id, 'RESOLVED', notes, resolution).subscribe({
+      next: (res) => {
+        d.status = res.status;
+        d.adminResolution = res.adminResolution;
+        this.loadDisputes();
+        this.loadMonetizationStats();
+        alert(`Dispute successfully settled: ${actionLabel}`);
+      },
+      error: (err) => {
+        alert(`Dispute resolution failed: ${err?.error?.message || 'Error executing action'}`);
+      }
     });
   }
 

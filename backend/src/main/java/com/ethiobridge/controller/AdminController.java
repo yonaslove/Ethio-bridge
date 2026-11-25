@@ -123,6 +123,26 @@ public class AdminController {
         return ResponseEntity.ok(resolved);
     }
 
+    @PostMapping("/contracts/{contractId}/milestones/{milestoneId}/release")
+    public ResponseEntity<ContractMilestone> adminReleaseMilestone(Authentication auth,
+                                                                   @PathVariable UUID contractId,
+                                                                   @PathVariable UUID milestoneId) {
+        AppUser admin = userService.getOrCreateCurrentUser(auth);
+        ContractMilestone milestone = contractService.releaseMilestone(admin.getId(), milestoneId);
+        return ResponseEntity.ok(milestone);
+    }
+
+    @PostMapping("/contracts/{contractId}/milestones/{milestoneId}/refund")
+    public ResponseEntity<ContractMilestone> adminRefundMilestone(Authentication auth,
+                                                                  @PathVariable UUID contractId,
+                                                                  @PathVariable UUID milestoneId,
+                                                                  @RequestBody(required = false) Map<String, String> body) {
+        AppUser admin = userService.getOrCreateCurrentUser(auth);
+        String reason = (body != null && body.get("reason") != null) ? body.get("reason") : "Admin direct escrow refund to seeker";
+        ContractMilestone milestone = contractService.refundMilestoneEscrow(contractId, milestoneId, admin.getId(), reason);
+        return ResponseEntity.ok(milestone);
+    }
+
     @GetMapping("/audit-logs")
     public List<AuditLog> listRecentAuditLogs() {
         return auditLogService.getTop50Logs();
