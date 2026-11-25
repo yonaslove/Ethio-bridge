@@ -26,19 +26,22 @@ public class ListingService {
     private final ServiceCategoryRepository serviceCategoryRepository;
     private final LocationRepository locationRepository;
     private final AppUserRepository appUserRepository;
+    private final ScamDetectionService scamDetectionService;
 
     public ListingService(ListingRepository listingRepository,
                           ListingSkillRepository listingSkillRepository,
                           SkillRepository skillRepository,
                           ServiceCategoryRepository serviceCategoryRepository,
                           LocationRepository locationRepository,
-                          AppUserRepository appUserRepository) {
+                          AppUserRepository appUserRepository,
+                          ScamDetectionService scamDetectionService) {
         this.listingRepository = listingRepository;
         this.listingSkillRepository = listingSkillRepository;
         this.skillRepository = skillRepository;
         this.serviceCategoryRepository = serviceCategoryRepository;
         this.locationRepository = locationRepository;
         this.appUserRepository = appUserRepository;
+        this.scamDetectionService = scamDetectionService;
     }
 
     public ListingDto createListing(UUID ownerUserId, CreateListingRequest req) {
@@ -75,6 +78,12 @@ public class ListingService {
                 saved.getSkills().add(ls);
             }
             saved = listingRepository.save(saved);
+        }
+
+        try {
+            scamDetectionService.scanListing(ownerUserId, saved.getId(), saved.getTitle(), saved.getDescription());
+        } catch (Exception e) {
+            // Scanner failures should not block listing creation
         }
 
         return toListingDto(saved);
@@ -120,6 +129,13 @@ public class ListingService {
         }
 
         Listing updated = listingRepository.save(listing);
+
+        try {
+            scamDetectionService.scanListing(userId, updated.getId(), updated.getTitle(), updated.getDescription());
+        } catch (Exception e) {
+            // Scanner failures should not block listing update
+        }
+
         return toListingDto(updated);
     }
 

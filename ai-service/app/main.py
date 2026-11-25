@@ -14,10 +14,13 @@ from app.schemas import (
     BudgetInfo,
     MatchRequest,
     MatchResponse,
-    MatchCandidateResult
+    MatchCandidateResult,
+    ModerationScanRequest,
+    ModerationScanResponse
 )
 from app.matcher import rank_candidates, MODEL_NAME, MODEL_VERSION
 from app.evaluation.run_evaluation import run_evaluation
+from app.moderation import scan_text_for_violations
 
 INTERNAL_TOKEN = os.getenv("INTERNAL_TOKEN", "").strip()
 if not INTERNAL_TOKEN:
@@ -204,4 +207,10 @@ def collect_feedback(feedback: dict, _: None = Depends(verify_internal_token)):
     if len(_feedback_buffer) > 1000:
         _feedback_buffer.pop(0)
     return {"status": "FEEDBACK_LOGGED", "bufferedInteractions": len(_feedback_buffer)}
+
+@app.post("/ai/v1/moderate/scan", response_model=ModerationScanResponse)
+def moderate_scan(req: ModerationScanRequest, _: None = Depends(verify_internal_token)):
+    """Automated AI Content & Fraud Scanner for Escrow Evasion, Upfront Fees, Contact Leaks, and Abuse."""
+    return scan_text_for_violations(req)
+
 

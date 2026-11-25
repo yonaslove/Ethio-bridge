@@ -178,6 +178,44 @@ import { Listing, ProviderProfile } from '../../models/models';
           </div>
         </div>
       </div>
+
+      <!-- Modern Report Modal -->
+      <div *ngIf="showReportModal" class="modal-backdrop">
+        <div class="modal-content" style="max-width: 500px;">
+          <div class="flex justify-between items-center" style="margin-bottom: 1.25rem;">
+            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--color-danger);">🚩 {{ i18n.translate('Report Listing', 'ስራውን ሪፖርት ያድርጉ') }}</h3>
+            <button (click)="closeReportModal()" class="btn-close">✕</button>
+          </div>
+
+          <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.25rem;">
+            {{ i18n.translate('Help keep EthioBridge safe and scam-free. Select a reason and provide details for our moderation team.', 'EthioBridge ደህንነቱ የተጠበቀ እንዲሆን ያግዙ። ምክንያቱን መርጠው ዝርዝሩን ያስገቡ።') }}
+          </p>
+
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">{{ i18n.translate('Violation Category', 'የጥሰት አይነት') }}</label>
+            <select [(ngModel)]="reportCategory" class="form-input">
+              <option value="SCAM_OR_FRAUD">⚠️ Scam, Fake Job, or Deceptive Post</option>
+              <option value="UPFRONT_FEE">💸 Asking for Upfront / Registration Fee</option>
+              <option value="ESCROW_EVASION">🏦 Escrow Evasion (Direct CBE / Telebirr)</option>
+              <option value="CONTACT_LEAK">📱 Direct Contact / Off-Platform Bypass</option>
+              <option value="HARASSMENT_OR_ABUSE">🛑 Harassment, Abuse, or Inappropriate Content</option>
+              <option value="OTHER">ℹ️ Other Policy Violation</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">{{ i18n.translate('Specific Details & Evidence *', 'ተጨማሪ ማብራሪያ እና ማስረጃ *') }}</label>
+            <textarea [(ngModel)]="reportDetails" rows="3" class="form-textarea" [placeholder]="i18n.translate('Please explain the issue (e.g. asked for 1000 ETB deposit, asked for offline bank transfer)...', 'እባክዎ የተፈጸመውን ጥሰት እዚህ ያብራሩ...')"></textarea>
+          </div>
+
+          <div class="flex justify-between" style="margin-top: 1.5rem;">
+            <button (click)="closeReportModal()" class="btn btn-secondary">{{ i18n.translate('Cancel', 'ይቅር') }}</button>
+            <button (click)="submitReportModal()" [disabled]="submittingReport || !reportDetails.trim()" class="btn btn-danger">
+              {{ submittingReport ? i18n.translate('Submitting...', 'በማስገባት ላይ...') : i18n.translate('Submit Report', 'ሪፖርቱን አስገባ') }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -393,6 +431,12 @@ export class ListingDetailComponent implements OnInit {
   applyError = '';
   providerProfile?: ProviderProfile;
 
+  // Modern Report Modal State
+  showReportModal = false;
+  reportCategory = 'SCAM_OR_FRAUD';
+  reportDetails = '';
+  submittingReport = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -530,15 +574,38 @@ export class ListingDetailComponent implements OnInit {
 
   reportListing(): void {
     if (!this.listing) return;
-    const reason = prompt('Please describe why you are reporting this listing (e.g. fraudulent post, incorrect category, scam):');
-    if (!reason) return;
+    if (!this.authService.isAuthenticated()) {
+      this.toastService.warning('Please log in first to report this listing.');
+      this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+      return;
+    }
+    this.reportCategory = 'SCAM_OR_FRAUD';
+    this.reportDetails = '';
+    this.showReportModal = true;
+  }
+
+  closeReportModal(): void {
+    this.showReportModal = false;
+  }
+
+  submitReportModal(): void {
+    if (!this.listing || !this.reportDetails.trim()) return;
+    this.submittingReport = true;
     this.apiService.submitReport({
       listingId: this.listing.id,
-      reason: 'User flagged listing',
-      details: reason
+      reportedUserId: this.listing.ownerUserId,
+      reason: this.reportCategory,
+      details: this.reportDetails.trim()
     }).subscribe({
-      next: () => this.toastService.info('Thank you. Your report has been submitted to platform moderation.', 'Report Submitted'),
-      error: () => this.toastService.error('Could not submit report. Please verify you are logged in.')
+      next: () => {
+        this.submittingReport = false;
+        this.showReportModal = false;
+        this.toastService.success('Thank you. Your report has been submitted to platform moderation.', 'Report Filed');
+      },
+      error: () => {
+        this.submittingReport = false;
+        this.toastService.error('Could not submit report. Please verify you are logged in.');
+      }
     });
   }
 }

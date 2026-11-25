@@ -26,17 +26,20 @@ public class MessagingService {
     private final AppUserRepository userRepository;
     private final NotificationService notificationService;
     private final ContractService contractService;
+    private final ScamDetectionService scamDetectionService;
 
     public MessagingService(MessageThreadRepository threadRepository,
                             MessageRepository messageRepository,
                             AppUserRepository userRepository,
                             NotificationService notificationService,
-                            @Lazy ContractService contractService) {
+                            @Lazy ContractService contractService,
+                            ScamDetectionService scamDetectionService) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.contractService = contractService;
+        this.scamDetectionService = scamDetectionService;
     }
 
     public UUID findUserIdByEmail(String email) {
@@ -143,6 +146,13 @@ public class MessagingService {
 
         thread.setLastMessageAt(OffsetDateTime.now());
         threadRepository.save(thread);
+
+        // Automated AI Content & Scam Scan
+        try {
+            scamDetectionService.scanChatMessage(senderUserId, recipientUserId, thread.getListingId(), content);
+        } catch (Exception e) {
+            // Scanner failures should never block chat delivery
+        }
 
         AppUser sender = userRepository.findById(senderUserId).orElse(null);
         String senderName = sender != null ? sender.getFullName() : "A user";

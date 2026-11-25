@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
 import { I18nService } from '../../services/i18n.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-messages',
@@ -87,6 +88,14 @@ import { I18nService } from '../../services/i18n.service';
                 <a [routerLink]="['/contracts']" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem;">
                   💳 {{ i18n.translate('Escrow Contracts', 'የእስክሮው ውሎች') }}
                 </a>
+                <button
+                  type="button"
+                  (click)="openReportModal()"
+                  class="btn btn-outline btn-sm"
+                  style="display: inline-flex; align-items: center; gap: 0.35rem; color: #DC2626; border-color: rgba(220, 38, 38, 0.35);"
+                  [title]="i18n.translate('Report participant for scam, fraud, or violations', 'ተጠቃሚውን ሪፖርት ያድርጉ')">
+                  🚩 {{ i18n.translate('Report User', 'ሪፖርት') }}
+                </button>
               </div>
             </div>
 
@@ -273,6 +282,63 @@ import { I18nService } from '../../services/i18n.service';
             </button>
             <button type="button" class="btn btn-primary" (click)="startChatByEmail()" [disabled]="startingNewChat || !newChatEmail.trim()">
               {{ startingNewChat ? 'Connecting...' : 'Start Chat' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report User & Safety Modal -->
+      <div class="modal-backdrop" *ngIf="showReportModal" (click)="closeReportModal()">
+        <div class="modal-card" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1.4rem;">🚩</span>
+              <div>
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #DC2626;">
+                  {{ i18n.translate('Report User to Trust & Safety', 'ተጠቃሚውን ለደህንነት ቡድን ሪፖርት ያድርጉ') }}
+                </h3>
+                <small style="color: #64748B;">
+                  {{ i18n.translate('Reporting:', 'ሪፖርት የሚደረገው:') }} <strong>{{ selectedThread?.otherUserName }}</strong>
+                </small>
+              </div>
+            </div>
+            <button type="button" class="btn-close" (click)="closeReportModal()">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <p class="modal-intro">
+              {{ i18n.translate('If this participant requested offline payments (direct CBE/Telebirr), asked for upfront fees, shared outside contact info, or engaged in harassment, report them below for administrative investigation.', 'ይህ ተጠቃሚ ከስርዓቱ ውጭ ቀጥታ ክፍያ (CBE/ቴሌብር) ከጠየቀ፣ የቅድመ ክፍያ ከጠየቀ፣ ወይም ተገቢ ያልሆነ ባህሪ ካሳየ እባክዎ እዚህ ሪፖርት ያድርጉ።') }}
+            </p>
+
+            <div class="form-group" style="margin-bottom: 1.15rem;">
+              <label class="modal-label">{{ i18n.translate('Violation Reason', 'የጥሰት ምክንያት') }} <span style="color: #EF4444;">*</span></label>
+              <select [(ngModel)]="reportReason" class="modal-input">
+                <option value="ESCROW_EVASION">🏦 Escrow Evasion (Asking for direct CBE/Telebirr)</option>
+                <option value="UPFRONT_FEE">💸 Upfront Fee Scam (Deposit or registration fee requested)</option>
+                <option value="CONTACT_LEAK">📱 Soliciting Contact Outside Platform (Telegram/WhatsApp)</option>
+                <option value="HARASSMENT">🛑 Harassment, Abuse, or Threats</option>
+                <option value="SCAM_OR_FRAUD">⚠️ Fraudulent Offer or Fake Job</option>
+                <option value="OTHER">ℹ️ Other Policy Violation</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label class="modal-label">{{ i18n.translate('Details and Evidence *', 'ዝርዝር ማብራሪያ እና ማስረጃ *') }}</label>
+              <textarea
+                [(ngModel)]="reportDetails"
+                rows="3"
+                class="modal-input"
+                style="resize: vertical; min-height: 80px;"
+                [placeholder]="i18n.translate('Provide details or quote the violating message...', 'የተፈጸመውን ጥሰት ወይም የተላከውን መልእክት እዚህ ይጥቀሱ...')"></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeReportModal()" [disabled]="submittingReport">
+              {{ i18n.translate('Cancel', 'ይቅር') }}
+            </button>
+            <button type="button" class="btn btn-danger" (click)="submitReport()" [disabled]="submittingReport || !reportDetails.trim()">
+              {{ submittingReport ? i18n.translate('Submitting...', 'በማስገባት ላይ...') : i18n.translate('Submit Report', 'ሪፖርት አስገባ') }}
             </button>
           </div>
         </div>
@@ -776,12 +842,19 @@ export class MessagesComponent implements OnInit, OnDestroy {
   startingNewChat = false;
   newChatError = '';
 
+  // Report Modal state
+  showReportModal = false;
+  reportReason = 'ESCROW_EVASION';
+  reportDetails = '';
+  submittingReport = false;
+
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
     public i18n: I18nService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private toastService: ToastService
   ) {}
 
   ngOnInit(): void {
@@ -1047,6 +1120,38 @@ export class MessagesComponent implements OnInit, OnDestroy {
             this.newChatError = lookupErr?.error?.message || `No registered account found with email "${email}". Ensure the user has registered on EthioBridge.`;
           }
         });
+      }
+    });
+  }
+
+  openReportModal(): void {
+    if (!this.selectedThread) return;
+    this.reportReason = 'ESCROW_EVASION';
+    this.reportDetails = '';
+    this.showReportModal = true;
+  }
+
+  closeReportModal(): void {
+    this.showReportModal = false;
+  }
+
+  submitReport(): void {
+    if (!this.selectedThread || !this.reportDetails.trim()) return;
+    this.submittingReport = true;
+    this.apiService.submitReport({
+      reportedUserId: this.selectedThread.otherUserId,
+      listingId: this.selectedThread.listingId,
+      reason: this.reportReason,
+      details: this.reportDetails.trim()
+    }).subscribe({
+      next: () => {
+        this.submittingReport = false;
+        this.showReportModal = false;
+        this.toastService.success('Participant reported to platform Trust & Safety for review.', 'Report Submitted');
+      },
+      error: () => {
+        this.submittingReport = false;
+        this.toastService.error('Could not submit report. Please try again.');
       }
     });
   }

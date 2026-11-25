@@ -40,6 +40,9 @@ public class MessagingServiceTest {
     @Mock
     private ContractService contractService;
 
+    @Mock
+    private ScamDetectionService scamDetectionService;
+
     private MessagingService messagingService;
 
     private final UUID currentUserId = UUID.randomUUID();
@@ -54,7 +57,8 @@ public class MessagingServiceTest {
                 messageRepository,
                 userRepository,
                 notificationService,
-                contractService
+                contractService,
+                scamDetectionService
         );
     }
 

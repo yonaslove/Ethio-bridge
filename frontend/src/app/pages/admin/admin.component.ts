@@ -374,10 +374,10 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                 </td>
                 <td>
                   <div class="action-btn-group" *ngIf="r.status === 'PENDING' || r.status === 'INVESTIGATING'">
-                    <button (click)="resolveReportItem(r, 'RESOLVED')" class="btn btn-primary btn-sm">
+                    <button (click)="openReportActionModal(r, 'RESOLVED')" class="btn btn-primary btn-sm">
                       Resolve & Action
                     </button>
-                    <button (click)="resolveReportItem(r, 'DISMISSED')" class="btn btn-outline btn-sm">
+                    <button (click)="openReportActionModal(r, 'DISMISSED')" class="btn btn-outline btn-sm">
                       Dismiss
                     </button>
                   </div>
@@ -704,6 +704,66 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
               [ngClass]="arbitrationAction === 'RELEASE_PROVIDER' ? 'btn-primary' : 'btn-danger'"
               [disabled]="arbitrationSubmitting">
               {{ arbitrationSubmitting ? 'Settling Escrow...' : (arbitrationAction === 'RELEASE_PROVIDER' ? 'Confirm & Release Funds' : 'Confirm & Refund Seeker') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: REPORT MODERATION RESOLUTION -->
+      <div class="modal-backdrop" *ngIf="showReportActionModal && selectedReport" (click)="closeReportActionModal()">
+        <div class="modal-card-arbitration" (click)="$event.stopPropagation()">
+          <div class="inspector-header">
+            <div class="inspector-title">
+              <span class="shield-mini">🚩</span>
+              <div>
+                <h3>Trust & Safety Report Moderation</h3>
+                <p>Report ID: <code>{{ selectedReport.id }}</code> | Target: <span *ngIf="selectedReport.reportedUserId">User {{ selectedReport.reportedUserId }} </span><span *ngIf="selectedReport.listingId">Listing {{ selectedReport.listingId }}</span></p>
+              </div>
+            </div>
+            <button class="close-btn" (click)="closeReportActionModal()">✕</button>
+          </div>
+
+          <div class="arbitration-body">
+            <div class="directive-banner" [ngClass]="reportActionStatus === 'RESOLVED' ? 'banner-release' : 'banner-refund'">
+              <div class="directive-icon">{{ reportActionStatus === 'RESOLVED' ? '✓' : '✕' }}</div>
+              <div>
+                <h4>{{ reportActionStatus === 'RESOLVED' ? 'Resolve Violation & Policy Action' : 'Dismiss Report as Non-Violating' }}</h4>
+                <p>{{ reportActionStatus === 'RESOLVED' ? 'Confirm moderation action on the reported content or user.' : 'Dismiss this report from the moderation queue.' }}</p>
+              </div>
+            </div>
+
+            <div class="arbitration-details-grid">
+              <div class="detail-box">
+                <span class="detail-lbl">Flag Reason</span>
+                <strong>{{ selectedReport.reason }}</strong>
+              </div>
+              <div class="detail-box">
+                <span class="detail-lbl">Evidence / Snippet</span>
+                <span class="detail-val" style="font-size: 0.825rem;">{{ selectedReport.details || 'None provided' }}</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.25rem;">
+              <label class="form-label" style="font-weight: 700;">Moderation Decision & Notes *</label>
+              <textarea
+                [(ngModel)]="reportActionNotes"
+                rows="3"
+                class="form-control"
+                placeholder="Enter moderation findings or actions taken..."
+                required></textarea>
+            </div>
+          </div>
+
+          <div class="arbitration-footer">
+            <button (click)="closeReportActionModal()" class="btn btn-secondary" [disabled]="reportActionSubmitting">
+              Cancel
+            </button>
+            <button
+              (click)="confirmReportAction()"
+              class="btn"
+              [ngClass]="reportActionStatus === 'RESOLVED' ? 'btn-primary' : 'btn-danger'"
+              [disabled]="reportActionSubmitting">
+              {{ reportActionSubmitting ? 'Saving...' : (reportActionStatus === 'RESOLVED' ? 'Confirm & Resolve' : 'Confirm & Dismiss') }}
             </button>
           </div>
         </div>
@@ -1556,19 +1616,57 @@ export class AdminComponent implements OnInit {
   }
 
   rejectVerification(v: UserVerificationStatus): void {
-    const reason = prompt('Please enter rejection reason (e.g. Document photo illegible, invalid FAN format):');
-    if (!reason) return;
-    this.apiService.reviewVerification(v.id, false, reason).subscribe(res => {
-      v.status = res.status;
-      v.rejectionReason = res.rejectionReason;
+    const reason = 'Document verification declined: credentials could not be cross-validated with national registry or image scan unclear.';
+    this.apiService.reviewVerification(v.id, false, reason).subscribe({
+      next: (res) => {
+        v.status = res.status;
+        v.rejectionReason = res.rejectionReason;
+        this.toastService.warning(`Verification for ${v.userName || 'user'} declined.`, 'Verification Updated');
+      },
+      error: (err) => {
+        this.toastService.error(err?.error?.message || 'Failed to reject verification.');
+      }
     });
   }
 
-  resolveReportItem(r: TrustReport, status: 'RESOLVED' | 'DISMISSED'): void {
-    const notes = prompt(`Enter resolution notes for report #${r.id}:`) || 'Moderated by admin';
-    this.apiService.resolveReport(r.id, status, notes).subscribe(res => {
-      r.status = res.status;
-      r.adminNotes = res.adminNotes;
+  // Report Moderation Modal State & Actions
+  showReportActionModal = false;
+  selectedReport?: TrustReport;
+  reportActionStatus: 'RESOLVED' | 'DISMISSED' = 'RESOLVED';
+  reportActionNotes = '';
+  reportActionSubmitting = false;
+
+  openReportActionModal(r: TrustReport, status: 'RESOLVED' | 'DISMISSED'): void {
+    this.selectedReport = r;
+    this.reportActionStatus = status;
+    this.reportActionNotes = status === 'RESOLVED'
+      ? 'Violation confirmed and policy enforced. User cautioned.'
+      : 'Reviewed by admin; determined to be compliant. Report dismissed.';
+    this.showReportActionModal = true;
+  }
+
+  closeReportActionModal(): void {
+    this.showReportActionModal = false;
+    this.selectedReport = undefined;
+  }
+
+  confirmReportAction(): void {
+    if (!this.selectedReport) return;
+    this.reportActionSubmitting = true;
+    const r = this.selectedReport;
+    const notes = this.reportActionNotes.trim() || (this.reportActionStatus === 'RESOLVED' ? 'Actioned by admin' : 'Dismissed by admin');
+    this.apiService.resolveReport(r.id, this.reportActionStatus, notes).subscribe({
+      next: (res) => {
+        r.status = res.status;
+        r.adminNotes = res.adminNotes;
+        this.reportActionSubmitting = false;
+        this.showReportActionModal = false;
+        this.toastService.success(`Report #${r.id.substring(0, 8)} successfully marked as ${this.reportActionStatus}.`, 'Report Moderated');
+      },
+      error: (err) => {
+        this.reportActionSubmitting = false;
+        this.toastService.error(err?.error?.message || 'Failed to update report status.');
+      }
     });
   }
 

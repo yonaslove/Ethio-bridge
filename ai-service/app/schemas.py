@@ -106,3 +106,18 @@ class MatchResponse(BaseModel):
     modelVersion: str
     latencyMs: int
     results: List[MatchCandidateResult]
+
+class ModerationScanRequest(BaseModel):
+    text: str
+    contentType: Optional[str] = "GENERAL"  # MESSAGE, LISTING, PROFILE, GENERAL
+    senderUserId: Optional[str] = None
+    targetId: Optional[str] = None
+
+class ModerationScanResponse(BaseModel):
+    flagged: bool
+    riskLevel: str  # LOW, MEDIUM, HIGH, CRITICAL
+    categories: List[str] = []
+    reasons: List[str] = []
+    matchedPatterns: List[str] = []
+    explanation: str = ""
+

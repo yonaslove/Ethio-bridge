@@ -11,4 +11,8 @@ import java.util.UUID;
 public interface ReportRepository extends JpaRepository<Report, UUID> {
     List<Report> findByStatusOrderByCreatedAtDesc(String status);
     List<Report> findAllByOrderByCreatedAtDesc();
+    boolean existsByReportedUserIdAndListingIdAndStatus(UUID reportedUserId, UUID listingId, String status);
+    boolean existsByReportedUserIdAndReasonStartingWithAndStatus(UUID reportedUserId, String reasonPrefix, String status);
+    boolean existsByListingIdAndReasonStartingWithAndStatus(UUID listingId, String reasonPrefix, String status);
 }
+
