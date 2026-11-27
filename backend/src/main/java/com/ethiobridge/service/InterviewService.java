@@ -58,7 +58,7 @@ public class InterviewService {
 
         String meetingLink = (String) request.get("meetingLink");
         if (meetingLink == null || meetingLink.isBlank()) {
-            meetingLink = "https://meet.jit.si/ethiobridge-interview-" + UUID.randomUUID().toString().substring(0, 8);
+            meetingLink = "https://p2p.mirotalk.com/join/ethiobridge-interview-" + UUID.randomUUID().toString().substring(0, 8);
         }
         String locationNotes = (String) request.get("locationNotes");
 

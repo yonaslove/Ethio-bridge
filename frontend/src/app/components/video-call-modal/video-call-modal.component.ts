@@ -263,13 +263,21 @@ export class VideoCallModalComponent implements OnChanges {
     if (changes['roomUrl'] || changes['isOpen']) {
       if (this.isOpen && this.roomUrl) {
         this.loading = true;
-        let fullUrl = this.roomUrl;
+        let fullUrl = this.roomUrl.trim();
         if (!fullUrl.startsWith('http')) {
           fullUrl = 'https://' + fullUrl;
         }
-        if (fullUrl.includes('meet.jit.si') && !fullUrl.includes('#config.')) {
-          fullUrl += '#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false';
+
+        // Automatic conversion of meet.jit.si to p2p.mirotalk.com to bypass X-Frame-Options & frame-ancestors block
+        if (fullUrl.includes('meet.jit.si/')) {
+          const parts = fullUrl.split('meet.jit.si/');
+          const room = (parts[1] || 'ethiobridge-call').split(/[?#]/)[0];
+          fullUrl = `https://p2p.mirotalk.com/join/${room || 'ethiobridge-room'}`;
+        } else if (!fullUrl.includes('p2p.mirotalk.com') && !fullUrl.includes('/join/')) {
+          const clean = fullUrl.replace(/[^a-zA-Z0-9-]/g, '').substring(0, 24);
+          fullUrl = `https://p2p.mirotalk.com/join/${clean || 'ethiobridge-interview'}`;
         }
+
         this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fullUrl);
       } else {
         this.safeUrl = null;
@@ -289,16 +297,30 @@ export class VideoCallModalComponent implements OnChanges {
 
   openInNewWindow(): void {
     if (!this.roomUrl) return;
-    let targetUrl = this.roomUrl;
+    let targetUrl = this.roomUrl.trim();
     if (!targetUrl.startsWith('http')) {
       targetUrl = 'https://' + targetUrl;
+    }
+    if (targetUrl.includes('meet.jit.si/')) {
+      const parts = targetUrl.split('meet.jit.si/');
+      const room = (parts[1] || 'ethiobridge-call').split(/[?#]/)[0];
+      targetUrl = `https://p2p.mirotalk.com/join/${room || 'ethiobridge-room'}`;
     }
     window.open(targetUrl, '_blank', 'noopener,noreferrer,width=1280,height=800');
   }
 
   copyLink(): void {
     if (!this.roomUrl) return;
-    navigator.clipboard.writeText(this.roomUrl).then(() => {
+    let targetUrl = this.roomUrl.trim();
+    if (!targetUrl.startsWith('http')) {
+      targetUrl = 'https://' + targetUrl;
+    }
+    if (targetUrl.includes('meet.jit.si/')) {
+      const parts = targetUrl.split('meet.jit.si/');
+      const room = (parts[1] || 'ethiobridge-call').split(/[?#]/)[0];
+      targetUrl = `https://p2p.mirotalk.com/join/${room || 'ethiobridge-room'}`;
+    }
+    navigator.clipboard.writeText(targetUrl).then(() => {
       this.copied = true;
       setTimeout(() => this.copied = false, 2500);
     });

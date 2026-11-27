@@ -223,7 +223,7 @@ export class MyApplicationsComponent implements OnInit {
   currentPartnerName = '';
 
   joinVideo(iv: any): void {
-    this.currentRoomUrl = iv.meetingLink || ('https://meet.jit.si/ethiobridge-interview-' + (iv.id || 'room'));
+    this.currentRoomUrl = iv.meetingLink || ('https://p2p.mirotalk.com/join/ethiobridge-interview-' + (iv.id || 'room'));
     this.currentRoomTitle = iv.title || 'Job Interview Discussion';
     this.currentPartnerName = iv.employerName || 'Employer';
     this.showVideoModal = true;

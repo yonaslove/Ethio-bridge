@@ -304,7 +304,7 @@ export class ApplicationsReceivedComponent implements OnInit {
   ) {}
 
   openInterviewModal(app: Application): void {
-    const autoRoom = 'https://meet.jit.si/ethiobridge-interview-' + Math.random().toString(36).substring(2, 9);
+    const autoRoom = 'https://p2p.mirotalk.com/join/ethiobridge-interview-' + Math.random().toString(36).substring(2, 9);
     this.selectedApp = app;
     this.interviewForm.title = `Interview for ${this.listing?.title || 'Position'} - ${app.applicantName}`;
     this.interviewForm.meetingLink = autoRoom;

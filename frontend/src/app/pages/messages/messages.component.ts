@@ -1252,7 +1252,7 @@ export class MessagesComponent implements OnInit, OnDestroy {
 
     // Deterministic room name based on thread ID so both parties always join the same live room
     const cleanThreadId = (this.selectedThread.id || 'room').replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
-    this.videoRoomUrl = `https://meet.jit.si/ethiobridge-call-${cleanThreadId}`;
+    this.videoRoomUrl = `https://p2p.mirotalk.com/join/ethiobridge-call-${cleanThreadId}`;
     this.videoTitle = `Live Video Interview: ${this.selectedThread.otherUserName || 'Member'}`;
     this.showVideoModal = true;
 
@@ -1279,7 +1279,7 @@ export class MessagesComponent implements OnInit, OnDestroy {
 
   isVideoInvite(m: any): boolean {
     if (!m || !m.content) return false;
-    return m.content.includes('[Video Interview Room]') || m.content.includes('meet.jit.si');
+    return m.content.includes('[Video Interview Room]') || m.content.includes('mirotalk') || m.content.includes('meet.jit.si');
   }
 
   extractMeetingUrl(content: string): string {
