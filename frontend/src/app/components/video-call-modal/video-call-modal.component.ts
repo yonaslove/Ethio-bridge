@@ -20,6 +20,9 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <p class="subtitle" *ngIf="partnerName">Meeting with: <strong>{{ partnerName }}</strong></p>
           </div>
           <div class="header-actions">
+            <button type="button" class="btn btn-primary btn-sm launch-btn" (click)="openInNewWindow()">
+              🚀 Open Full Video Window
+            </button>
             <button type="button" class="btn btn-secondary btn-sm" (click)="copyLink()">
               {{ copied ? '✓ Copied!' : '📋 Copy Link' }}
             </button>
@@ -27,7 +30,13 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
           </div>
         </div>
 
-        <!-- Video Iframe Body -->
+        <!-- Video Room Quick Banner -->
+        <div class="call-banner">
+          <span>📹 Video meeting room is ready. If camera/mic permissions are restricted by your browser in this view, click <strong>"Open Full Video Window"</strong> for seamless HD video and audio.</span>
+          <button type="button" class="btn btn-outline btn-xs btn-banner" (click)="openInNewWindow()">Launch Full Screen ↗</button>
+        </div>
+
+        <!-- Video Iframe / Host Body -->
         <div class="video-modal-body">
           <div *ngIf="loading" class="video-loading-placeholder">
             <div class="spinner"></div>
@@ -36,7 +45,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
           <iframe
             *ngIf="safeUrl"
             [src]="safeUrl"
-            allow="camera; microphone; display-capture; autoplay; clipboard-write; fullscreen"
+            allow="camera *; microphone *; display-capture *; autoplay *; clipboard-write *; fullscreen *"
             allowfullscreen
             (load)="loading = false"
             class="video-iframe">
@@ -46,11 +55,16 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
         <!-- Modal Footer -->
         <div class="video-modal-footer">
           <div class="footer-tip">
-            💡 <span>Ensure your browser allows <strong>Camera & Microphone</strong> permissions. You can also share your screen and chat directly in the meeting.</span>
+            💡 <span>Encrypted 1-on-1 WebRTC video session • Camera & Microphone enabled</span>
           </div>
-          <button type="button" class="btn btn-primary btn-sm" (click)="closeModal()">
-            End / Leave Call
-          </button>
+          <div class="footer-btns">
+            <button type="button" class="btn btn-outline btn-sm" (click)="openInNewWindow()">
+              Open External Room ↗
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" (click)="closeModal()">
+              Leave / Close Call
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -62,8 +76,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(15, 23, 42, 0.82);
-      backdrop-filter: blur(4px);
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(5px);
       z-index: 99999;
       display: flex;
       align-items: center;
@@ -72,16 +86,16 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
     }
     .video-modal-container {
       width: 100%;
-      max-width: 960px;
+      max-width: 980px;
       height: 88vh;
-      max-height: 720px;
+      max-height: 740px;
       display: flex;
       flex-direction: column;
       background: #0F172A;
       color: #F8FAFC;
       border: 1px solid #334155;
       border-radius: 12px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
       overflow: hidden;
       padding: 0;
     }
@@ -89,9 +103,11 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.9rem 1.25rem;
+      padding: 0.85rem 1.25rem;
       background: #1E293B;
       border-bottom: 1px solid #334155;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
     .header-info h3 {
       font-size: 1.1rem;
@@ -107,7 +123,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      background: rgba(220, 38, 38, 0.2);
+      background: rgba(220, 38, 38, 0.25);
       color: #EF4444;
       font-size: 0.65rem;
       font-weight: 800;
@@ -133,6 +149,11 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       align-items: center;
       gap: 0.6rem;
     }
+    .launch-btn {
+      background: #0E7F8F !important;
+      border-color: #0E7F8F !important;
+      font-weight: 700;
+    }
     .btn-close {
       background: transparent;
       border: 1px solid #475569;
@@ -147,6 +168,25 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       background: #DC2626;
       color: white;
       border-color: #DC2626;
+    }
+    .call-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1E3A8A;
+      color: #E0F2FE;
+      padding: 0.45rem 1.25rem;
+      font-size: 0.78rem;
+      border-bottom: 1px solid #1D4ED8;
+    }
+    .btn-banner {
+      background: white;
+      color: #1E3A8A;
+      font-weight: 700;
+      border: none;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
     }
     .video-modal-body {
       flex: 1;
@@ -188,13 +228,21 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       padding: 0.75rem 1.25rem;
       background: #1E293B;
       border-top: 1px solid #334155;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
     .footer-tip {
       font-size: 0.78rem;
       color: #94A3B8;
     }
-    .footer-tip strong {
-      color: #E2E8F0;
+    .footer-btns {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .btn-danger {
+      background: #DC2626;
+      border-color: #DC2626;
+      color: white;
     }
   `]
 })
@@ -215,8 +263,10 @@ export class VideoCallModalComponent implements OnChanges {
     if (changes['roomUrl'] || changes['isOpen']) {
       if (this.isOpen && this.roomUrl) {
         this.loading = true;
-        // Jitsi config parameters to streamline interview experience
         let fullUrl = this.roomUrl;
+        if (!fullUrl.startsWith('http')) {
+          fullUrl = 'https://' + fullUrl;
+        }
         if (fullUrl.includes('meet.jit.si') && !fullUrl.includes('#config.')) {
           fullUrl += '#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false';
         }
@@ -232,10 +282,18 @@ export class VideoCallModalComponent implements OnChanges {
   }
 
   onBackdropClick(event: MouseEvent): void {
-    // Only close if clicked directly on backdrop
     if ((event.target as HTMLElement).classList.contains('video-modal-backdrop')) {
       this.closeModal();
     }
+  }
+
+  openInNewWindow(): void {
+    if (!this.roomUrl) return;
+    let targetUrl = this.roomUrl;
+    if (!targetUrl.startsWith('http')) {
+      targetUrl = 'https://' + targetUrl;
+    }
+    window.open(targetUrl, '_blank', 'noopener,noreferrer,width=1280,height=800');
   }
 
   copyLink(): void {

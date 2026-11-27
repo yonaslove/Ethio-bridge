@@ -134,14 +134,22 @@ import { ContractItem } from '../../models/models';
 
                   <!-- State: FUNDED -->
                   <ng-container *ngIf="m.status === 'FUNDED'">
-                    <button *ngIf="isProvider(c)"
-                            (click)="openDeliverModal(m, c)"
-                            class="btn btn-primary btn-sm">
-                      {{ i18n.translate('Submit Work / Deliver 📤', 'ስራውን አስረክብ 📤') }}
-                    </button>
-                    <span *ngIf="isSeeker(c)" class="badge-in-progress">
-                      {{ i18n.translate('⏳ Provider In Progress', '⏳ ባለሙያው በመስራት ላይ') }}
-                    </span>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                      <button *ngIf="isProvider(c)"
+                              (click)="openDeliverModal(m, c)"
+                              class="btn btn-primary btn-sm">
+                        {{ i18n.translate('Submit Work / Deliver 📤', 'ስራውን አስረክብ 📤') }}
+                      </button>
+                      <span *ngIf="isSeeker(c)" class="badge-in-progress" style="background: #E0F2FE; color: #0369A1; font-weight: 700; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                        {{ i18n.translate('🔒 Escrow Funded & Locked', '🔒 ክፍያ በታማኝነት ተይዟል') }}
+                      </span>
+                      <button *ngIf="isSeeker(c)"
+                              (click)="releaseMilestone(m, c)"
+                              class="btn btn-primary btn-sm"
+                              style="background: #10B981; border-color: #10B981; color: white; font-weight: 700;">
+                        💰 {{ i18n.translate('Approve & Release Funds', 'ስራውን አጽድቅና ክፍያ ልቀቅ') }}
+                      </button>
+                    </div>
                   </ng-container>
 
                   <!-- State: DELIVERED -->
@@ -1012,6 +1020,12 @@ export class ContractsComponent implements OnInit {
     }
   }
 
+  extractQueryValue(urlOrSearch: string, key: string): string | null {
+    if (!urlOrSearch) return null;
+    const match = urlOrSearch.match(new RegExp('(?:[?&]|&amp;)' + key + '=([^&]+)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
   ngOnInit(): void {
     this.apiService.getPaymentMethods().subscribe({
       next: (methods) => {
@@ -1025,26 +1039,32 @@ export class ContractsComponent implements OnInit {
     this.loadCandidateOptions();
 
     this.route.queryParams.subscribe(params => {
-      if (params['chapa_milestone'] && params['tx_ref']) {
-        const txRef = params['tx_ref'];
-        const rawRail = (params['rail'] || '').toUpperCase();
-        const railName = rawRail === 'TELEBIRR' ? 'Telebirr' : (rawRail === 'CBE_BIRR' ? 'CBE Birr' : 'Payment Gateway');
-        this.toastService.info(`Verifying ${railName} escrow deposit...`, 'Escrow Payment');
+      // Robustly extract tx_ref and chapa_milestone across both clean '&' and Chapa-escaped '&amp;' query params
+      const searchStr = typeof window !== 'undefined' ? (window.location.search || window.location.href) : '';
+      const txRef = params['tx_ref'] || params['amp;tx_ref'] || this.extractQueryValue(searchStr, 'tx_ref');
+      const isMilestonePayment = params['chapa_milestone'] || params['amp;chapa_milestone'] || searchStr.includes('chapa_milestone');
+
+      if (isMilestonePayment && txRef) {
+        const rawRail = (params['rail'] || params['amp;rail'] || this.extractQueryValue(searchStr, 'rail') || '').toUpperCase();
+        const railName = rawRail === 'TELEBIRR' ? 'Telebirr' : (rawRail === 'CBE_BIRR' ? 'CBE Birr' : 'Chapa Gateway');
+        this.toastService.info(`Verifying ${railName} escrow deposit for ${txRef}...`, 'Escrow Payment');
         this.apiService.verifyChapaPayment(txRef).subscribe({
           next: (res) => {
             if (res && res.status === 'SUCCESS') {
               this.toastService.success(
-                `🎉 Payment verified via ${railName}! Escrow milestone of ${res.amount} ETB is now FUNDED and secured in platform escrow.`,
+                `🎉 Payment verified via ${railName}! Escrow milestone is now FUNDED and locked in platform vault.`,
                 'Escrow Funded'
               );
               this.loadContracts();
             } else {
-              this.toastService.warning(`Payment verification is pending or incomplete for ${railName}.`, 'Payment Verification');
+              this.toastService.warning(`Payment verification is pending or incomplete.`, 'Payment Verification');
+              this.loadContracts();
             }
             this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
           },
           error: () => {
-            this.toastService.error(`Failed to verify payment with ${railName}.`, 'Verification Error');
+            // Even if verify errored, reload contracts in case webhook already updated it
+            this.loadContracts();
             this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
           }
         });
