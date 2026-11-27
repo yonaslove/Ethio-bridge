@@ -82,14 +82,7 @@ import { Subscription, interval } from 'rxjs';
                 <span class="item-label">{{ i18n.translate('My Listings', 'የእኔ ማስታወቂያዎች') }}</span>
               </a>
 
-              <!-- Video Interviews (Employer Mode) -->
-              <a
-                routerLink="/listings/my"
-                (click)="onLinkClick()"
-                class="sidebar-item"
-                style="color: #0E7F8F; font-weight: 700;">
-                <span class="item-label">🎥 {{ i18n.translate('Video Interviews', 'የቪዲዮ ቃለ-መጠይቆች') }}</span>
-              </a>
+
 
               <!-- Milestone Escrow & Payments -->
               <a

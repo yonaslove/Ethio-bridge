@@ -1,4 +1,3 @@
-import { VideoCallModalComponent } from '../../components/video-call-modal/video-call-modal.component';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -10,7 +9,7 @@ import { Listing } from '../../models/models';
 @Component({
   selector: 'app-my-listings',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, VideoCallModalComponent],
+  imports: [CommonModule, RouterModule, FormsModule],
   template: `
     <div class="container my-listings-page">
       <div class="flex justify-between items-center" style="margin-bottom: 2rem;">
@@ -18,12 +17,7 @@ import { Listing } from '../../models/models';
           <h1>My Posted Listings</h1>
           <p class="subtitle">Manage and review candidates for your published job openings and gigs</p>
         </div>
-        <div style="display: flex; gap: 0.75rem; align-items: center;">
-          <button type="button" (click)="openQuickVideoModal()" class="btn btn-secondary" style="background: #0E7F8F; border-color: #0E7F8F; color: white; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;">
-            🎥 Instant Video Interview
-          </button>
-          <a routerLink="/listings/new" class="btn btn-primary">+ Post New Listing</a>
-        </div>
+        <a routerLink="/listings/new" class="btn btn-primary">+ Post New Listing</a>
       </div>
 
       <div *ngIf="loading" class="card text-center state-card">
@@ -81,9 +75,6 @@ import { Listing } from '../../models/models';
                   <a [routerLink]="['/listings', l.id, 'applications']" class="btn btn-secondary btn-sm">
                     Applications
                   </a>
-                  <button type="button" (click)="openListingVideo(l)" class="btn btn-sm btn-outline" style="color: #0E7F8F; border-color: #0E7F8F; font-weight: 700;" title="Start Live Video Interview">
-                    🎥 Video Call
-                  </button>
                   <button
                     *ngIf="l.status === 'OPEN' && !l.isFeatured"
                     (click)="promoteToFeatured(l)"
@@ -106,15 +97,6 @@ import { Listing } from '../../models/models';
           </tbody>
         </table>
       </div>
-
-      <!-- In-App Live Video Interview Modal -->
-      <app-video-call-modal
-        [isOpen]="showVideoModal"
-        [roomUrl]="videoRoomUrl"
-        [title]="videoTitle"
-        partnerName="Candidate / Freelancer"
-        (close)="showVideoModal = false">
-      </app-video-call-modal>
 
       <!-- Professional In-App Promotion Modal -->
       <div *ngIf="promoteModalListing" class="modal-backdrop" (click)="closePromoteModal()">
@@ -451,23 +433,6 @@ import { Listing } from '../../models/models';
 })
 export class MyListingsComponent implements OnInit {
   listings: Listing[] = [];
-  showVideoModal = false;
-  videoRoomUrl = '';
-  videoTitle = '';
-
-  openQuickVideoModal(): void {
-    const randomRoom = 'ethiobridge-interview-' + Math.random().toString(36).substring(2, 9);
-    this.videoRoomUrl = `https://meet.jit.si/${randomRoom}`;
-    this.videoTitle = 'Instant Video Interview Session';
-    this.showVideoModal = true;
-  }
-
-  openListingVideo(l: Listing): void {
-    const cleanId = (l.id || 'room').replace(/[^a-zA-Z0-9]/g, '').substring(0, 10);
-    this.videoRoomUrl = `https://meet.jit.si/ethiobridge-listing-${cleanId}`;
-    this.videoTitle = `Video Interview: ${l.title}`;
-    this.showVideoModal = true;
-  }
   loading = false;
 
   // Professional In-App Modal State

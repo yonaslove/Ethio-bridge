@@ -128,7 +128,23 @@ import { ToastService } from '../../services/toast.service';
                     </div>
                   </div>
 
-                  <div *ngIf="!isContractOffer(m)" class="bubble-content">{{ m.content }}</div>
+                  <!-- Video Call Interactive Card -->
+                  <div *ngIf="isVideoInvite(m)" class="video-call-card">
+                    <div class="video-card-top">
+                      <span class="video-card-badge">🎥 {{ i18n.translate('Live 1-on-1 Video Interview', 'የቀጥታ ቪዲዮ ቃለ-መጠይቅ') }}</span>
+                      <span class="video-status-dot">● READY</span>
+                    </div>
+                    <p class="video-card-text">
+                      {{ isMyMessage(m) ? i18n.translate('You started a video interview. Candidate can join below.', 'የቪዲዮ ቃለ-መጠይቅ ጀምረዋል። እጩው ከታች መቀላቀል ይችላል።') : i18n.translate('The employer started a video interview session for you.', 'አሰሪው የቪዲዮ ቃለ-መጠይቅ ጀምሮልዎታል።') }}
+                    </p>
+                    <button type="button"
+                            (click)="openVideoRoom(extractMeetingUrl(m.content))"
+                            class="btn-join-call">
+                      🎥 {{ i18n.translate('Enter Video Interview Room', 'ወደ ቪዲዮ ቃለ-መጠይቁ ግባ') }}
+                    </button>
+                  </div>
+
+                  <div *ngIf="!isContractOffer(m) && !isVideoInvite(m)" class="bubble-content">{{ m.content }}</div>
                   <div class="bubble-meta">
                     <span>{{ m.createdAt | date:'shortTime' }}</span>
                     <span *ngIf="isMyMessage(m)" class="read-status" [title]="(m.read || m.isRead) ? 'Read' : 'Delivered'">
@@ -702,6 +718,56 @@ import { ToastService } from '../../services/toast.service';
       font-weight: 700;
       margin: 0 0 0.4rem 0;
       color: #064E3B;
+    }
+    .video-call-card {
+      background: #0F172A;
+      color: #F8FAFC;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin: 0.35rem 0;
+      min-width: 260px;
+    }
+    .video-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.4rem;
+    }
+    .video-card-badge {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #38BDF8;
+    }
+    .video-status-dot {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #10B981;
+    }
+    .video-card-text {
+      font-size: 0.8rem;
+      color: #CBD5E1;
+      margin: 0 0 0.65rem 0;
+      line-height: 1.35;
+    }
+    .btn-join-call {
+      width: 100%;
+      background: #0E7F8F;
+      color: #FFFFFF;
+      border: none;
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+    }
+    .btn-join-call:hover {
+      background: #0A6370;
     }
     .offer-desc {
       font-size: 0.85rem;
