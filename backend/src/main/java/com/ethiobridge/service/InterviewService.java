@@ -57,6 +57,9 @@ public class InterviewService {
         }
 
         String meetingLink = (String) request.get("meetingLink");
+        if (meetingLink == null || meetingLink.isBlank()) {
+            meetingLink = "https://meet.jit.si/ethiobridge-interview-" + UUID.randomUUID().toString().substring(0, 8);
+        }
         String locationNotes = (String) request.get("locationNotes");
 
         Interview interview = new Interview(applicationId, listingId, employerUserId, candidateUserId, title, scheduledAt, duration, meetingLink);

@@ -1,3 +1,4 @@
+import { VideoCallModalComponent } from '../../components/video-call-modal/video-call-modal.component';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -7,7 +8,7 @@ import { Application } from '../../models/models';
 @Component({
   selector: 'app-my-applications',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, VideoCallModalComponent],
   template: `
     <div class="container my-apps-page">
       <div class="page-header">
@@ -36,9 +37,9 @@ import { Application } from '../../models/models';
                 <span>⏰ {{ iv.scheduledAt | date:'medium' }} ({{ iv.durationMinutes }} min)</span>
               </div>
               <div *ngIf="iv.meetingLink" style="font-size: 0.85rem; margin-top: 0.35rem;">
-                <a [href]="iv.meetingLink" target="_blank" style="color: var(--color-cyan); font-weight: 600;">
-                  🔗 Join Video Meeting / Link
-                </a>
+                <button type="button" (click)="joinVideo(iv)" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; margin-top: 0.35rem; background: #0E7F8F; border-color: #0E7F8F; color: #fff;">
+                  🎥 Join In-App Video Call
+                </button>
               </div>
               <div *ngIf="iv.locationNotes" style="font-size: 0.8rem; color: #555; margin-top: 0.25rem; font-style: italic;">
                 "{{ iv.locationNotes }}"
@@ -121,6 +122,13 @@ import { Application } from '../../models/models';
           </div>
         </div>
       </div>
+      <app-video-call-modal
+        [isOpen]="showVideoModal"
+        [roomUrl]="currentRoomUrl"
+        [title]="currentRoomTitle"
+        [partnerName]="currentPartnerName"
+        (close)="showVideoModal = false">
+      </app-video-call-modal>
     </div>
   `,
   styles: [`
@@ -209,6 +217,17 @@ import { Application } from '../../models/models';
 export class MyApplicationsComponent implements OnInit {
   applications: Application[] = [];
   interviews: any[] = [];
+  showVideoModal = false;
+  currentRoomUrl = '';
+  currentRoomTitle = '';
+  currentPartnerName = '';
+
+  joinVideo(iv: any): void {
+    this.currentRoomUrl = iv.meetingLink || ('https://meet.jit.si/ethiobridge-interview-' + (iv.id || 'room'));
+    this.currentRoomTitle = iv.title || 'Job Interview Discussion';
+    this.currentPartnerName = iv.employerName || 'Employer';
+    this.showVideoModal = true;
+  }
   loading = false;
 
   constructor(private apiService: ApiService) {}

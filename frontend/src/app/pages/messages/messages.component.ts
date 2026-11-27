@@ -1,3 +1,4 @@
+import { VideoCallModalComponent } from '../../components/video-call-modal/video-call-modal.component';
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -11,7 +12,7 @@ import { ToastService } from '../../services/toast.service';
 @Component({
   selector: 'app-messages',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, VideoCallModalComponent],
   template: `
     <div class="container messages-page">
       <div class="messages-header">
@@ -75,6 +76,13 @@ import { ToastService } from '../../services/toast.service';
                 </div>
               </div>
               <div class="chat-actions">
+                <button
+                  type="button"
+                  (click)="startVideoInterview()"
+                  class="btn btn-secondary btn-sm"
+                  style="display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 700; background: #0E7F8F; border-color: #0E7F8F; color: #fff;">
+                  🎥 {{ i18n.translate('Video Interview', 'የቪዲዮ ቃለ-መጠይቅ') }}
+                </button>
                 <a *ngIf="selectedThread.listingId" [routerLink]="['/listings', selectedThread.listingId]" class="btn btn-outline btn-sm">
                   {{ i18n.translate('View Associated Listing', 'የተያያዘውን ስራ ይመልከቱ') }}
                 </a>
@@ -342,7 +350,15 @@ import { ToastService } from '../../services/toast.service';
             </button>
           </div>
         </div>
-      </div>
+      
+      <!-- In-App Live Video Interview Modal -->
+      <app-video-call-modal
+        [isOpen]="showVideoModal"
+        [roomUrl]="videoRoomUrl"
+        [title]="videoTitle"
+        [partnerName]="selectedThread?.otherUserName || ''"
+        (close)="showVideoModal = false">
+      </app-video-call-modal>
     </div>
   `,
   styles: [`

@@ -1,3 +1,4 @@
+import { VideoCallModalComponent } from '../../components/video-call-modal/video-call-modal.component';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule, Router } from '@angular/router';
@@ -9,7 +10,7 @@ import { Application, Listing } from '../../models/models';
 @Component({
   selector: 'app-applications-received',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, VideoCallModalComponent],
   template: `
     <div class="container applications-page">
       <div class="page-top-nav">
@@ -168,6 +169,13 @@ import { Application, Listing } from '../../models/models';
           </div>
         </div>
       </div>
+      <app-video-call-modal
+        [isOpen]="showVideoCallModal"
+        [roomUrl]="activeRoomUrl"
+        [title]="activeRoomTitle"
+        [partnerName]="activePartnerName"
+        (close)="showVideoCallModal = false">
+      </app-video-call-modal>
     </div>
   `,
   styles: [`
@@ -274,6 +282,10 @@ export class ApplicationsReceivedComponent implements OnInit {
   loading = false;
 
   showInterviewModal = false;
+  showVideoCallModal = false;
+  activeRoomUrl = "";
+  activeRoomTitle = "";
+  activePartnerName = "";
   submittingInterview = false;
   selectedApp?: Application;
   interviewForm = {
@@ -292,8 +304,10 @@ export class ApplicationsReceivedComponent implements OnInit {
   ) {}
 
   openInterviewModal(app: Application): void {
+    const autoRoom = 'https://meet.jit.si/ethiobridge-interview-' + Math.random().toString(36).substring(2, 9);
     this.selectedApp = app;
     this.interviewForm.title = `Interview for ${this.listing?.title || 'Position'} - ${app.applicantName}`;
+    this.interviewForm.meetingLink = autoRoom;
     this.showInterviewModal = true;
   }
 
