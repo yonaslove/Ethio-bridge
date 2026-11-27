@@ -441,6 +441,8 @@ public class ContractService {
             normalizedDisputeStatus = "RESOLVED_PROVIDER";
         } else if ("REFUND_SEEKER".equalsIgnoreCase(resolutionAction)) {
             normalizedDisputeStatus = "RESOLVED_SEEKER";
+        } else if ("REOPEN".equalsIgnoreCase(resolutionAction) || "REVERSE".equalsIgnoreCase(resolutionAction) || "RESTORE".equalsIgnoreCase(resolutionAction) || "UNDER_REVIEW".equalsIgnoreCase(status) || "OPEN".equalsIgnoreCase(status)) {
+            normalizedDisputeStatus = "UNDER_REVIEW";
         } else if ("RESOLVED".equalsIgnoreCase(status)) {
             normalizedDisputeStatus = "SETTLED";
         }
@@ -470,6 +472,8 @@ public class ContractService {
                     }
                 }
                 contract.setStatus("COMPLETED");
+            } else if ("REOPEN".equalsIgnoreCase(resolutionAction) || "REVERSE".equalsIgnoreCase(resolutionAction) || "RESTORE".equalsIgnoreCase(resolutionAction) || "UNDER_REVIEW".equalsIgnoreCase(status) || "OPEN".equalsIgnoreCase(status)) {
+                contract.setStatus("DISPUTED");
             } else {
                 contract.setStatus("COMPLETED");
             }

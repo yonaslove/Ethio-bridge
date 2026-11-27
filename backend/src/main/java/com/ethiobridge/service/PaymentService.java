@@ -584,8 +584,18 @@ public class PaymentService {
         PaymentTransaction tx = txOpt.get();
         result.put("foundInDb", true);
 
-        // Ownership Check: Caller must be the transaction owner or an admin
-        if (!isAdmin && requestingUserId != null && !requestingUserId.equals(tx.getUserId())) {
+        // Ownership Check: Caller must be the transaction owner, contract participant, or an admin
+        boolean isContractParty = false;
+        if (tx.getContractId() != null) {
+            Optional<Contract> cOpt = contractRepository.findById(tx.getContractId());
+            if (cOpt.isPresent()) {
+                Contract c = cOpt.get();
+                if (requestingUserId != null && (requestingUserId.equals(c.getSeekerUserId()) || requestingUserId.equals(c.getProviderUserId()))) {
+                    isContractParty = true;
+                }
+            }
+        }
+        if (!isAdmin && !isContractParty && requestingUserId != null && !requestingUserId.equals(tx.getUserId())) {
             log.warn("Access Denied: User {} is not permitted to verify transaction owned by {}", requestingUserId, tx.getUserId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: You do not own this transaction");
         }

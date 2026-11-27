@@ -366,7 +366,8 @@ import { ToastService } from '../../services/toast.service';
             </button>
           </div>
         </div>
-      
+      </div>
+
       <!-- In-App Live Video Interview Modal -->
       <app-video-call-modal
         [isOpen]="showVideoModal"
@@ -930,6 +931,11 @@ export class MessagesComponent implements OnInit, OnDestroy {
   reportDetails = '';
   submittingReport = false;
 
+  // Video Interview Modal state
+  showVideoModal = false;
+  videoRoomUrl = '';
+  videoTitle = '';
+
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
@@ -1236,5 +1242,49 @@ export class MessagesComponent implements OnInit, OnDestroy {
         this.toastService.error('Could not submit report. Please try again.');
       }
     });
+  }
+
+  startVideoInterview(): void {
+    if (!this.selectedThread) {
+      this.toastService.warning('Please select a conversation thread first.');
+      return;
+    }
+
+    // Deterministic room name based on thread ID so both parties always join the same live room
+    const cleanThreadId = (this.selectedThread.id || 'room').replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+    this.videoRoomUrl = `https://meet.jit.si/ethiobridge-call-${cleanThreadId}`;
+    this.videoTitle = `Live Video Interview: ${this.selectedThread.otherUserName || 'Member'}`;
+    this.showVideoModal = true;
+
+    // Send invitation message into thread to notify the provider / other party in real-time
+    const inviteMessage = `🎥 [Video Interview Room] I have started our live video interview room. Please click below to join: ${this.videoRoomUrl}`;
+    this.apiService.sendMessage(this.selectedThread.id, inviteMessage).subscribe({
+      next: (m) => {
+        this.messages.push(m);
+        this.scrollToBottom();
+        this.toastService.success(`Interview invitation sent to ${this.selectedThread.otherUserName}`, 'Video Room Started');
+      },
+      error: () => {
+        // Even if chat notification fails to dispatch, room is still open for the user
+      }
+    });
+  }
+
+  openVideoRoom(url: string): void {
+    if (!url) return;
+    this.videoRoomUrl = url;
+    this.videoTitle = `Live Video Interview: ${this.selectedThread?.otherUserName || 'Member'}`;
+    this.showVideoModal = true;
+  }
+
+  isVideoInvite(m: any): boolean {
+    if (!m || !m.content) return false;
+    return m.content.includes('[Video Interview Room]') || m.content.includes('meet.jit.si');
+  }
+
+  extractMeetingUrl(content: string): string {
+    if (!content) return '';
+    const match = content.match(/https?:\/\/[^\s]+/);
+    return match ? match[0] : '';
   }
 }

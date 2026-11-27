@@ -381,9 +381,14 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                       Dismiss
                     </button>
                   </div>
-                  <span *ngIf="r.status === 'RESOLVED' || r.status === 'DISMISSED'" class="text-muted small">
-                    {{ r.adminNotes || 'Completed' }}
-                  </span>
+                  <div *ngIf="r.status === 'RESOLVED' || r.status === 'DISMISSED'" style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; flex-wrap: wrap;">
+                    <span class="text-muted small">
+                      {{ r.adminNotes || 'Completed' }}
+                    </span>
+                    <button type="button" (click)="reverseReport(r)" class="btn btn-outline btn-xs" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; color: #4B5563; border-color: #D1D5DB; display: inline-flex; align-items: center; gap: 0.25rem;" title="Reverse resolution and restore to active moderation queue">
+                      ↩️ Reverse / Reopen
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -444,9 +449,14 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                       Refund Seeker
                     </button>
                   </div>
-                  <span *ngIf="isDisputeResolved(d.status)" class="text-muted small">
-                    {{ d.adminResolution || 'Settled' }}
-                  </span>
+                  <div *ngIf="isDisputeResolved(d.status)" style="display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; flex-wrap: wrap;">
+                    <span class="text-muted small">
+                      {{ d.adminResolution || 'Settled' }}
+                    </span>
+                    <button type="button" (click)="reverseDispute(d)" class="btn btn-outline btn-xs" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; color: #4B5563; border-color: #D1D5DB; display: inline-flex; align-items: center; gap: 0.25rem;" title="Reverse mediation decision and restore dispute under review">
+                      ↩️ Reverse / Reopen
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -1730,6 +1740,43 @@ export class AdminComponent implements OnInit {
       },
       error: (err) => {
         alert(`Dispute resolution failed: ${err?.error?.message || 'Error executing action'}`);
+      }
+    });
+  }
+
+  reverseReport(r: any): void {
+    if (!r) return;
+    if (!confirm(`Are you sure you want to reverse the resolution for Report #${r.id ? r.id.substring(0, 8) : ''} and restore it to active investigation?`)) {
+      return;
+    }
+    this.apiService.resolveReport(r.id, 'PENDING', 'Resolution reversed by administrator; restored to active investigation.').subscribe({
+      next: (res) => {
+        r.status = res.status;
+        r.adminNotes = res.adminNotes;
+        this.loadReports();
+        this.toastService.success(`Report status reversed and restored to active moderation queue.`, 'Status Reversed');
+      },
+      error: (err) => {
+        this.toastService.error(err?.error?.message || 'Failed to reverse report status.');
+      }
+    });
+  }
+
+  reverseDispute(d: any): void {
+    if (!d) return;
+    if (!confirm(`Are you sure you want to reverse the mediation decision for Dispute #${d.id ? d.id.substring(0, 8) : ''} and reopen it for review?`)) {
+      return;
+    }
+    this.apiService.resolveDispute(d.id, 'UNDER_REVIEW', 'Mediation decision reversed by administrator; reopened for active review.', 'REOPEN').subscribe({
+      next: (res) => {
+        d.status = res.status;
+        d.adminResolution = res.adminResolution;
+        this.loadDisputes();
+        this.loadMonetizationStats();
+        this.toastService.success(`Dispute decision reversed and reopened under review.`, 'Dispute Restored');
+      },
+      error: (err) => {
+        this.toastService.error(err?.error?.message || 'Failed to reverse dispute decision.');
       }
     });
   }
