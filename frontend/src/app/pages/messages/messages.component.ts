@@ -1256,6 +1256,9 @@ export class MessagesComponent implements OnInit, OnDestroy {
     this.videoTitle = `Live Video Interview: ${this.selectedThread.otherUserName || 'Member'}`;
     this.showVideoModal = true;
 
+    // Immediately launch full HD video window on direct user click
+    window.open(this.videoRoomUrl, '_blank', 'noopener,noreferrer,width=1280,height=800');
+
     // Send invitation message into thread to notify the provider / other party in real-time
     const inviteMessage = `🎥 [Video Interview Room] I have started our live video interview room. Please click below to join: ${this.videoRoomUrl}`;
     this.apiService.sendMessage(this.selectedThread.id, inviteMessage).subscribe({
@@ -1272,9 +1275,18 @@ export class MessagesComponent implements OnInit, OnDestroy {
 
   openVideoRoom(url: string): void {
     if (!url) return;
-    this.videoRoomUrl = url;
+    let targetUrl = url.trim();
+    if (targetUrl.includes('meet.jit.si/')) {
+      const parts = targetUrl.split('meet.jit.si/');
+      const room = (parts[1] || 'ethiobridge-call').split(/[?#]/)[0];
+      targetUrl = `https://p2p.mirotalk.com/join/${room || 'ethiobridge-room'}`;
+    }
+    this.videoRoomUrl = targetUrl;
     this.videoTitle = `Live Video Interview: ${this.selectedThread?.otherUserName || 'Member'}`;
     this.showVideoModal = true;
+
+    // Immediately launch full HD video window on user click
+    window.open(targetUrl, '_blank', 'noopener,noreferrer,width=1280,height=800');
   }
 
   isVideoInvite(m: any): boolean {
