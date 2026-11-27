@@ -319,6 +319,7 @@ export interface UserVerificationStatus {
   idNumber: string;
   phoneNumber: string;
   documentUrl?: string;
+  documentBackUrl?: string;
   selfieUrl?: string;
   aiScore?: number;
   aiVerdict?: string;

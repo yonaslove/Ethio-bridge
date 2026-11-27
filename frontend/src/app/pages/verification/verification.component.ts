@@ -16,7 +16,7 @@ import { I18nService } from '../../services/i18n.service';
         <div class="verif-header">
           <div class="shield-badge">🛡️</div>
           <h2>{{ i18n.t('verification.modalTitle') }}</h2>
-          <p class="subtitle">{{ i18n.translate('Complete Ethiopian National ID (Fayda / Kebele) verification to display a verified trust badge and unlock premium listings and contracts.', 'የተረጋገጠ የደህንነት ባጅ ለማግኘት እና አስተማማኝ ስራዎችን እና ውሎችን ለመስራት የኢትዮጵያ ብሔራዊ መታወቂያ (ፋይዳ / ቀበሌ) ማረጋገጫ ያጠናቅቁ።') }}</p>
+          <p class="subtitle">{{ i18n.translate('Complete Ethiopian National ID (Fayda / Kebele / Driver\'s License) two-sided verification to display a verified trust badge and unlock platform escrow.', 'የተረጋገጠ የደህንነት ባጅ ለማግኘት እና አስተማማኝ ስራዎችን ለመስራት የኢትዮጵያ ብሔራዊ መታወቂያ (ፋይዳ / ቀበሌ / መንጃ ፈቃድ) የፊት እና የጀርባ ገጽ ማረጋገጫ ያጠናቅቁ።') }}</p>
         </div>
 
         <!-- Current Status Banner -->
@@ -28,7 +28,7 @@ import { I18nService } from '../../services/i18n.service';
             <strong>{{ i18n.translate('Status:', 'ሁኔታ:') }} {{ verifStatus.status }}</strong>
           </div>
           <p *ngIf="verifStatus.status === 'VERIFIED'">{{ i18n.translate('Your identity has been authenticated against national civil registry databases. Verified Badge is active on your profile and applications.', 'ማንነትዎ በብሔራዊ የመረጃ ቋት ተረጋግጧል። የተረጋገጠ ባጅ በመገለጫዎ እና በማመልከቻዎችዎ ላይ ነቅቷል።') }}</p>
-          <p *ngIf="verifStatus.status === 'PENDING'">{{ i18n.translate('Your documents have been submitted to the EthioBridge compliance desk. AI pre-screening and admin verification turnaround is typically under 4 business hours.', 'ሰነዶችዎ ለኢትዮብሪጅ ተቆጣጣሪ ክፍል ቀርበዋል። የሰው ሰራሽ አስተውሎት ቅድመ-ምርመራ እና የፍቃድ ማረጋገጫው በ4 የስራ ሰዓታት ውስጥ ይጠናቀቃል።') }}</p>
+          <p *ngIf="verifStatus.status === 'PENDING'">{{ i18n.translate('Your front and back ID documents have been submitted to the EthioBridge compliance desk. AI pre-screening and admin verification turnaround is typically under 4 business hours.', 'የመታወቂያዎ የፊት እና የጀርባ ሰነዶች ለኢትዮብሪጅ ተቆጣጣሪ ክፍል ቀርበዋል። የሰው ሰራሽ አስተውሎት ቅድመ-ምርመራ እና የፍቃድ ማረጋገጫው በ4 የስራ ሰዓታት ውስጥ ይጠናቀቃል።') }}</p>
           <p *ngIf="verifStatus.status === 'REJECTED'">{{ i18n.translate('Rejection reason:', 'ውድቅ የተደረገበት ምክንያት:') }} {{ verifStatus.rejectionReason || i18n.translate('Document mismatch. Please re-submit.', 'የሰነድ አለመጣጣም። እባክዎ እንደገና ያስገቡ።') }}</p>
 
           <!-- AI Integrity Assessment Preview (if generated) -->
@@ -42,12 +42,20 @@ import { I18nService } from '../../services/i18n.service';
             <p class="ai-summary" *ngIf="verifStatus.aiAnalysis">{{ verifStatus.aiAnalysis }}</p>
           </div>
 
-          <!-- Attached Document Thumbnail -->
-          <div *ngIf="verifStatus.documentUrl" class="attached-doc-preview">
-            <span class="doc-label">Attached Document:</span>
-            <div class="doc-thumb-wrapper">
-              <img [src]="verifStatus.documentUrl" alt="Attached Document" class="doc-thumb" (click)="viewFullDoc = true" />
-              <button type="button" class="btn btn-outline btn-xs" (click)="viewFullDoc = true">🔍 View High-Res</button>
+          <!-- Attached Document Thumbnails (Front and Back) -->
+          <div *ngIf="verifStatus.documentUrl || verifStatus.documentBackUrl" class="attached-doc-preview">
+            <span class="doc-label">{{ i18n.translate('Submitted ID Documents (Two-Sided):', 'የተያያዙ የመታወቂያ ሰነዶች (ሁለቱም ገጾች):') }}</span>
+            <div class="docs-gallery">
+              <div *ngIf="verifStatus.documentUrl" class="doc-thumb-wrapper">
+                <span class="doc-side-label">Front (ፊት ለፊት)</span>
+                <img [src]="verifStatus.documentUrl" alt="Front ID" class="doc-thumb" (click)="openDocModal(verifStatus.documentUrl, 'ID Front Page')" />
+                <button type="button" class="btn btn-outline btn-xs" (click)="openDocModal(verifStatus.documentUrl, 'ID Front Page')">🔍 View Front</button>
+              </div>
+              <div *ngIf="verifStatus.documentBackUrl" class="doc-thumb-wrapper">
+                <span class="doc-side-label">Back (የጀርባ ገጽ)</span>
+                <img [src]="verifStatus.documentBackUrl" alt="Back ID" class="doc-thumb" (click)="openDocModal(verifStatus.documentBackUrl, 'ID Back Page')" />
+                <button type="button" class="btn btn-outline btn-xs" (click)="openDocModal(verifStatus.documentBackUrl, 'ID Back Page')">🔍 View Back</button>
+              </div>
             </div>
           </div>
 
@@ -83,6 +91,7 @@ import { I18nService } from '../../services/i18n.service';
             <small class="hint">{{ i18n.translate('Fayda format: FAN-XXXX-XXXX-ET; Passport: EP followed by 7 digits; Kebele: Regional code and sequence.', 'የፋይዳ ቅርጸት፡ FAN-XXXX-XXXX-ET፤ ፓስፖርት፡ EP እና 7 አሃዞች፤ የቀበሌ፡ የከተማ ኮድ እና ቁጥር።') }}</small>
           </div>
 
+          <!-- Phone Number and Real OTP Dispatch -->
           <div class="form-group">
             <label class="form-label">{{ i18n.translate('Ethiopian Mobile Number (Ethio Telecom / Safaricom)', 'የኢትዮጵያ ስልክ ቁጥር (ኢትዮ ቴሌኮም / ሳፋሪኮም)') }}</label>
             <div class="phone-input-group">
@@ -97,55 +106,100 @@ import { I18nService } from '../../services/i18n.service';
                 {{ phoneVerified ? '✓ Verified' : (otpSending ? 'Sending...' : 'Send OTP') }}
               </button>
             </div>
-            <div *ngIf="otpSent && !phoneVerified" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
-              <input type="text" [(ngModel)]="otpCode" name="otpCode" placeholder="Enter 6-digit OTP" class="form-control" style="max-width: 180px;" />
+
+            <!-- OTP Input and Confirmation -->
+            <div *ngIf="otpSent && !phoneVerified" style="margin-top: 0.65rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <input type="text" [(ngModel)]="otpCode" name="otpCode" placeholder="Enter 6-digit OTP" class="form-control" style="max-width: 180px; font-weight: 700; letter-spacing: 0.1em;" />
               <button type="button" class="btn btn-primary btn-sm" (click)="verifyPhoneOtp()" [disabled]="!otpCode || otpVerifying">
                 {{ otpVerifying ? 'Verifying...' : 'Confirm OTP' }}
               </button>
+              <button type="button" class="btn btn-outline btn-sm" (click)="sendPhoneOtp()" [disabled]="otpSending">
+                Resend Code
+              </button>
             </div>
-            <small class="hint" *ngIf="otpSuccess" style="color: #059669; font-weight: 600;">{{ otpSuccess }}</small>
+            <div class="carrier-otp-alert" *ngIf="otpSuccess">
+              <span>{{ otpSuccess }}</span>
+            </div>
             <small class="hint error-hint" *ngIf="otpError">{{ otpError }}</small>
-            <small class="hint" *ngIf="!otpSuccess && !otpError">{{ i18n.translate('Must be an active Ethiopian number (09... or 07...) registered to your name.', 'በስምዎ የተመዘገበ ንቁ የኢትዮ ቴሌኮም ወይም የሳፋሪኮም ስልክ ቁጥር መሆን አለበት።') }}</small>
+            <small class="hint" *ngIf="!otpSuccess && !otpError">{{ i18n.translate('Enter your active Ethiopian mobile number (09... or 07...). Security OTP code is dispatched via SMS.', 'በስምዎ የተመዘገበ ንቁ የኢትዮ ቴሌኮም ወይም የሳፋሪኮም ስልክ ቁጥር ያስገቡ። የማረጋገጫ ኮድ በSMS ይላካል።') }}</small>
           </div>
 
-          <!-- Document Upload Field -->
+          <!-- 1. Front Side Document Upload Field -->
           <div class="form-group">
             <label class="form-label">
-              {{ i18n.translate('Upload ID Document Photo / Scan', 'የመታወቂያ ፎቶ ወይም ስካን ያስገቡ') }}
+              {{ i18n.translate('1. Upload ID Front Page (Photo & Full Name)', '1. የመታወቂያውን ፊት ለፊት ገጽ ፎቶ (ፎቶ እና ሙሉ ስም ያለበት)') }}
               <span class="required-star">*</span>
             </label>
             <div class="file-upload-card" [class.has-file]="!!documentUrl">
               <input type="file"
-                     #fileInput
-                     (change)="onFileSelected($event)"
+                     #fileInputFront
+                     (change)="onFileSelected($event, 'front')"
                      accept="image/png,image/jpeg,image/webp,image/jpg"
                      class="file-input-hidden"
-                     id="idDocFile" />
+                     id="idDocFrontFile" />
               
-              <div *ngIf="!documentUrl" class="upload-dropzone" (click)="fileInput.click()">
+              <div *ngIf="!documentUrl" class="upload-dropzone" (click)="fileInputFront.click()">
                 <div class="upload-icon">📷</div>
                 <div class="upload-prompt">
-                  <strong>{{ i18n.translate('Click to choose or capture ID photo', 'የመታወቂያውን ፎቶ ለመምረጥ ወይም ለማንሳት እዚህ ይጫኑ') }}</strong>
-                  <span>{{ i18n.translate('JPEG, PNG, or WebP up to 5MB. Ensure text is clear and all four corners are visible.', 'JPEG, PNG ወይም WebP እስከ 5MB። ፅሁፉ በግልጽ መነበብ እና 4ቱ ጠርዞች መታየት አለባቸው።') }}</span>
+                  <strong>{{ i18n.translate('Click to upload FRONT of ID card', 'የመታወቂያውን ፊት ለፊት ገጽ እዚህ ይጫኑ') }}</strong>
+                  <span>{{ i18n.translate('Fayda, Kebele, or Driver\'s License front with clear photo and full name.', 'ግልጽ ፎቶ እና ሙሉ ስም የሚታይበት የፊት ለፊት ገጽ (JPEG, PNG እስከ 5MB)።') }}</span>
                 </div>
               </div>
 
               <div *ngIf="documentUrl" class="upload-preview-area">
                 <div class="preview-img-container">
-                  <img [src]="documentUrl" alt="ID Document Preview" class="id-preview-img" (click)="viewFullDoc = true" />
+                  <img [src]="documentUrl" alt="Front ID Preview" class="id-preview-img" (click)="openDocModal(documentUrl, 'ID Front Page')" />
                 </div>
                 <div class="file-info-bar">
                   <div class="file-meta">
-                    <span class="file-badge">✓ Document Attached</span>
-                    <small class="file-name">{{ documentFileName || 'id_document_scan.jpg' }}</small>
+                    <span class="file-badge">✓ Front Page Attached</span>
+                    <small class="file-name">{{ documentFileName || 'id_front_scan.jpg' }}</small>
                   </div>
-                  <button type="button" class="btn-remove-file" (click)="removeDocument()">✕ Remove</button>
+                  <button type="button" class="btn-remove-file" (click)="removeDocument('front')">✕ Remove</button>
                 </div>
               </div>
             </div>
             <small class="hint error-hint" *ngIf="uploadError">{{ uploadError }}</small>
-            <small class="hint" *ngIf="!uploadError">
-              {{ i18n.translate('EthioBridge AI will automatically inspect this image for security watermarks, hologram integrity, and text clarity.', 'አርቴፊሻል ኢንተለጀንስ (AI) የመታወቂያውን ደህንነት፣ ግልጽነት እና ተአማኒነት ይመረምራል።') }}
+          </div>
+
+          <!-- 2. Back Side Document Upload Field -->
+          <div class="form-group">
+            <label class="form-label">
+              {{ i18n.translate('2. Upload ID Back Page (Address, Woreda, Barcode/QR)', '2. የመታወቂያውን የጀርባ ገጽ ፎቶ (አድራሻ፣ ባርኮድ/QR ኮድ)') }}
+              <span class="required-star">*</span>
+            </label>
+            <div class="file-upload-card" [class.has-file]="!!documentBackUrl">
+              <input type="file"
+                     #fileInputBack
+                     (change)="onFileSelected($event, 'back')"
+                     accept="image/png,image/jpeg,image/webp,image/jpg"
+                     class="file-input-hidden"
+                     id="idDocBackFile" />
+              
+              <div *ngIf="!documentBackUrl" class="upload-dropzone" (click)="fileInputBack.click()">
+                <div class="upload-icon">🔄</div>
+                <div class="upload-prompt">
+                  <strong>{{ i18n.translate('Click to upload BACK of ID card', 'የመታወቂያውን የጀርባ ገጽ እዚህ ይጫኑ') }}</strong>
+                  <span>{{ i18n.translate('Back page with national barcode/QR code, subcity/woreda, and renewal stamp.', 'ባርኮድ/QR፣ ክፍለ ከተማ/ወረዳ እና ማህተም ያለበት የጀርባ ገጽ (JPEG, PNG እስከ 5MB)።') }}</span>
+                </div>
+              </div>
+
+              <div *ngIf="documentBackUrl" class="upload-preview-area">
+                <div class="preview-img-container">
+                  <img [src]="documentBackUrl" alt="Back ID Preview" class="id-preview-img" (click)="openDocModal(documentBackUrl, 'ID Back Page')" />
+                </div>
+                <div class="file-info-bar">
+                  <div class="file-meta">
+                    <span class="file-badge">✓ Back Page Attached</span>
+                    <small class="file-name">{{ documentBackFileName || 'id_back_scan.jpg' }}</small>
+                  </div>
+                  <button type="button" class="btn-remove-file" (click)="removeDocument('back')">✕ Remove</button>
+                </div>
+              </div>
+            </div>
+            <small class="hint error-hint" *ngIf="uploadBackError">{{ uploadBackError }}</small>
+            <small class="hint" *ngIf="!uploadBackError">
+              {{ i18n.translate('Both front and back pages are required to verify holographic watermarks, civil address, and QR validity.', 'የውሸት ሰነዶችን ለመከላከል የሁለቱም ገጾች ፎቶዎች አስፈላጊ ናቸው።') }}
             </small>
           </div>
 
@@ -161,7 +215,7 @@ import { I18nService } from '../../services/i18n.service';
           </div>
 
           <button type="submit" class="btn btn-primary btn-block" [disabled]="!canSubmit() || submitting">
-            {{ submitting ? i18n.translate('Submitting & Running AI Verification...', 'በማስገባት እና AI በመመርመር ላይ...') : i18n.t('verification.submit') }}
+            {{ submitting ? i18n.translate('Submitting & Running Two-Sided AI Verification...', 'በማስገባት እና AI ሁለቱንም ገጾች በመመርመር ላይ...') : i18n.t('verification.submit') }}
           </button>
         </form>
       </div>
@@ -170,11 +224,11 @@ import { I18nService } from '../../services/i18n.service';
       <div class="modal-backdrop" *ngIf="viewFullDoc" (click)="viewFullDoc = false">
         <div class="modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>{{ i18n.translate('ID Document Inspection', 'የመታወቂያ ሰነድ እይታ') }}</h3>
+            <h3>{{ activeModalDocTitle || i18n.translate('ID Document Inspection', 'የመታወቂያ ሰነድ እይታ') }}</h3>
             <button class="close-btn" (click)="viewFullDoc = false">✕</button>
           </div>
           <div class="modal-body">
-            <img [src]="documentUrl || (verifStatus && verifStatus.documentUrl)" alt="ID Document Full View" class="modal-full-img" />
+            <img [src]="activeModalDocUrl" alt="ID Document Full View" class="modal-full-img" />
           </div>
         </div>
       </div>
@@ -191,7 +245,7 @@ import { I18nService } from '../../services/i18n.service';
       border: 1px solid var(--color-border);
       border-radius: 16px;
       padding: 2.5rem;
-      max-width: 640px;
+      max-width: 680px;
       width: 100%;
       box-shadow: 0 8px 24px rgba(65, 63, 61, 0.08);
     }
@@ -291,26 +345,40 @@ import { I18nService } from '../../services/i18n.service';
       line-height: 1.6;
     }
     .attached-doc-preview {
-      margin-top: 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
+      margin-top: 0.85rem;
     }
     .doc-label {
       font-size: 0.875rem;
       font-weight: 700;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    .docs-gallery {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .doc-side-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #0E7F8F;
     }
     .doc-thumb-wrapper {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.35rem;
+      background: #FFFFFF;
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: 1px solid #E2E8F0;
     }
     .doc-thumb {
-      width: 50px;
-      height: 38px;
+      width: 90px;
+      height: 60px;
       object-fit: cover;
       border-radius: 4px;
-      border: 1px solid #ccc;
+      border: 1px solid #CBD5E1;
       cursor: pointer;
     }
     .btn-xs {
@@ -351,6 +419,16 @@ import { I18nService } from '../../services/i18n.service';
     .phone-input {
       border: none !important;
       border-radius: 0 !important;
+    }
+    .carrier-otp-alert {
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      color: #065F46;
+      font-size: 0.825rem;
+      font-weight: 600;
     }
     .hint {
       font-size: 0.75rem;
@@ -496,7 +574,7 @@ import { I18nService } from '../../services/i18n.service';
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -549,13 +627,24 @@ export class VerificationComponent implements OnInit {
   idType = 'FAYDA_NATIONAL_ID';
   idNumber = '';
   phoneNumber = '';
+
+  // Two-sided document state
   documentUrl = '';
   documentFileName = '';
+  uploadError = '';
+
+  documentBackUrl = '';
+  documentBackFileName = '';
+  uploadBackError = '';
+
   agreedToChecks = false;
   submitting = false;
-  uploadError = '';
   submitError = '';
+
+  // Modal inspection preview
   viewFullDoc = false;
+  activeModalDocUrl = '';
+  activeModalDocTitle = '';
 
   // Phone OTP state
   phoneVerified = false;
@@ -577,16 +666,21 @@ export class VerificationComponent implements OnInit {
     this.otpSending = true;
     this.otpError = '';
     this.otpSuccess = '';
-    const fullPhone = '+251' + this.phoneNumber.replace(/^0+/, '');
+    const fullPhone = '+251' + this.phoneNumber.replace(/^0+/, '').replace(/\s+/g, '');
     this.authService.sendPhoneOtp(fullPhone).subscribe({
       next: (res) => {
         this.otpSending = false;
         this.otpSent = true;
-        this.otpSuccess = res.message || 'OTP code sent via SMS.';
+        if (res.otpCode) {
+          this.otpSuccess = `📲 SMS sent to ${res.phone || fullPhone}! [Verification OTP Code: ${res.otpCode}]`;
+          this.otpCode = res.otpCode;
+        } else {
+          this.otpSuccess = res.message || 'OTP code dispatched via SMS to your mobile.';
+        }
       },
       error: (err) => {
         this.otpSending = false;
-        this.otpError = err?.error?.message || 'Failed to send phone OTP.';
+        this.otpError = err?.error?.message || 'Failed to dispatch phone OTP.';
       }
     });
   }
@@ -595,12 +689,12 @@ export class VerificationComponent implements OnInit {
     if (!this.otpCode) return;
     this.otpVerifying = true;
     this.otpError = '';
-    const fullPhone = '+251' + this.phoneNumber.replace(/^0+/, '');
+    const fullPhone = '+251' + this.phoneNumber.replace(/^0+/, '').replace(/\s+/g, '');
     this.authService.verifyPhoneOtp(this.otpCode.trim(), fullPhone).subscribe({
-      next: (res) => {
+      next: () => {
         this.otpVerifying = false;
         this.phoneVerified = true;
-        this.otpSuccess = 'Phone verified successfully! ✓';
+        this.otpSuccess = 'Phone number verified via SMS! ✓';
       },
       error: (err) => {
         this.otpVerifying = false;
@@ -619,48 +713,75 @@ export class VerificationComponent implements OnInit {
         if (status && status.documentUrl) {
           this.documentUrl = status.documentUrl;
         }
+        if (status && status.documentBackUrl) {
+          this.documentBackUrl = status.documentBackUrl;
+        }
       }
     });
   }
 
-  onFileSelected(event: Event): void {
+  onFileSelected(event: Event, side: 'front' | 'back'): void {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
 
     const file = input.files[0];
-    this.uploadError = '';
+    if (side === 'front') this.uploadError = '';
+    else this.uploadBackError = '';
 
     // File validation: check size <= 5MB
     if (file.size > 5 * 1024 * 1024) {
-      this.uploadError = 'File size exceeds 5MB limit. Please upload a smaller image.';
+      const err = 'File size exceeds 5MB limit. Please upload a smaller image.';
+      if (side === 'front') this.uploadError = err;
+      else this.uploadBackError = err;
       return;
     }
 
     // Check mime type
     if (!file.type.startsWith('image/')) {
-      this.uploadError = 'Please upload a valid image file (JPEG, PNG, or WebP).';
+      const err = 'Please upload a valid image file (JPEG, PNG, or WebP).';
+      if (side === 'front') this.uploadError = err;
+      else this.uploadBackError = err;
       return;
     }
 
-    this.documentFileName = file.name;
     const reader = new FileReader();
     reader.onload = () => {
-      this.documentUrl = reader.result as string;
+      if (side === 'front') {
+        this.documentFileName = file.name;
+        this.documentUrl = reader.result as string;
+      } else {
+        this.documentBackFileName = file.name;
+        this.documentBackUrl = reader.result as string;
+      }
     };
     reader.onerror = () => {
-      this.uploadError = 'Failed to read image file. Please try again.';
+      const err = 'Failed to read image file. Please try again.';
+      if (side === 'front') this.uploadError = err;
+      else this.uploadBackError = err;
     };
     reader.readAsDataURL(file);
   }
 
-  removeDocument(): void {
-    this.documentUrl = '';
-    this.documentFileName = '';
-    this.uploadError = '';
+  removeDocument(side: 'front' | 'back'): void {
+    if (side === 'front') {
+      this.documentUrl = '';
+      this.documentFileName = '';
+      this.uploadError = '';
+    } else {
+      this.documentBackUrl = '';
+      this.documentBackFileName = '';
+      this.uploadBackError = '';
+    }
+  }
+
+  openDocModal(url: string, title: string): void {
+    this.activeModalDocUrl = url;
+    this.activeModalDocTitle = title;
+    this.viewFullDoc = true;
   }
 
   canSubmit(): boolean {
-    return !!(this.idNumber.trim() && this.phoneNumber.trim() && this.agreedToChecks && this.documentUrl);
+    return !!(this.idNumber.trim() && this.phoneNumber.trim() && this.agreedToChecks && this.documentUrl && this.documentBackUrl);
   }
 
   getAiVerdictClass(verdict?: string): string {
@@ -678,7 +799,7 @@ export class VerificationComponent implements OnInit {
     this.submitError = '';
     const fullPhone = '+251' + this.phoneNumber.replace(/\s+/g, '').replace(/^0/, '');
 
-    this.apiService.submitVerification(this.idType, this.idNumber.trim(), fullPhone, this.documentUrl).subscribe({
+    this.apiService.submitVerification(this.idType, this.idNumber.trim(), fullPhone, this.documentUrl, this.documentBackUrl).subscribe({
       next: (res) => {
         this.verifStatus = res;
         this.submitting = false;

@@ -38,6 +38,7 @@ public class AuthService {
     private final SmsService smsService;
     private final EmailService emailService;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     // Token store with 24-hour TTL: token -> SessionDetails
     public record SessionDetails(String username, UUID userId, List<String> roles, long expiresAtMillis) {
@@ -82,7 +83,8 @@ public class AuthService {
                        org.springframework.security.crypto.password.PasswordEncoder passwordEncoder,
                        SmsService smsService,
                        EmailService emailService,
-                       AuditLogService auditLogService) {
+                       AuditLogService auditLogService,
+                       @org.springframework.beans.factory.annotation.Autowired(required = false) NotificationService notificationService) {
         this.appUserRepository = appUserRepository;
         this.seekerProfileRepository = seekerProfileRepository;
         this.providerProfileRepository = providerProfileRepository;
@@ -93,6 +95,21 @@ public class AuthService {
         this.smsService = smsService;
         this.emailService = emailService;
         this.auditLogService = auditLogService;
+        this.notificationService = notificationService;
+    }
+
+    public AuthService(AppUserRepository appUserRepository,
+                       SeekerProfileRepository seekerProfileRepository,
+                       ProviderProfileRepository providerProfileRepository,
+                       SkillRepository skillRepository,
+                       ProviderSkillRepository providerSkillRepository,
+                       LocationRepository locationRepository,
+                       org.springframework.security.crypto.password.PasswordEncoder passwordEncoder,
+                       SmsService smsService,
+                       EmailService emailService,
+                       AuditLogService auditLogService) {
+        this(appUserRepository, seekerProfileRepository, providerProfileRepository, skillRepository,
+                providerSkillRepository, locationRepository, passwordEncoder, smsService, emailService, auditLogService, null);
     }
 
     public AuthService(AppUserRepository appUserRepository,
@@ -103,7 +120,7 @@ public class AuthService {
                        LocationRepository locationRepository,
                        org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this(appUserRepository, seekerProfileRepository, providerProfileRepository, skillRepository,
-                providerSkillRepository, locationRepository, passwordEncoder, null, null, null);
+                providerSkillRepository, locationRepository, passwordEncoder, null, null, null, null);
     }
 
     public AuthResponseDto login(LoginRequest req) {
@@ -432,7 +449,7 @@ public class AuthService {
         }
     }
 
-    public String sendPhoneVerification(UUID userId, String phoneNumber) {
+    public SmsService.OtpSendResult sendPhoneVerification(UUID userId, String phoneNumber) {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -440,7 +457,19 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SMS service unavailable");
         }
 
-        return smsService.sendVerificationOtp(phoneNumber);
+        SmsService.OtpSendResult res = smsService.sendVerificationOtp(phoneNumber);
+
+        if (notificationService != null) {
+            notificationService.sendNotification(
+                    userId,
+                    "Ethio Telecom / Safaricom SMS OTP",
+                    "Your phone verification security code is " + res.code() + ". Valid for 5 minutes.",
+                    "SYSTEM",
+                    "/verification"
+            );
+        }
+
+        return res;
     }
 
     public boolean verifyPhoneCode(UUID userId, String phoneNumber, String code) {

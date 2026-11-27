@@ -135,8 +135,8 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/reset-password`, { token, newPassword });
   }
 
-  public sendPhoneOtp(phoneNumber?: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/send-phone-otp`, { phoneNumber }, { headers: this.getAuthHeaders() });
+  public sendPhoneOtp(phoneNumber?: string): Observable<{ message: string; otpCode?: string; phone?: string; liveDispatched?: boolean }> {
+    return this.http.post<{ message: string; otpCode?: string; phone?: string; liveDispatched?: boolean }>(`${this.apiBaseUrl}/auth/send-phone-otp`, { phoneNumber }, { headers: this.getAuthHeaders() });
   }
 
   public verifyPhoneOtp(code: string, phoneNumber?: string): Observable<{ verified: boolean; message: string }> {

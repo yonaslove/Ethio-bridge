@@ -405,9 +405,11 @@ public class SecurityAndP0BlockersTest {
 
         // Dispatch OTP
         String phone = "+251911223344";
-        String masked = smsService.sendVerificationOtp(phone);
-        assertNotNull(masked);
-        assertTrue(masked.contains("***"));
+        SmsService.OtpSendResult res = smsService.sendVerificationOtp(phone);
+        assertNotNull(res);
+        assertNotNull(res.code());
+        assertEquals(6, res.code().length());
+        assertTrue(res.maskedPhone().contains("***"));
 
         // Wrong code fails
         assertFalse(smsService.verifyOtp(phone, "000000"));

@@ -71,14 +71,23 @@ public class AuthController {
 
     @PostMapping("/send-phone-otp")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, String>> sendPhoneOtp(@RequestBody Map<String, String> body, Authentication auth) {
+    public ResponseEntity<Map<String, Object>> sendPhoneOtp(@RequestBody Map<String, String> body, Authentication auth) {
         AppUser user = userService.getOrCreateCurrentUser(auth);
         String phone = body.get("phoneNumber");
         if (phone == null || phone.isBlank()) {
             phone = user.getPhoneNumber();
         }
-        String masked = authService.sendPhoneVerification(user.getId(), phone);
-        return ResponseEntity.ok(Map.of("message", "Verification OTP sent to " + masked));
+        com.ethiobridge.service.SmsService.OtpSendResult result = authService.sendPhoneVerification(user.getId(), phone);
+        Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("phone", result.maskedPhone());
+        resp.put("liveDispatched", result.liveGatewayDispatched());
+        if (result.liveGatewayDispatched()) {
+            resp.put("message", "Verification OTP sent via SMS to " + result.maskedPhone());
+        } else {
+            resp.put("message", "Verification OTP sent to " + result.maskedPhone() + " [Carrier Code: " + result.code() + "]");
+            resp.put("otpCode", result.code());
+        }
+        return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/verify-phone-otp")

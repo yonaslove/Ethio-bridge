@@ -36,6 +36,8 @@ public class SmsService {
         }
     }
 
+    public record OtpSendResult(String code, String maskedPhone, boolean liveGatewayDispatched) {}
+
     private static final long OTP_TTL_MILLIS = 5 * 60 * 1000L; // 5 minutes
     private static final int MAX_OTP_ATTEMPTS = 3;
     private static final Map<String, OtpEntry> ACTIVE_OTPS = new ConcurrentHashMap<>();
@@ -67,7 +69,7 @@ public class SmsService {
         return normalized.matches("^\\+251[79]\\d{8}$");
     }
 
-    public String sendVerificationOtp(String rawPhone) {
+    public OtpSendResult sendVerificationOtp(String rawPhone) {
         String phone = normalizeEthiopianPhone(rawPhone);
         if (!isValidEthiopianPhone(phone)) {
             throw new IllegalArgumentException("Invalid Ethiopian phone number. Must start with 09 (Ethio Telecom) or 07 (Safaricom).");
@@ -83,9 +85,9 @@ public class SmsService {
         ACTIVE_OTPS.put(phone, new OtpEntry(code, expiresAt, 0));
 
         String message = "EthioBridge: Your security verification code is " + code + ". Valid for 5 minutes. Do not share this code.";
-        dispatchSms(phone, message);
+        boolean liveDispatched = dispatchSms(phone, message);
 
-        return maskPhone(phone);
+        return new OtpSendResult(code, maskPhone(phone), liveDispatched);
     }
 
     public boolean verifyOtp(String rawPhone, String code) {
@@ -140,12 +142,12 @@ public class SmsService {
         }
     }
 
-    private void dispatchSms(String recipientPhone, String message) {
+    private boolean dispatchSms(String recipientPhone, String message) {
         if (!smsEnabled) {
-            return;
+            return false;
         }
 
-        // If real SMS gateway URL is configured, an HTTP POST would dispatche here
+        // If real SMS gateway URL is configured, an HTTP POST would dispatch here
         if (gatewayUrl != null && !gatewayUrl.isBlank() && apiKey != null && !apiKey.isBlank()) {
             try {
                 java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
@@ -161,17 +163,21 @@ public class SmsService {
                         .POST(java.net.http.HttpRequest.BodyPublishers.ofString(json))
                         .build();
 
-                client.send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
-                log.info("[SMS DISPATCHED via Live Gateway] To: {}", maskPhone(recipientPhone));
-                return;
+                java.net.http.HttpResponse<String> res = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (res.statusCode() >= 200 && res.statusCode() < 300) {
+                    log.info("[SMS DISPATCHED via Live Gateway] To: {}", maskPhone(recipientPhone));
+                    return true;
+                }
+                log.warn("SMS gateway responded with status {}: {}", res.statusCode(), res.body());
             } catch (Exception ex) {
                 log.warn("Failed to dispatch via live SMS gateway, falling back to transaction log: {}", ex.getMessage());
             }
         }
 
-        // Transactional log fallback (standard Ethiopian carrier SMS format)
+        // Transactional carrier log fallback (standard Ethiopian carrier SMS format)
         log.info("[ETHIO TELECOM / TELEBIRR SMS RAIL] Destination: {} | Message: \"{}\"",
                 maskPhone(recipientPhone), message);
+        return false;
     }
 
     private String maskPhone(String phone) {

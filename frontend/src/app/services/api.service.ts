@@ -382,8 +382,8 @@ export class ApiService {
     return this.http.get<any>(`${this.baseUrl}/verification/status`, { headers: this.getHeaders() });
   }
 
-  submitVerification(idType: string, idNumber: string, phoneNumber: string, documentUrl?: string, selfieUrl?: string): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/verification/submit`, { idType, idNumber, phoneNumber, documentUrl, selfieUrl }, { headers: this.getHeaders() });
+  submitVerification(idType: string, idNumber: string, phoneNumber: string, documentUrl?: string, documentBackUrl?: string, selfieUrl?: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/verification/submit`, { idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl }, { headers: this.getHeaders() });
   }
 
   // Trust & Safety Reports

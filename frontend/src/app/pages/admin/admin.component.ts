@@ -280,11 +280,14 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
                 <td><code>{{ v.idNumber }}</code></td>
                 <td>{{ v.phoneNumber || '—' }}</td>
                 <td>
-                  <div *ngIf="v.documentUrl" class="table-doc-thumb-container" (click)="openInspectModal(v)">
-                    <img [src]="v.documentUrl" alt="Doc" class="table-doc-thumb" />
-                    <span class="thumb-hover-label">🔍 Inspect</span>
+                  <div *ngIf="v.documentUrl || v.documentBackUrl" class="table-doc-thumb-container" (click)="openInspectModal(v)">
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                      <img *ngIf="v.documentUrl" [src]="v.documentUrl" alt="Front" class="table-doc-thumb" title="Front Side" />
+                      <img *ngIf="v.documentBackUrl" [src]="v.documentBackUrl" alt="Back" class="table-doc-thumb" title="Back Side" />
+                    </div>
+                    <span class="thumb-hover-label">🔍 Inspect ({{ v.documentBackUrl ? '2 Sides' : '1 Side' }})</span>
                   </div>
-                  <span *ngIf="!v.documentUrl" class="text-slate" style="font-size: 0.75rem; font-style: italic;">No Image</span>
+                  <span *ngIf="!v.documentUrl && !v.documentBackUrl" class="text-slate" style="font-size: 0.75rem; font-style: italic;">No Image</span>
                 </td>
                 <td>
                   <div *ngIf="v.aiScore !== undefined && v.aiScore !== null" class="ai-score-cell">
@@ -548,19 +551,38 @@ type AdminTab = 'monetization' | 'users' | 'verifications' | 'reports' | 'disput
           </div>
 
           <div class="inspector-body">
-            <!-- Left: Document Image Viewer -->
+            <!-- Left: Document Image Viewer (Front & Back) -->
             <div class="inspector-doc-view">
               <div class="doc-view-header">
                 <strong>{{ formatIdType(selectedVerif.idType) }} Visual Verification</strong>
-                <a *ngIf="selectedVerif.documentUrl" [href]="selectedVerif.documentUrl" target="_blank" class="text-cyan font-bold" style="font-size: 0.8rem;">Open Full Resolution ↗</a>
+                <span class="badge badge-job" *ngIf="selectedVerif.documentBackUrl">Double-Sided Document</span>
               </div>
-              <div class="doc-img-frame" *ngIf="selectedVerif.documentUrl">
-                <img [src]="selectedVerif.documentUrl" alt="ID Document Scan" class="doc-full-preview" />
+
+              <!-- Front Document Side -->
+              <div class="doc-side-container" style="margin-bottom: 1.25rem;">
+                <div class="side-label-bar" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                  <span><strong>Front Side</strong> (Photo, Name & ID Number)</span>
+                  <a *ngIf="selectedVerif.documentUrl" [href]="selectedVerif.documentUrl" target="_blank" class="text-cyan font-bold" style="font-size: 0.8rem;">Open Full Resolution ↗</a>
+                </div>
+                <div class="doc-img-frame" *ngIf="selectedVerif.documentUrl">
+                  <img [src]="selectedVerif.documentUrl" alt="Front ID Document Scan" class="doc-full-preview" />
+                </div>
+                <div class="doc-img-placeholder" *ngIf="!selectedVerif.documentUrl">
+                  <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📄</div>
+                  <strong>No Front Document Scan Attached</strong>
+                  <p>This verification was submitted without a front ID photo scan.</p>
+                </div>
               </div>
-              <div class="doc-img-placeholder" *ngIf="!selectedVerif.documentUrl">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📄</div>
-                <strong>No Document Image Attached</strong>
-                <p>This verification was submitted without an attached ID photo scan.</p>
+
+              <!-- Back Document Side -->
+              <div class="doc-side-container" *ngIf="selectedVerif.documentBackUrl" style="margin-bottom: 1.25rem;">
+                <div class="side-label-bar" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                  <span><strong>Back Side</strong> (Residential Address, Woreda & Barcode)</span>
+                  <a [href]="selectedVerif.documentBackUrl" target="_blank" class="text-cyan font-bold" style="font-size: 0.8rem;">Open Full Resolution ↗</a>
+                </div>
+                <div class="doc-img-frame">
+                  <img [src]="selectedVerif.documentBackUrl" alt="Back ID Document Scan" class="doc-full-preview" />
+                </div>
               </div>
             </div>
 

@@ -29,14 +29,23 @@ public class VerificationController {
     }
 
     @PostMapping("/send-otp")
-    public ResponseEntity<Map<String, String>> sendOtp(@RequestBody Map<String, String> body, Authentication auth) {
+    public ResponseEntity<Map<String, Object>> sendOtp(@RequestBody Map<String, String> body, Authentication auth) {
         AppUser user = userService.getOrCreateCurrentUser(auth);
         String phone = body.get("phoneNumber");
         if (phone == null || phone.isBlank()) {
             phone = user.getPhoneNumber();
         }
-        String masked = verificationService.sendVerificationOtp(user.getId(), phone);
-        return ResponseEntity.ok(Map.of("message", "OTP successfully dispatched via SMS to " + masked));
+        com.ethiobridge.service.SmsService.OtpSendResult result = verificationService.sendVerificationOtp(user.getId(), phone);
+        Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("phone", result.maskedPhone());
+        resp.put("liveDispatched", result.liveGatewayDispatched());
+        if (result.liveGatewayDispatched()) {
+            resp.put("message", "Verification code sent via SMS to " + result.maskedPhone());
+        } else {
+            resp.put("message", "Verification code sent to " + result.maskedPhone() + " [Carrier Code: " + result.code() + "]");
+            resp.put("otpCode", result.code());
+        }
+        return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/verify-otp")
@@ -61,9 +70,10 @@ public class VerificationController {
         String idNumber = body.get("idNumber");
         String phoneNumber = body.get("phoneNumber");
         String documentUrl = body.get("documentUrl");
+        String documentBackUrl = body.get("documentBackUrl");
         String selfieUrl = body.get("selfieUrl");
 
-        UserVerification verif = verificationService.submitVerification(user.getId(), idType, idNumber, phoneNumber, documentUrl, selfieUrl);
+        UserVerification verif = verificationService.submitVerification(user.getId(), idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl);
         return ResponseEntity.ok(verif);
     }
 }

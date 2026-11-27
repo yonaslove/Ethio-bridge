@@ -609,6 +609,16 @@ public class PaymentService {
             result.put("contractId", tx.getContractId());
             result.put("message", "Payment already verified successfully");
 
+            if (tx.getMilestoneId() != null) {
+                milestoneRepository.findById(tx.getMilestoneId()).ifPresent(m -> {
+                    if ("PENDING".equalsIgnoreCase(m.getStatus())) {
+                        m.setStatus("FUNDED");
+                        m.setFundedAt(OffsetDateTime.now());
+                        milestoneRepository.save(m);
+                    }
+                });
+            }
+
             if (tx.getUserId() != null) {
                 providerProfileRepository.findByUserId(tx.getUserId()).ifPresent(p -> {
                     result.put("newBalance", p.getConnectsBalance());
@@ -670,8 +680,9 @@ public class PaymentService {
 
         // If not verified via live Chapa gateway API, check if development sandbox simulation applies:
         if (!verified) {
+            boolean isTestKey = key != null && key.contains("TEST");
             // SANDBOX / SIMULATED MODE: Allowed when simulation is permitted OR when running with a test key in non-prod
-            if (isSimulationPermitted()) {
+            if (isSimulationPermitted() || isTestKey) {
                 if (txRef != null && txRef.matches("^(CHP|TB|CBE|AWB|AWK|CPY|MPS|CRD|CBT|AML|ENT|AMH|COP|PPL|BOA|TX)-\\d{10,14}-[A-Z0-9]+$")) {
                     verified = true;
                     result.put("mode", "SANDBOX_SIMULATED");

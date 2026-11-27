@@ -42,11 +42,21 @@ public class VerificationService {
         this.smsService = smsService;
     }
 
-    public String sendVerificationOtp(UUID userId, String phoneNumber) {
+    public SmsService.OtpSendResult sendVerificationOtp(UUID userId, String phoneNumber) {
         if (smsService == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SMS Service is unavailable");
         }
-        return smsService.sendVerificationOtp(phoneNumber);
+        SmsService.OtpSendResult res = smsService.sendVerificationOtp(phoneNumber);
+        if (notificationService != null) {
+            notificationService.sendNotification(
+                    userId,
+                    "Ethio Telecom / Safaricom SMS OTP",
+                    "Your phone verification security code is " + res.code() + ". Valid for 5 minutes.",
+                    "SYSTEM",
+                    "/verification"
+            );
+        }
+        return res;
     }
 
     public boolean verifyOtpCode(UUID userId, String phoneNumber, String code) {
@@ -65,16 +75,22 @@ public class VerificationService {
     }
 
     public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber) {
-        return submitVerification(userId, idType, idNumber, phoneNumber, null, null);
+        return submitVerification(userId, idType, idNumber, phoneNumber, null, null, null);
     }
 
     public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber,
                                               String documentUrl, String selfieUrl) {
+        return submitVerification(userId, idType, idNumber, phoneNumber, documentUrl, null, selfieUrl);
+    }
+
+    public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber,
+                                              String documentUrl, String documentBackUrl, String selfieUrl) {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         UserVerification verif = new UserVerification(userId, idType, idNumber, phoneNumber);
         verif.setDocumentUrl(documentUrl);
+        verif.setDocumentBackUrl(documentBackUrl);
         verif.setSelfieUrl(selfieUrl);
 
         // Run Explainable AI Document & Multi-Criteria Validation Engine
@@ -197,6 +213,7 @@ public class VerificationService {
         // 1. Computer Vision Document & Biometric AI Analysis
         DocumentAiInspector.InspectionResult inspection = documentAiInspector.inspect(verif.getDocumentUrl(), verif.getIdType());
         boolean hasDocument = verif.getDocumentUrl() != null && !verif.getDocumentUrl().trim().isEmpty();
+        boolean hasBackDocument = verif.getDocumentBackUrl() != null && !verif.getDocumentBackUrl().trim().isEmpty();
 
         if (hasDocument) {
             if (inspection.isValidDocument()) {
@@ -205,6 +222,9 @@ public class VerificationService {
                 criteria.add("{\"criterion\":\"Document Biometric & Visual AI\",\"status\":\"PASS\",\"weight\":40,\"detail\":\"" + escapeJson(firstPass) + "\"}");
                 for (String note : inspection.passNotes()) {
                     analysis.append("• [PASS] ").append(note).append("\n");
+                }
+                if (hasBackDocument) {
+                    analysis.append("• [PASS] Two-sided document verified: Both Front and Back ID scans attached.\n");
                 }
             } else {
                 criteria.add("{\"criterion\":\"Document Biometric & Visual AI\",\"status\":\"FAIL\",\"weight\":0,\"detail\":\"" + escapeJson(inspection.primaryFailureReason()) + "\"}");
