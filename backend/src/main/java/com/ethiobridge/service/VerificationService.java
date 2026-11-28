@@ -98,7 +98,19 @@ public class VerificationService {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        UserVerification verif = new UserVerification(userId, idType, idNumber, phoneNumber);
+        // If user already has a pending or rejected verification, update it for clean resubmission
+        UserVerification verif = verificationRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
+                .filter(v -> !"VERIFIED".equals(v.getStatus()))
+                .map(existing -> {
+                    existing.setIdType(idType);
+                    existing.setIdNumber(idNumber);
+                    existing.setPhoneNumber(phoneNumber);
+                    existing.setStatus("PENDING");
+                    existing.setRejectionReason(null);
+                    return existing;
+                })
+                .orElseGet(() -> new UserVerification(userId, idType, idNumber, phoneNumber));
+
         verif.setDocumentUrl(documentUrl);
         verif.setDocumentBackUrl(documentBackUrl);
         verif.setSelfieUrl(selfieUrl);

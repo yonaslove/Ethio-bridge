@@ -59,16 +59,19 @@ import { I18nService } from '../../services/i18n.service';
             </div>
           </div>
 
-          <!-- Resubmit Button for Rejected -->
-          <div *ngIf="verifStatus.status === 'REJECTED'" style="margin-top: 1rem;">
-            <button type="button" class="btn btn-secondary btn-sm" (click)="verifStatus = null">
-              ↻ {{ i18n.translate('Submit New Verification', 'አዲስ ማረጋገጫ ያስገቡ') }}
+          <!-- Resubmit Button for Rejected or Pending -->
+          <div *ngIf="verifStatus.status === 'REJECTED' || verifStatus.status === 'PENDING'" style="margin-top: 1.25rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary btn-sm" (click)="startResubmission()" *ngIf="!isResubmitting">
+              ↻ {{ verifStatus.status === 'REJECTED' ? i18n.translate('Re-Submit Correct ID Verification', 'እንደገና ትክክለኛውን መታወቂያ ያስገቡ') : i18n.translate('Replace / Re-Submit Documents', 'ሰነዶችን ይቀይሩ / እንደገና ያስገቡ') }}
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" (click)="cancelResubmission()" *ngIf="isResubmitting">
+              ✕ {{ i18n.translate('Cancel & View Current Status', 'ይቅር / የአሁን ሁኔታ ይመልከቱ') }}
             </button>
           </div>
         </div>
 
         <!-- Submission Form -->
-        <form *ngIf="!verifStatus || verifStatus.status === 'REJECTED'" (ngSubmit)="onSubmit()" class="verif-form">
+        <form *ngIf="!verifStatus || isResubmitting || verifStatus.status === 'REJECTED'" (ngSubmit)="onSubmit()" class="verif-form">
           <div class="form-group">
             <label class="form-label">{{ i18n.translate('Identity Document Type', 'የመታወቂያ ሰነድ አይነት') }}</label>
             <select [(ngModel)]="idType" name="idType" class="form-control">
@@ -682,6 +685,7 @@ export class VerificationComponent implements OnInit {
   agreedToChecks = false;
   submitting = false;
   submitError = '';
+  isResubmitting = false;
 
   // Modal inspection preview
   viewFullDoc = false;
@@ -757,15 +761,26 @@ export class VerificationComponent implements OnInit {
         if (status && status.phoneNumber) {
           this.phoneNumber = status.phoneNumber.replace('+251', '');
         }
-        if (status && status.documentUrl) {
-          this.documentUrl = status.documentUrl;
-        }
-        if (status && status.documentBackUrl) {
-          this.documentBackUrl = status.documentBackUrl;
-        }
-        if (status && status.documentName) {
-          this.idFullName = status.documentName;
-          this.checkNameSimilarity();
+        if (status && status.status === 'REJECTED') {
+          // Clean form state for seamless re-verification after rejection
+          this.documentUrl = '';
+          this.documentFileName = '';
+          this.documentBackUrl = '';
+          this.documentBackFileName = '';
+          this.idFullName = '';
+          this.nameMatchPass = false;
+          this.nameSimilarityNotice = '';
+        } else {
+          if (status && status.documentUrl) {
+            this.documentUrl = status.documentUrl;
+          }
+          if (status && status.documentBackUrl) {
+            this.documentBackUrl = status.documentBackUrl;
+          }
+          if (status && status.documentName) {
+            this.idFullName = status.documentName;
+            this.checkNameSimilarity();
+          }
         }
       }
     });
@@ -902,6 +917,22 @@ export class VerificationComponent implements OnInit {
     this.viewFullDoc = true;
   }
 
+  startResubmission(): void {
+    this.isResubmitting = true;
+    this.documentUrl = '';
+    this.documentFileName = '';
+    this.documentBackUrl = '';
+    this.documentBackFileName = '';
+    this.idFullName = '';
+    this.nameMatchPass = false;
+    this.nameSimilarityNotice = '';
+    this.submitError = '';
+  }
+
+  cancelResubmission(): void {
+    this.isResubmitting = false;
+  }
+
   canSubmit(): boolean {
     return !!(this.nameMatchPass && this.idFullName.trim() && this.idNumber.trim() && this.phoneNumber.trim() && this.agreedToChecks && this.documentUrl && this.documentBackUrl);
   }
@@ -934,6 +965,7 @@ export class VerificationComponent implements OnInit {
       next: (res) => {
         this.verifStatus = res;
         this.submitting = false;
+        this.isResubmitting = false;
       },
       error: (err) => {
         this.submitting = false;
