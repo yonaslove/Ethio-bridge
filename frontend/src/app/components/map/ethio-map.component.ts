@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ElementRef, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 declare const L: any;
 
@@ -39,13 +40,16 @@ export interface LocationSelectedEvent {
             🛰️ Google Satellite
           </button>
           <button type="button" class="layer-btn" [class.active]="currentLayer === 'google-streets'" (click)="switchLayer('google-streets')">
-            🌐 Google Maps
+            🌐 Google Streets
           </button>
           <button type="button" class="layer-btn" [class.active]="currentLayer === 'osm'" (click)="switchLayer('osm')">
             🗺️ OpenStreetMap
           </button>
-          <a *ngIf="selectedCoords" [href]="getGoogleMapsExternalUrl()" target="_blank" class="layer-btn btn-gmap-external" title="Open this exact location directly in Google Maps">
-            📌 Open in Google Maps ↗
+          <button type="button" class="layer-btn btn-embed" [class.active]="currentLayer === 'google-embed'" (click)="switchLayer('google-embed')">
+            📍 Google Maps Live
+          </button>
+          <a [href]="getGoogleMapsExternalUrl()" target="_blank" class="layer-btn btn-gmap-external" title="Open this location directly in Google Maps">
+            📌 Full Google Maps ↗
           </a>
         </div>
       </div>
@@ -77,8 +81,24 @@ export interface LocationSelectedEvent {
         </div>
       </div>
 
-      <!-- The Leaflet Map container with Google Maps tiles -->
-      <div #mapContainer class="leaflet-map-host" [style.height]="height || '380px'"></div>
+      <!-- Live Google Maps Embed Layer (100% Guaranteed Zero-Fail view) -->
+      <iframe
+        *ngIf="currentLayer === 'google-embed'"
+        [src]="getGoogleMapsEmbedUrl()"
+        class="gmap-embed-frame"
+        [style.height]="height || '380px'"
+        title="Google Maps Live Ethiopia Embed"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+
+      <!-- The Leaflet Map container with Google Maps & OSM tiles -->
+      <div
+        #mapContainer
+        class="leaflet-map-host"
+        [style.display]="currentLayer === 'google-embed' ? 'none' : 'block'"
+        [style.height]="height || '380px'">
+      </div>
     </div>
   `,
   styles: [`
@@ -165,6 +185,21 @@ export interface LocationSelectedEvent {
     }
     .btn-gmap-external:hover {
       background: #059669;
+    }
+    .btn-embed {
+      background: #4338CA;
+      border-color: #6366F1;
+      color: #FFFFFF;
+    }
+    .btn-embed:hover {
+      background: #3730A3;
+    }
+    .gmap-embed-frame {
+      width: 100%;
+      border: 0;
+      min-height: 280px;
+      display: block;
+      background: #E2E8F0;
     }
     .quick-cities-bar {
       display: flex;
@@ -286,7 +321,7 @@ export class EthioMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   selectedCoords: { lat: number; lng: number } | null = null;
   resolvedAddressName: string = '';
   isGeocoding: boolean = false;
-  currentLayer: 'google-hybrid' | 'google-streets' | 'osm' = 'google-hybrid';
+  currentLayer: 'google-hybrid' | 'google-streets' | 'osm' | 'google-embed' = 'google-hybrid';
 
   private map: any = null;
   private currentTileLayer: any = null;
@@ -294,6 +329,9 @@ export class EthioMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   private selectedMarker: any = null;
   private retryCount = 0;
   private geocodeDebounceTimer: any = null;
+  private hasFallenBackTile = false;
+
+  constructor(private sanitizer: DomSanitizer) {}
 
   // Comprehensive Ethiopian geographic coordinates dictionary for instant zero-latency address lookup
   private static readonly ETHIO_GEO_DICT: Record<string, { lat: number; lng: number; zoom: number; label: string }> = {
@@ -401,70 +439,87 @@ export class EthioMapComponent implements AfterViewInit, OnChanges, OnDestroy {
         const link = document.createElement('link');
         link.id = 'leaflet-css';
         link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
         document.head.appendChild(link);
       }
 
-      if (!document.getElementById('leaflet-js')) {
-        const script = document.createElement('script');
-        script.id = 'leaflet-js';
-        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        script.onload = () => resolve();
-        script.onerror = () => {
-          console.warn('Leaflet script failed to load from primary CDN');
-          resolve();
+      const tryScript = (src: string, onFail?: () => void) => {
+        const s = document.createElement('script');
+        s.id = 'leaflet-js';
+        s.src = src;
+        s.onload = () => {
+          if ((window as any).L) resolve();
+          else setTimeout(() => resolve(), 80);
         };
-        document.head.appendChild(script);
+        s.onerror = () => {
+          if (onFail) onFail();
+          else resolve();
+        };
+        document.head.appendChild(s);
+      };
+
+      if (!document.getElementById('leaflet-js')) {
+        tryScript('https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', () => {
+          tryScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+        });
       } else {
         const checkInterval = setInterval(() => {
           if ((window as any).L) {
             clearInterval(checkInterval);
             resolve();
           }
-        }, 100);
+        }, 80);
         setTimeout(() => {
           clearInterval(checkInterval);
           resolve();
-        }, 3000);
+        }, 2500);
       }
     });
   }
 
   private initMap(): void {
     if (!this.mapContainer || typeof window === 'undefined') return;
+    const container = this.mapContainer.nativeElement;
+    if (!container) return;
 
     const L_GLOBAL = (window as any).L;
     if (!L_GLOBAL) {
-      if (this.retryCount < 10) {
+      if (this.retryCount < 12) {
         this.retryCount++;
-        setTimeout(() => this.initMap(), 250);
+        setTimeout(() => this.initMap(), 200);
+      } else {
+        // Fallback to Live Google Maps Embed if Leaflet script fails
+        this.currentLayer = 'google-embed';
       }
       return;
     }
 
     try {
       if (this.map) {
-        this.map.remove();
+        try { this.map.remove(); } catch (e) {}
         this.map = null;
+      }
+
+      // Crucial: remove existing leaflet ID if container was reattached by Angular *ngIf
+      if ((container as any)._leaflet_id) {
+        (container as any)._leaflet_id = null;
       }
 
       const initialLat = this.selectedLat || this.initialLat || 9.0054;
       const initialLng = this.selectedLng || this.initialLng || 38.7636;
 
-      this.map = L_GLOBAL.map(this.mapContainer.nativeElement, {
+      this.map = L_GLOBAL.map(container, {
         zoomControl: true,
-        attributionControl: true
-      }).setView([initialLat, initialLng], this.initialZoom || 13);
+        attributionControl: true,
+        center: [initialLat, initialLng],
+        zoom: this.initialZoom || 13
+      });
 
       this.applyTileLayer();
 
       this.markerLayerGroup = L_GLOBAL.layerGroup().addTo(this.map);
 
-      setTimeout(() => {
-        if (this.map) {
-          this.map.invalidateSize();
-        }
-      }, 200);
+      this.triggerInvalidateSize();
 
       if (this.allowPinSelection) {
         this.map.on('click', (e: any) => {
@@ -479,12 +534,38 @@ export class EthioMapComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.renderMarkers();
     } catch (e) {
       console.warn('Map initialization error:', e);
+      this.currentLayer = 'google-embed';
     }
   }
 
-  switchLayer(layer: 'google-hybrid' | 'google-streets' | 'osm'): void {
+  triggerInvalidateSize(): void {
+    if (!this.map) return;
+    this.map.invalidateSize();
+    setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 60);
+    setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 180);
+    setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 400);
+    setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 900);
+  }
+
+  switchLayer(layer: 'google-hybrid' | 'google-streets' | 'osm' | 'google-embed'): void {
     this.currentLayer = layer;
-    this.applyTileLayer();
+    if (layer === 'google-embed') {
+      return;
+    }
+    if (!this.map) {
+      this.initMap();
+    } else {
+      this.applyTileLayer();
+      this.triggerInvalidateSize();
+    }
+  }
+
+  getGoogleMapsEmbedUrl(): SafeResourceUrl {
+    const lat = this.selectedCoords?.lat || this.selectedLat || this.initialLat || 9.0054;
+    const lng = this.selectedCoords?.lng || this.selectedLng || this.initialLng || 38.7636;
+    const zoom = this.initialZoom || 13;
+    const embedUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
   }
 
   private applyTileLayer(): void {
@@ -492,29 +573,61 @@ export class EthioMapComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.map || !L_GLOBAL) return;
 
     if (this.currentTileLayer) {
-      this.map.removeLayer(this.currentTileLayer);
+      try { this.map.removeLayer(this.currentTileLayer); } catch (e) {}
       this.currentTileLayer = null;
     }
 
+    let url = '';
+    let options: any = {};
+
     if (this.currentLayer === 'google-hybrid') {
-      // Real Google Satellite + Streets & Place Names Hybrid Layer
-      this.currentTileLayer = L_GLOBAL.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        attribution: '&copy; Google Maps | EthioBridge Ethiopia Real Satellite',
-        maxZoom: 20
-      }).addTo(this.map);
+      // Real Google Satellite + Streets Hybrid
+      url = 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      options = {
+        attribution: '&copy; Google Maps | EthioBridge Ethiopia Satellite',
+        maxZoom: 20,
+        subdomains: ['0', '1', '2', '3']
+      };
     } else if (this.currentLayer === 'google-streets') {
       // Real Google Maps Standard Street Layer
-      this.currentTileLayer = L_GLOBAL.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        attribution: '&copy; Google Maps | EthioBridge Ethiopia Real Streets',
-        maxZoom: 20
-      }).addTo(this.map);
+      url = 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+      options = {
+        attribution: '&copy; Google Maps | EthioBridge Ethiopia Streets',
+        maxZoom: 20,
+        subdomains: ['0', '1', '2', '3']
+      };
     } else {
       // OpenStreetMap Layer
-      this.currentTileLayer = L_GLOBAL.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      options = {
         attribution: '&copy; OpenStreetMap contributors | EthioBridge',
         maxZoom: 19,
         subdomains: ['a', 'b', 'c']
-      }).addTo(this.map);
+      };
+    }
+
+    try {
+      this.currentTileLayer = L_GLOBAL.tileLayer(url, options);
+
+      // Resilient fallback if Google tile mirrors are blocked
+      this.currentTileLayer.on('tileerror', () => {
+        if (!this.hasFallenBackTile) {
+          this.hasFallenBackTile = true;
+          console.warn('Map tile error: auto-switching to CartoDB Voyager fallback');
+          try {
+            this.map.removeLayer(this.currentTileLayer);
+            this.currentTileLayer = L_GLOBAL.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+              attribution: '&copy; CartoDB & OpenStreetMap | EthioBridge',
+              subdomains: 'abcd',
+              maxZoom: 19
+            }).addTo(this.map);
+          } catch (e) {}
+        }
+      });
+
+      this.currentTileLayer.addTo(this.map);
+    } catch (e) {
+      console.warn('Failed to add tile layer:', e);
     }
   }
 
@@ -609,14 +722,16 @@ export class EthioMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   panToCity(lat: number, lng: number, zoom: number, label?: string): void {
+    this.selectedCoords = { lat, lng };
+    if (label) {
+      this.resolvedAddressName = label;
+    }
+    if (this.currentLayer === 'google-embed') {
+      return;
+    }
     if (this.map) {
       this.map.flyTo([lat, lng], zoom, { duration: 1.2 });
-      if (label) {
-        this.resolvedAddressName = label;
-      }
-      setTimeout(() => {
-        if (this.map) this.map.invalidateSize();
-      }, 150);
+      this.triggerInvalidateSize();
     }
   }
 
