@@ -294,7 +294,24 @@ public class AuthService {
         user = appUserRepository.saveAndFlush(user);
 
         Location location = null;
-        if (req.getLocationId() != null) {
+        if (req.getCustomLocation() != null && !req.getCustomLocation().isBlank()) {
+            String customName = req.getCustomLocation().trim();
+            location = locationRepository.findFirstByNameIgnoreCase(customName)
+                    .orElseGet(() -> {
+                        Location loc = new Location();
+                        loc.setName(customName);
+                        loc.setRegion("Ethiopia (Custom / User Address)");
+                        loc.setCountry("ET");
+                        loc.setLatitude(req.getLatitude() != null ? req.getLatitude() : 9.0054);
+                        loc.setLongitude(req.getLongitude() != null ? req.getLongitude() : 38.7636);
+                        return locationRepository.save(loc);
+                    });
+            if (req.getLatitude() != null && req.getLongitude() != null) {
+                location.setLatitude(req.getLatitude());
+                location.setLongitude(req.getLongitude());
+                locationRepository.save(location);
+            }
+        } else if (req.getLocationId() != null) {
             location = locationRepository.findById(req.getLocationId()).orElse(null);
         } else {
             location = locationRepository.findById(1L).orElse(null);
@@ -340,6 +357,26 @@ public class AuthService {
                     Optional<Skill> sk = skillRepository.findById(sId);
                     if (sk.isPresent()) {
                         ProviderSkill ps = new ProviderSkill(pp, sk.get(), 4, new BigDecimal("3.0"));
+                        providerSkillRepository.save(ps);
+                    }
+                }
+            }
+
+            // Custom user-defined skills added via 'Other'
+            if (req.getCustomSkills() != null && !req.getCustomSkills().isEmpty()) {
+                for (String cSkill : req.getCustomSkills()) {
+                    if (cSkill != null && !cSkill.isBlank()) {
+                        String sName = cSkill.trim();
+                        Skill sk = skillRepository.findFirstByNameIgnoreCase(sName)
+                                .orElseGet(() -> {
+                                    Skill newSk = new Skill();
+                                    newSk.setName(sName);
+                                    newSk.setSlug(sName.toLowerCase().replaceAll("[^a-z0-9]+", "-"));
+                                    newSk.setCategory(com.ethiobridge.model.SkillCategory.OTHER);
+                                    newSk.setActive(true);
+                                    return skillRepository.save(newSk);
+                                });
+                        ProviderSkill ps = new ProviderSkill(pp, sk, 4, new BigDecimal("3.0"));
                         providerSkillRepository.save(ps);
                     }
                 }

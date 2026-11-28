@@ -6,11 +6,12 @@ import { AuthService } from '../../services/auth.service';
 import { ApiService } from '../../services/api.service';
 import { I18nService } from '../../services/i18n.service';
 import { Location, Skill, RegisterPayload } from '../../models/models';
+import { EthioMapComponent, LocationSelectedEvent } from '../../components/map/ethio-map.component';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, EthioMapComponent],
   template: `
     <div class="auth-page">
       <div class="register-card">
@@ -187,21 +188,50 @@ import { Location, Skill, RegisterPayload } from '../../models/models';
             <!-- Custom Location Input (Shown when 'Other' is selected) -->
             <div class="custom-location-box" *ngIf="isCustomLocation">
               <label for="custom_location_text" class="form-label">
-                📍 {{ i18n.translate('Specify City / Sub-City / Town *', 'የከተማዎን / የክፍለ ከተማዎን ስም ይጥቀሱ *') }}
+                📍 {{ i18n.translate('Specify Exact City / Sub-City / Neighborhood / Address *', 'ትክክለኛ ከተማዎን / ክፍለ ከተማዎን / ሰፈርዎን ይጥቀሱ *') }}
               </label>
-              <input
-                type="text"
-                id="custom_location_text"
-                name="custom_location_text"
-                [(ngModel)]="customLocation"
-                required
-                [placeholder]="i18n.translate('e.g. Hawassa, Adama, Jimma, Bahir Dar, Kazanchis, Piassa, Bishoftu...', 'ለምሳሌ ሀዋሳ፣ አዳማ፣ ጅማ፣ ባህርዳር፣ ካዛንቺስ፣ ፒያሳ፣ ቢሾፍቱ...')"
-                class="form-input custom-input"
-                [disabled]="loading"
-              />
+              <div class="custom-location-input-wrap">
+                <input
+                  type="text"
+                  id="custom_location_text"
+                  name="custom_location_text"
+                  [ngModel]="customLocation"
+                  (ngModelChange)="onCustomAddressInput($event)"
+                  required
+                  [placeholder]="i18n.translate('e.g. Bole Medhanialem, Kazanchis, Hawassa, Adama, Bahir Dar, Piazza, Sarbet, Bishoftu...', 'ለምሳሌ ቦሌ መድኃኔዓለም፣ ካዛንቺስ፣ ሀዋሳ፣ አዳማ፣ ባህርዳር፣ ፒያሳ፣ ሳርቤት፣ ቢሾፍቱ...')"
+                  class="form-input custom-input"
+                  [disabled]="loading"
+                />
+                <button type="button" class="btn btn-secondary btn-sm btn-locate" (click)="triggerMapAddressLookup()">
+                  ⚡ {{ i18n.translate('Locate on Map', 'በካርታው ፈልግ') }}
+                </button>
+              </div>
               <span class="field-hint">
-                {{ i18n.translate('This location will be saved to your profile and indexed for local matchmaking.', 'ይህ አካባቢ በመገለጫዎ ውስጥ ተቀምጦ ለአካባቢ ማዛመጃ አገልግሎት ይውላል።') }}
+                {{ i18n.translate('Type any Ethiopian city, neighborhood, or street. The real Google Map below will automatically trigger and track your position.', 'ማንኛውንም የኢትዮጵያ ከተማ ወይም ሰፈር ይጻፉ። ከታች ያለው የጎግል ካርታ በቀጥታ ይከተልዎታል እና ያሳየዎታል።') }}
               </span>
+            </div>
+
+            <!-- Real Google Maps Interactive Tracker -->
+            <div class="registration-map-card">
+              <div class="reg-map-header">
+                <div class="reg-map-title">
+                  <span class="reg-map-dot"></span>
+                  <strong>📍 {{ i18n.translate('Live Geolocation Tracker (Real Google Maps Connected)', 'የቀጥታ ካርታ መከታተያ (ከሪል ጎግል ማፕ ጋር የተገናኘ)') }}</strong>
+                </div>
+                <span class="reg-map-hint">
+                  {{ isCustomLocation ? i18n.translate('Tracks your custom address automatically. Click anywhere or drag the pin to set your exact location.', 'የጻፉትን አድራሻ በቀጥታ ይከታተላል። ፒኑን በማንቀሳቀስ ትክክለኛ ቦታዎን ያመልክቱ።') : i18n.translate('Tracks your selected hub. Choose "Other" above to type your own exact address.', 'የመረጡትን ከተማ ያሳያል። የራስዎን ትክክለኛ አድራሻ ለመጻፍ ከላይ "ሌላ (ልዩ ቦታ)" የሚለውን ይምረጡ።') }}
+                </span>
+              </div>
+
+              <app-ethio-map
+                [title]="isCustomLocation && customLocation ? ('Tracking: ' + customLocation) : 'Your Service & Office Location'"
+                [allowPinSelection]="true"
+                [trackAddress]="currentMapAddress"
+                [selectedLat]="selectedLat"
+                [selectedLng]="selectedLng"
+                height="280px"
+                (locationSelected)="onMapLocationSelected($event)">
+              </app-ethio-map>
             </div>
 
             <div class="form-group">
@@ -392,6 +422,45 @@ import { Location, Skill, RegisterPayload } from '../../models/models';
                   />
                   <span>{{ s.name }}</span>
                 </label>
+
+                <!-- Other / Custom Skill Toggle Option -->
+                <label class="skill-check-item skill-check-other" [class.checked]="isOtherSkillSelected">
+                  <input
+                    type="checkbox"
+                    [checked]="isOtherSkillSelected"
+                    (change)="toggleOtherSkill()"
+                    class="sr-only"
+                  />
+                  <span>➕ {{ i18n.translate('Other (Add Custom Skill / ልዩ ሙያ)...', 'ሌላ (ልዩ ሙያ ይጨምሩ)...') }}</span>
+                </label>
+              </div>
+
+              <!-- Custom Skill Input Section (Shown when 'Other' is selected) -->
+              <div class="custom-skills-box" *ngIf="isOtherSkillSelected">
+                <label class="form-label" style="font-size: 0.82rem; margin-bottom: 0.35rem;">
+                  ✨ {{ i18n.translate('Type & Add Your Custom Skills / Trades', 'የራስዎን ልዩ ክህሎት ወይም ሙያ ይጻፉ እና ይጨምሩ') }}
+                </label>
+                <div class="custom-skill-input-row">
+                  <input
+                    type="text"
+                    [(ngModel)]="customSkillInput"
+                    [ngModelOptions]="{standalone: true}"
+                    (keyup.enter)="addCustomSkill()"
+                    [placeholder]="i18n.translate('e.g. Flutter Development, Solar Technician, Barista, Video Editing, Ethiopian Tax Law...', 'ለምሳሌ ፍላተር፣ የሶላር ቴክኒሻን፣ ባሪስታ፣ ቪዲዮ ኤዲተር...')"
+                    class="form-input clean-input custom-skill-input"
+                  />
+                  <button type="button" class="btn btn-primary btn-sm btn-add-skill" (click)="addCustomSkill()">
+                    ➕ {{ i18n.translate('Add Skill', 'ጨምር') }}
+                  </button>
+                </div>
+
+                <!-- Custom skills badges list -->
+                <div class="custom-skills-tags" *ngIf="customSkillsList.length > 0">
+                  <span class="custom-skill-tag" *ngFor="let cs of customSkillsList">
+                    ★ {{ cs }}
+                    <button type="button" class="tag-remove-btn" (click)="removeCustomSkill(cs)" title="Remove skill">✕</button>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -809,6 +878,112 @@ import { Location, Skill, RegisterPayload } from '../../models/models';
       color: #0E7F8F;
       font-weight: 700;
     }
+    .custom-location-input-wrap {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .btn-locate {
+      white-space: nowrap;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.8rem;
+    }
+    .registration-map-card {
+      margin: 1.25rem 0 1rem;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 0.85rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .reg-map-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      margin-bottom: 0.5rem;
+    }
+    .reg-map-title {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.85rem;
+      color: #0F172A;
+    }
+    .reg-map-dot {
+      width: 8px;
+      height: 8px;
+      background: #10B981;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #10B981;
+    }
+    .reg-map-hint {
+      font-size: 0.73rem;
+      color: #64748B;
+    }
+    .skill-check-other {
+      background: #EFF6FF !important;
+      border-color: #93C5FD !important;
+      color: #1D4ED8 !important;
+      font-weight: 700 !important;
+    }
+    .custom-skills-box {
+      margin-top: 0.85rem;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 0.75rem 0.9rem;
+    }
+    .custom-skill-input-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .custom-skill-input {
+      flex: 1;
+      font-size: 0.82rem;
+    }
+    .btn-add-skill {
+      white-space: nowrap;
+      font-size: 0.78rem;
+      padding: 0.4rem 0.75rem;
+    }
+    .custom-skills-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.65rem;
+    }
+    .custom-skill-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #0284C7;
+      color: #FFFFFF;
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .tag-remove-btn {
+      background: rgba(255,255,255,0.25);
+      border: none;
+      color: #FFFFFF;
+      font-size: 0.7rem;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      transition: background 0.15s ease;
+    }
+    .tag-remove-btn:hover {
+      background: rgba(239, 68, 68, 0.8);
+    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -878,6 +1053,14 @@ export class RegisterComponent implements OnInit {
   // Location handling
   locationSelectValue: number | 'OTHER' | null = null;
   customLocation = '';
+  selectedLat?: number = 9.0054;
+  selectedLng?: number = 38.7636;
+  currentMapAddress = 'Addis Ababa';
+
+  // Custom Skills handling
+  isOtherSkillSelected = false;
+  customSkillInput = '';
+  customSkillsList: string[] = [];
 
   // Common Profile
   headline = '';
@@ -934,6 +1117,61 @@ export class RegisterComponent implements OnInit {
   onLocationChange(value: any): void {
     if (value !== 'OTHER') {
       this.customLocation = '';
+      if (typeof value === 'number') {
+        const found = this.locations.find(l => l.id === value);
+        if (found) {
+          this.currentMapAddress = found.name;
+          if (found.latitude && found.longitude) {
+            this.selectedLat = found.latitude;
+            this.selectedLng = found.longitude;
+          }
+        }
+      }
+    } else {
+      if (this.customLocation && this.customLocation.trim()) {
+        this.currentMapAddress = this.customLocation.trim();
+      }
+    }
+  }
+
+  onCustomAddressInput(val: string): void {
+    this.customLocation = val;
+    if (val && val.trim().length >= 3) {
+      this.currentMapAddress = val.trim();
+    }
+  }
+
+  triggerMapAddressLookup(): void {
+    if (this.customLocation && this.customLocation.trim()) {
+      this.currentMapAddress = this.customLocation.trim();
+    }
+  }
+
+  onMapLocationSelected(evt: LocationSelectedEvent): void {
+    this.selectedLat = evt.lat;
+    this.selectedLng = evt.lng;
+    if (this.isCustomLocation && evt.address && !this.customLocation.trim()) {
+      this.customLocation = evt.address;
+    }
+  }
+
+  toggleOtherSkill(): void {
+    this.isOtherSkillSelected = !this.isOtherSkillSelected;
+  }
+
+  addCustomSkill(): void {
+    const trimmed = this.customSkillInput.trim();
+    if (!trimmed) return;
+    if (!this.customSkillsList.includes(trimmed)) {
+      this.customSkillsList.push(trimmed);
+    }
+    this.customSkillInput = '';
+  }
+
+  removeCustomSkill(skillName: string): void {
+    this.customSkillsList = this.customSkillsList.filter(s => s !== skillName);
+    if (this.customSkillsList.length === 0) {
+      this.isOtherSkillSelected = false;
     }
   }
 
@@ -1019,7 +1257,10 @@ export class RegisterComponent implements OnInit {
       role: this.selectedRole,
       headline: this.headline.trim() || undefined,
       bio: this.bio.trim() || undefined,
-      initialSkillIds: this.selectedSkillIds.length > 0 ? this.selectedSkillIds : undefined
+      initialSkillIds: this.selectedSkillIds.length > 0 ? this.selectedSkillIds : undefined,
+      customSkills: this.customSkillsList.length > 0 ? this.customSkillsList : undefined,
+      latitude: this.selectedLat,
+      longitude: this.selectedLng
     };
 
     if (this.isCustomLocation && this.customLocation.trim()) {

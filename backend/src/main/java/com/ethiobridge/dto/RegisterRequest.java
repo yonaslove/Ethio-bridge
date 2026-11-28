@@ -21,9 +21,12 @@ public class RegisterRequest {
 
     private Long locationId;
     private String customLocation;
+    private Double latitude;
+    private Double longitude;
     private String headline;
     private String bio;
     private List<Long> initialSkillIds;
+    private List<String> customSkills;
     private String phoneNumber;
     private String avatarUrl;
     private String portfolioUrl;
@@ -85,4 +88,13 @@ public class RegisterRequest {
 
     public String getLanguages() { return languages; }
     public void setLanguages(String languages) { this.languages = languages; }
+
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+    public List<String> getCustomSkills() { return customSkills; }
+    public void setCustomSkills(List<String> customSkills) { this.customSkills = customSkills; }
 }

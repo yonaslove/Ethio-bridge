@@ -230,9 +230,12 @@ export interface RegisterPayload {
   role: 'SEEKER' | 'PROVIDER' | 'DUAL';
   locationId?: number;
   customLocation?: string;
+  latitude?: number;
+  longitude?: number;
   headline?: string;
   bio?: string;
   initialSkillIds?: number[];
+  customSkills?: string[];
   phoneNumber?: string;
   avatarUrl?: string;
   portfolioUrl?: string;
