@@ -749,8 +749,6 @@ export class VerificationComponent implements OnInit {
     const user = this.authService.currentUser;
     if (user && user.fullName) {
       this.registeredUserName = user.fullName.trim();
-      this.idFullName = user.fullName.trim();
-      this.checkNameSimilarity();
     }
 
     this.apiService.getVerificationStatus().subscribe({
@@ -776,7 +774,7 @@ export class VerificationComponent implements OnInit {
   checkNameSimilarity(): void {
     if (!this.idFullName || !this.idFullName.trim()) {
       this.nameMatchPass = false;
-      this.nameSimilarityNotice = '⚠️ Please enter your full name as printed on your ID.';
+      this.nameSimilarityNotice = '⚠️ Please enter the full name printed on the uploaded ID card.';
       return;
     }
 
@@ -795,22 +793,51 @@ export class VerificationComponent implements OnInit {
       return;
     }
 
-    const regTokens = reg.split(/\s+/);
-    const idTokens = id.split(/\s+/);
+    const regTokens = reg.split(/\s+/).filter(t => t.length > 0);
+    const idTokens = id.split(/\s+/).filter(t => t.length > 0);
 
-    // Ethiopian First Name check
     const regFirst = regTokens[0] || '';
     const idFirst = idTokens[0] || '';
 
-    const firstCharMatch = regFirst.slice(0, 3) === idFirst.slice(0, 3);
-    const hasOverlap = regTokens.some(rt => idTokens.some(it => it.includes(rt) || rt.includes(it)));
+    // First name must be similar in Ethiopian patronymic naming
+    const firstMatch = regFirst === idFirst || 
+      (regFirst.length >= 3 && idFirst.length >= 3 && (regFirst.startsWith(idFirst.slice(0, 3)) || idFirst.startsWith(regFirst.slice(0, 3))));
 
-    if (firstCharMatch || hasOverlap) {
-      this.nameMatchPass = true;
-      this.nameSimilarityNotice = '✓ Compatible Ethiopian name match with registered profile (' + this.registeredUserName + ').';
-    } else {
+    if (!firstMatch) {
       this.nameMatchPass = false;
-      this.nameSimilarityNotice = '⚠️ Potential Name Mismatch: "' + this.idFullName + '" differs significantly from your account name "' + this.registeredUserName + '". To pass, the ID must belong to you.';
+      this.nameSimilarityNotice = '❌ Severe Identity Name Mismatch: The ID name "' + this.idFullName + '" does not match your registered account name "' + this.registeredUserName + '". You cannot verify an account with someone else\'s ID card.';
+      return;
+    }
+
+    // Check second/father name if provided in both
+    if (regTokens.length >= 2 && idTokens.length >= 2) {
+      const regSecond = regTokens[1];
+      const idSecond = idTokens[1];
+      const secondMatch = regSecond === idSecond || (regSecond.length >= 3 && idSecond.length >= 3 && (regSecond.startsWith(idSecond.slice(0, 3)) || idSecond.startsWith(regSecond.slice(0, 3))));
+      if (!secondMatch) {
+        this.nameMatchPass = false;
+        this.nameSimilarityNotice = '❌ Father\'s Name Mismatch: "' + this.idFullName + '" differs from registered account "' + this.registeredUserName + '". The names must belong to you.';
+        return;
+      }
+    }
+
+    this.nameMatchPass = true;
+    this.nameSimilarityNotice = '✓ Compatible Ethiopian name match with registered profile (' + this.registeredUserName + ').';
+  }
+
+  inspectUploadedFileName(fileName: string): void {
+    if (!fileName) return;
+    const clean = fileName.toLowerCase().replace(/\.[^/.]+$/, '').replace(/[^a-z0-9\s]/g, ' ');
+    const tokens = clean.split(/\s+/).filter(t => t.length >= 3 && !['jpg','png','jpeg','webp','card','front','back','scan','file','photo','image','doc','id','kebele','fayda','license'].includes(t));
+    if (tokens.length > 0) {
+      const candidateName = tokens.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' ');
+      const regLower = (this.registeredUserName || '').toLowerCase();
+      const isConsistentWithRegistered = tokens.some(t => regLower.includes(t));
+      if (!isConsistentWithRegistered) {
+        // Detected filename belongs to another person!
+        this.idFullName = candidateName;
+        this.checkNameSimilarity();
+      }
     }
   }
 
@@ -843,6 +870,7 @@ export class VerificationComponent implements OnInit {
       if (side === 'front') {
         this.documentFileName = file.name;
         this.documentUrl = reader.result as string;
+        this.inspectUploadedFileName(file.name);
       } else {
         this.documentBackFileName = file.name;
         this.documentBackUrl = reader.result as string;
@@ -875,7 +903,7 @@ export class VerificationComponent implements OnInit {
   }
 
   canSubmit(): boolean {
-    return !!(this.idNumber.trim() && this.idFullName.trim() && this.phoneNumber.trim() && this.agreedToChecks && this.documentUrl && this.documentBackUrl);
+    return !!(this.nameMatchPass && this.idFullName.trim() && this.idNumber.trim() && this.phoneNumber.trim() && this.agreedToChecks && this.documentUrl && this.documentBackUrl);
   }
 
   getAiVerdictClass(verdict?: string): string {
@@ -900,7 +928,8 @@ export class VerificationComponent implements OnInit {
       this.documentUrl,
       this.documentBackUrl,
       undefined,
-      this.idFullName.trim()
+      this.idFullName.trim(),
+      this.documentFileName
     ).subscribe({
       next: (res) => {
         this.verifStatus = res;

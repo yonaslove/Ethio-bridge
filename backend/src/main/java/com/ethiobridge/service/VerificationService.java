@@ -85,11 +85,16 @@ public class VerificationService {
 
     public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber,
                                               String documentUrl, String documentBackUrl, String selfieUrl) {
-        return submitVerification(userId, idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl, null);
+        return submitVerification(userId, idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl, null, null);
     }
 
     public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber,
                                               String documentUrl, String documentBackUrl, String selfieUrl, String documentName) {
+        return submitVerification(userId, idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl, documentName, null);
+    }
+
+    public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber,
+                                              String documentUrl, String documentBackUrl, String selfieUrl, String documentName, String documentFileName) {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -97,7 +102,16 @@ public class VerificationService {
         verif.setDocumentUrl(documentUrl);
         verif.setDocumentBackUrl(documentBackUrl);
         verif.setSelfieUrl(selfieUrl);
-        verif.setDocumentName(documentName != null && !documentName.isBlank() ? documentName.trim() : user.getFullName());
+
+        // Extract effective document name from user input or uploaded file clues
+        String effectiveDocName = (documentName != null && !documentName.isBlank()) ? documentName.trim() : "";
+        if (effectiveDocName.isBlank()) {
+            String extracted = extractNameFromClues(documentFileName, documentUrl);
+            if (extracted != null && !extracted.isBlank()) {
+                effectiveDocName = extracted;
+            }
+        }
+        verif.setDocumentName(effectiveDocName);
 
         // Run Explainable AI Document & Multi-Criteria Validation Engine
         performAiAnalysis(verif, user);
@@ -266,12 +280,20 @@ public class VerificationService {
 
         // 3. Name Consistency & Registry Match
         String registeredName = user.getFullName() != null ? user.getFullName().trim() : "";
-        String docName = verif.getDocumentName() != null && !verif.getDocumentName().isBlank()
-                ? verif.getDocumentName().trim()
-                : registeredName;
+        String docName = verif.getDocumentName() != null ? verif.getDocumentName().trim() : "";
+
+        // Check if uploaded document clues (file name or metadata) carry a different person's identity
+        String detectedClueName = extractNameFromClues(verif.getDocumentUrl(), verif.getDocumentBackUrl());
+        if (detectedClueName != null && !detectedClueName.isBlank()) {
+            NameMatchResult clueMatch = evaluateNameMatch(registeredName, detectedClueName);
+            if (!clueMatch.isMatch()) {
+                docName = detectedClueName;
+                verif.setDocumentName(docName);
+            }
+        }
 
         NameMatchResult nameMatch = evaluateNameMatch(registeredName, docName);
-        boolean namePassed = nameMatch.isMatch();
+        boolean namePassed = nameMatch.isMatch() && !docName.isBlank();
 
         if (namePassed) {
             double namePoints = inspection.isValidDocument() ? 25.0 : 15.0;
@@ -281,14 +303,14 @@ public class VerificationService {
                     .append("') is consistent with ID card name ('").append(docName)
                     .append("') with ").append((int)(nameMatch.similarity() * 100)).append("% similarity score.\n");
         } else {
-            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"FAIL\",\"weight\":0,\"detail\":\"Severe Name Discrepancy: Registered name '" + escapeJson(registeredName) + "' does not match ID name '" + escapeJson(docName) + "'. Must be similar to pass.\"}");
+            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"FAIL\",\"weight\":0,\"detail\":\"Severe Name Discrepancy: Registered name '" + escapeJson(registeredName) + "' does not match ID name '" + escapeJson(docName.isEmpty() ? "Unspecified" : docName) + "'. Verification rejected.\"}");
             analysis.append("• [FAIL] Name Mismatch Error: Registered account name ('").append(registeredName)
-                    .append("') differs from ID document name ('").append(docName)
-                    .append("'). National civil identity regulations mandate that registered users verify their own identity card.\n");
+                    .append("') differs from ID document name ('").append(docName.isEmpty() ? "Unspecified" : docName)
+                    .append("'). National civil identity regulations mandate that registered users verify their own personal identity card.\n");
 
             verif.setStatus("REJECTED");
             verif.setAiVerdict("REJECTED_NAME_MISMATCH");
-            verif.setRejectionReason("Identity Name Mismatch: Registered name ('" + registeredName + "') and ID document name ('" + docName + "') do not match. The names must be similar to pass verification.");
+            verif.setRejectionReason("Identity Name Mismatch: Registered account name ('" + registeredName + "') and ID document name ('" + (docName.isEmpty() ? "Unspecified" : docName) + "') do not match. Platform security regulations strictly prohibit verifying an account using someone else's identity card.");
         }
 
         // 4. Phone & Telebirr Rail Validation
@@ -304,7 +326,15 @@ public class VerificationService {
             analysis.append("• [WARN] Phone number outside standard Ethiopian mobile ranges.\n");
         }
 
-        verif.setAiScore(BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP));
+        if ("REJECTED".equals(verif.getStatus())) {
+            // Cap score and finalize rejection message
+            score = Math.min(score, 20.0);
+            verif.setAiScore(BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP));
+            analysis.append("\n✦ AI Decision: REJECTED_NAME_MISMATCH - Submission rejected due to identity mismatch between registered user account ('")
+                    .append(registeredName).append("') and ID document ('").append(docName.isEmpty() ? "Unspecified" : docName).append("').");
+        } else {
+            verif.setAiScore(BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP));
+        }
 
         if ("REJECTED".equals(verif.getStatus())) {
             // Already flagged as rejected due to severe name mismatch
@@ -500,6 +530,36 @@ public class VerificationService {
         }
 
         return jaro + prefix * 0.1 * (1.0 - jaro);
+    }
+
+    private String extractNameFromClues(String text1, String text2) {
+        String combined = (text1 != null ? text1 : "") + " " + (text2 != null ? text2 : "");
+        if (combined.isBlank()) return null;
+
+        // Strip data url base64 prefix if present
+        if (combined.contains(";base64,")) {
+            combined = combined.substring(0, Math.min(combined.length(), combined.indexOf(";base64,")));
+        }
+
+        String clean = combined.toLowerCase().replaceAll("[^a-z]", " ");
+        for (String token : clean.split("\\s+")) {
+            if (token.length() >= 3 && isCommonEthiopianName(token)) {
+                return Character.toUpperCase(token.charAt(0)) + token.substring(1);
+            }
+        }
+        return null;
+    }
+
+    private boolean isCommonEthiopianName(String token) {
+        return switch (token.toLowerCase()) {
+            case "yonas", "dawit", "sara", "sarah", "betelhem", "bethlehem", "abebe", "kebede",
+                 "tadesse", "bekele", "haile", "alemu", "chala", "tolosa", "girum", "dani",
+                 "daniel", "selam", "helen", "marta", "meron", "eyob", "samuel", "nati",
+                 "natnael", "elias", "tariku", "solomon", "amanuel", "biruk", "eshetu",
+                 "kassahun", "yohannes", "fasil", "tesfaye", "biniam", "henok", "bereket",
+                 "senait", "tigist", "hiwot", "eden", "rahel", "genet", "aster", "almaz" -> true;
+            default -> false;
+        };
     }
 
     public record NameMatchResult(boolean isMatch, double similarity, String explanation) {}
