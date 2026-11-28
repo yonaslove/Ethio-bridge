@@ -72,8 +72,9 @@ public class VerificationController {
         String documentUrl = body.get("documentUrl");
         String documentBackUrl = body.get("documentBackUrl");
         String selfieUrl = body.get("selfieUrl");
+        String documentName = body.get("documentName");
 
-        UserVerification verif = verificationService.submitVerification(user.getId(), idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl);
+        UserVerification verif = verificationService.submitVerification(user.getId(), idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl, documentName);
         return ResponseEntity.ok(verif);
     }
 }

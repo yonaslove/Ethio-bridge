@@ -32,6 +32,9 @@ public class UserVerification {
     @Column(name = "document_back_url", columnDefinition = "TEXT")
     private String documentBackUrl;
 
+    @Column(name = "document_name")
+    private String documentName;
+
     @Column(name = "selfie_url", columnDefinition = "TEXT")
     private String selfieUrl;
 
@@ -103,6 +106,9 @@ public class UserVerification {
 
     public String getDocumentBackUrl() { return documentBackUrl; }
     public void setDocumentBackUrl(String documentBackUrl) { this.documentBackUrl = documentBackUrl; }
+
+    public String getDocumentName() { return documentName; }
+    public void setDocumentName(String documentName) { this.documentName = documentName; }
 
     public String getSelfieUrl() { return selfieUrl; }
     public void setSelfieUrl(String selfieUrl) { this.selfieUrl = selfieUrl; }

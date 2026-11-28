@@ -237,9 +237,18 @@ import { Subscription, interval } from 'rxjs';
               <a
                 routerLink="/browse"
                 routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
                 (click)="onLinkClick()"
                 class="sidebar-item">
                 <span class="item-label">{{ isSeekerMode() ? i18n.translate('Browse Talent & Services', 'ባለሙያዎችን እና አገልግሎቶችን ያስሱ') : i18n.translate('Browse Marketplace', 'የስራ ገበያ ያስሱ') }}</span>
+              </a>
+
+              <a
+                routerLink="/browse"
+                [queryParams]="{ map: 1 }"
+                (click)="onLinkClick()"
+                class="sidebar-item map-sidebar-link">
+                <span class="item-label">🗺️ {{ i18n.translate('Live Ethiopian Map', 'የቀጥታ የኢትዮጵያ ካርታ') }}</span>
               </a>
             </div>
 

@@ -85,6 +85,11 @@ public class VerificationService {
 
     public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber,
                                               String documentUrl, String documentBackUrl, String selfieUrl) {
+        return submitVerification(userId, idType, idNumber, phoneNumber, documentUrl, documentBackUrl, selfieUrl, null);
+    }
+
+    public UserVerification submitVerification(UUID userId, String idType, String idNumber, String phoneNumber,
+                                              String documentUrl, String documentBackUrl, String selfieUrl, String documentName) {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -92,6 +97,7 @@ public class VerificationService {
         verif.setDocumentUrl(documentUrl);
         verif.setDocumentBackUrl(documentBackUrl);
         verif.setSelfieUrl(selfieUrl);
+        verif.setDocumentName(documentName != null && !documentName.isBlank() ? documentName.trim() : user.getFullName());
 
         // Run Explainable AI Document & Multi-Criteria Validation Engine
         performAiAnalysis(verif, user);
@@ -103,12 +109,14 @@ public class VerificationService {
         userRepository.save(user);
 
         auditLogService.log(userId, "SUBMIT_VERIFICATION", "UserVerification", verif.getId().toString(),
-                "Submitted ID Type: " + idType + ", Number: " + idNumber + ", AI Score: " + verif.getAiScore() + "%", null);
+                "Submitted ID Type: " + idType + ", Number: " + idNumber + ", Name: " + verif.getDocumentName() + ", AI Score: " + verif.getAiScore() + "%", null);
 
         notificationService.sendNotification(
                 userId,
-                "ID Verification Under Review",
-                "Your " + idType + " (" + idNumber + ") has been analyzed by AI (" + verif.getAiScore() + "% match) and submitted to the compliance desk.",
+                "ID Verification " + ("REJECTED".equals(verif.getStatus()) ? "Rejected (Name Mismatch)" : "Under Review"),
+                "REJECTED".equals(verif.getStatus())
+                        ? verif.getRejectionReason()
+                        : "Your " + idType + " (" + idNumber + ") has been analyzed by AI (" + verif.getAiScore() + "% match) and submitted to the compliance desk.",
                 "SYSTEM",
                 "/verification"
         );
@@ -257,16 +265,30 @@ public class VerificationService {
         }
 
         // 3. Name Consistency & Registry Match
-        String fullName = user.getFullName() != null ? user.getFullName().trim() : "";
-        if (!fullName.isEmpty() && fullName.split("\\s+").length >= 2) {
-            double namePoints = inspection.isValidDocument() ? 20.0 : 10.0;
+        String registeredName = user.getFullName() != null ? user.getFullName().trim() : "";
+        String docName = verif.getDocumentName() != null && !verif.getDocumentName().isBlank()
+                ? verif.getDocumentName().trim()
+                : registeredName;
+
+        NameMatchResult nameMatch = evaluateNameMatch(registeredName, docName);
+        boolean namePassed = nameMatch.isMatch();
+
+        if (namePassed) {
+            double namePoints = inspection.isValidDocument() ? 25.0 : 15.0;
             score += namePoints;
-            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"PASS\",\"weight\":" + (int) namePoints + ",\"detail\":\"Full name '" + escapeJson(fullName) + "' verified consistent.\"}");
-            analysis.append("• [PASS] Account name ('").append(fullName).append("') is verified consistent.\n");
+            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"PASS\",\"weight\":" + (int) namePoints + ",\"detail\":\"Registered name '" + escapeJson(registeredName) + "' matches ID name '" + escapeJson(docName) + "' (" + (int)(nameMatch.similarity() * 100) + "% similarity).\"}");
+            analysis.append("• [PASS] Name Consistency Verified: Registered name ('").append(registeredName)
+                    .append("') is consistent with ID card name ('").append(docName)
+                    .append("') with ").append((int)(nameMatch.similarity() * 100)).append("% similarity score.\n");
         } else {
-            score += 5.0;
-            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"WARN\",\"weight\":5,\"detail\":\"Single-word or abbreviated account name.\"}");
-            analysis.append("• [WARN] Account name contains only single token.\n");
+            criteria.add("{\"criterion\":\"Name Match & Identity Consistency\",\"status\":\"FAIL\",\"weight\":0,\"detail\":\"Severe Name Discrepancy: Registered name '" + escapeJson(registeredName) + "' does not match ID name '" + escapeJson(docName) + "'. Must be similar to pass.\"}");
+            analysis.append("• [FAIL] Name Mismatch Error: Registered account name ('").append(registeredName)
+                    .append("') differs from ID document name ('").append(docName)
+                    .append("'). National civil identity regulations mandate that registered users verify their own identity card.\n");
+
+            verif.setStatus("REJECTED");
+            verif.setAiVerdict("REJECTED_NAME_MISMATCH");
+            verif.setRejectionReason("Identity Name Mismatch: Registered name ('" + registeredName + "') and ID document name ('" + docName + "') do not match. The names must be similar to pass verification.");
         }
 
         // 4. Phone & Telebirr Rail Validation
@@ -284,7 +306,9 @@ public class VerificationService {
 
         verif.setAiScore(BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP));
 
-        if (hasDocument && !inspection.isValidDocument()) {
+        if ("REJECTED".equals(verif.getStatus())) {
+            // Already flagged as rejected due to severe name mismatch
+        } else if (hasDocument && !inspection.isValidDocument()) {
             verif.setAiVerdict("SUSPICIOUS_ANOMALY");
             analysis.append("\n✦ AI Decision: SUSPICIOUS_ANOMALY - Pre-screening failed. Upload a genuine official national ID card displaying your photograph.");
             verif.setStatus("REJECTED");
@@ -329,4 +353,154 @@ public class VerificationService {
         verif.setUserEmail(user.getEmail());
         verif.setUserRoles(new ArrayList<>(user.getRoles()));
     }
+
+    /**
+     * Evaluates whether the registered account name and the ID document name are sufficiently similar
+     * according to Ethiopian patronymic naming conventions (Given Name, Father's Name, Grandfather's Name).
+     */
+    public NameMatchResult evaluateNameMatch(String registeredName, String docName) {
+        if (registeredName == null || registeredName.isBlank()) {
+            return new NameMatchResult(false, 0.0, "Registered account has no full name.");
+        }
+        if (docName == null || docName.isBlank()) {
+            return new NameMatchResult(false, 0.0, "ID document name is blank.");
+        }
+
+        String regClean = cleanName(registeredName);
+        String docClean = cleanName(docName);
+
+        if (regClean.equalsIgnoreCase(docClean)) {
+            return new NameMatchResult(true, 1.0, "Exact character match.");
+        }
+
+        String[] regTokens = regClean.split("\\s+");
+        String[] docTokens = docClean.split("\\s+");
+
+        // Ethiopian name matching logic:
+        // Token 0: Given Name (Sara, Dawit, etc.)
+        // Token 1: Father's Name (Bekele, Tadesse, etc.)
+        // Token 2 (optional): Grandfather's Name
+        
+        // 1. Compare First/Given Name (Critical: must match with high similarity)
+        String regFirst = regTokens.length > 0 ? regTokens[0] : "";
+        String docFirst = docTokens.length > 0 ? docTokens[0] : "";
+
+        double firstSim = calculateJaroWinklerSimilarity(regFirst, docFirst);
+        if (firstSim < 0.78 && !isTokenSimilar(regFirst, docFirst)) {
+            return new NameMatchResult(false, firstSim, "First/Given name mismatch: '" + regFirst + "' vs '" + docFirst + "'");
+        }
+
+        // 2. Compare Second/Father's Name if both provide at least 2 tokens
+        if (regTokens.length >= 2 && docTokens.length >= 2) {
+            String regSecond = regTokens[1];
+            String docSecond = docTokens[1];
+            double secondSim = calculateJaroWinklerSimilarity(regSecond, docSecond);
+            if (secondSim < 0.75 && !isTokenSimilar(regSecond, docSecond)) {
+                return new NameMatchResult(false, (firstSim + secondSim) / 2.0, "Father's name mismatch: '" + regSecond + "' vs '" + docSecond + "'");
+            }
+        }
+
+        // 3. Overall Jaro-Winkler & Token Overlap Similarity
+        double overallJaro = calculateJaroWinklerSimilarity(regClean, docClean);
+
+        // Count how many registered tokens are present in doc tokens
+        int matchedTokens = 0;
+        for (String rt : regTokens) {
+            for (String dt : docTokens) {
+                if (isTokenSimilar(rt, dt) || calculateJaroWinklerSimilarity(rt, dt) >= 0.82) {
+                    matchedTokens++;
+                    break;
+                }
+            }
+        }
+
+        double tokenCoverage = (double) matchedTokens / Math.max(1, regTokens.length);
+        double finalScore = Math.max(overallJaro, tokenCoverage);
+
+        boolean isMatch = finalScore >= 0.70;
+        return new NameMatchResult(isMatch, finalScore, isMatch ? "Compatible Ethiopian name structure." : "Insufficient name overlap.");
+    }
+
+    private String cleanName(String name) {
+        if (name == null) return "";
+        return name.toLowerCase()
+                .replaceAll("[^a-zA-Z0-9\\u1200-\\u137F\\s]", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private boolean isTokenSimilar(String t1, String t2) {
+        if (t1 == null || t2 == null) return false;
+        if (t1.equalsIgnoreCase(t2)) return true;
+        int dist = levenshteinDistance(t1.toLowerCase(), t2.toLowerCase());
+        int maxLen = Math.max(t1.length(), t2.length());
+        return dist <= 2 && maxLen > 3;
+    }
+
+    private int levenshteinDistance(String s1, String s2) {
+        int[] costs = new int[s2.length() + 1];
+        for (int j = 0; j <= s2.length(); j++) costs[j] = j;
+        for (int i = 1; i <= s1.length(); i++) {
+            costs[0] = i;
+            int nw = i - 1;
+            for (int j = 1; j <= s2.length(); j++) {
+                int cj = Math.min(1 + Math.min(costs[j], costs[j - 1]),
+                        s1.charAt(i - 1) == s2.charAt(j - 1) ? nw : nw + 1);
+                nw = costs[j];
+                costs[j] = cj;
+            }
+        }
+        return costs[s2.length()];
+    }
+
+    private double calculateJaroWinklerSimilarity(String s1, String s2) {
+        if (s1 == null || s2 == null) return 0.0;
+        if (s1.equalsIgnoreCase(s2)) return 1.0;
+        if (s1.isEmpty() || s2.isEmpty()) return 0.0;
+
+        int matchDistance = Math.max(s1.length(), s2.length()) / 2 - 1;
+        boolean[] s1Matches = new boolean[s1.length()];
+        boolean[] s2Matches = new boolean[s2.length()];
+
+        int matches = 0;
+        for (int i = 0; i < s1.length(); i++) {
+            int start = Math.max(0, i - matchDistance);
+            int end = Math.min(i + matchDistance + 1, s2.length());
+            for (int j = start; j < end; j++) {
+                if (!s2Matches[j] && s1.charAt(i) == s2.charAt(j)) {
+                    s1Matches[i] = true;
+                    s2Matches[j] = true;
+                    matches++;
+                    break;
+                }
+            }
+        }
+
+        if (matches == 0) return 0.0;
+
+        int transpositions = 0;
+        int k = 0;
+        for (int i = 0; i < s1.length(); i++) {
+            if (s1Matches[i]) {
+                while (!s2Matches[k]) k++;
+                if (s1.charAt(i) != s2.charAt(k)) transpositions++;
+                k++;
+            }
+        }
+
+        double jaro = ((double) matches / s1.length() +
+                (double) matches / s2.length() +
+                (double) (matches - transpositions / 2.0) / matches) / 3.0;
+
+        // Winkler prefix bonus
+        int prefix = 0;
+        for (int i = 0; i < Math.min(4, Math.min(s1.length(), s2.length())); i++) {
+            if (s1.charAt(i) == s2.charAt(i)) prefix++;
+            else break;
+        }
+
+        return jaro + prefix * 0.1 * (1.0 - jaro);
+    }
+
+    public record NameMatchResult(boolean isMatch, double similarity, String explanation) {}
 }

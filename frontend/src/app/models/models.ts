@@ -323,6 +323,7 @@ export interface UserVerificationStatus {
   phoneNumber: string;
   documentUrl?: string;
   documentBackUrl?: string;
+  documentName?: string;
   selfieUrl?: string;
   aiScore?: number;
   aiVerdict?: string;

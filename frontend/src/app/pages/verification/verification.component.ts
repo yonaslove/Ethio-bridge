@@ -91,6 +91,25 @@ import { I18nService } from '../../services/i18n.service';
             <small class="hint">{{ i18n.translate('Fayda format: FAN-XXXX-XXXX-ET; Passport: EP followed by 7 digits; Kebele: Regional code and sequence.', 'የፋይዳ ቅርጸት፡ FAN-XXXX-XXXX-ET፤ ፓስፖርት፡ EP እና 7 አሃዞች፤ የቀበሌ፡ የከተማ ኮድ እና ቁጥር።') }}</small>
           </div>
 
+          <!-- Full Legal Name as printed on ID Document with Real-time Similarity Check -->
+          <div class="form-group">
+            <label class="form-label">
+              {{ i18n.translate('Full Legal Name on ID Document (የመታወቂያው ሙሉ ስም)', 'በመታወቂያው ላይ የተጻፈው ሙሉ ስም') }}
+              <span class="required-star">*</span>
+            </label>
+            <input type="text"
+                   [(ngModel)]="idFullName"
+                   name="idFullName"
+                   (input)="checkNameSimilarity()"
+                   class="form-control"
+                   [placeholder]="registeredUserName || 'e.g. Abebe Bikila Tadesse'"
+                   required />
+            <div *ngIf="nameSimilarityNotice" class="name-match-feedback" [ngClass]="nameMatchPass ? 'match-ok' : 'match-warn'">
+              <span>{{ nameSimilarityNotice }}</span>
+            </div>
+            <small class="hint">{{ i18n.translate('Must be similar to your registered account name (' + (registeredUserName || 'Account Name') + '). Minor spelling transliterations or adding father/grandfather names are allowed.', 'ከተመዘገበው ስምዎ (' + (registeredUserName || 'የመለያ ስም') + ') ጋር መመሳሰል አለበት። የውሸት ወይም የሌላ ሰው መታወቂያ ፈጽሞ ተቀባይነት የለውም።') }}</small>
+          </div>
+
           <!-- Phone Number and Real OTP Dispatch -->
           <div class="form-group">
             <label class="form-label">{{ i18n.translate('Ethiopian Mobile Number (Ethio Telecom / Safaricom)', 'የኢትዮጵያ ስልክ ቁጥር (ኢትዮ ቴሌኮም / ሳፋሪኮም)') }}</label>
@@ -430,6 +449,23 @@ import { I18nService } from '../../services/i18n.service';
       font-size: 0.825rem;
       font-weight: 600;
     }
+    .name-match-feedback {
+      margin-top: 0.4rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.825rem;
+      font-weight: 600;
+    }
+    .name-match-feedback.match-ok {
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      color: #065F46;
+    }
+    .name-match-feedback.match-warn {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #991B1B;
+    }
     .hint {
       font-size: 0.75rem;
       color: var(--color-slate);
@@ -628,6 +664,12 @@ export class VerificationComponent implements OnInit {
   idNumber = '';
   phoneNumber = '';
 
+  // Name Matching Check
+  registeredUserName = '';
+  idFullName = '';
+  nameMatchPass = true;
+  nameSimilarityNotice = '';
+
   // Two-sided document state
   documentUrl = '';
   documentFileName = '';
@@ -704,6 +746,13 @@ export class VerificationComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    const user = this.authService.currentUser;
+    if (user && user.fullName) {
+      this.registeredUserName = user.fullName.trim();
+      this.idFullName = user.fullName.trim();
+      this.checkNameSimilarity();
+    }
+
     this.apiService.getVerificationStatus().subscribe({
       next: (status) => {
         this.verifStatus = status;
@@ -716,8 +765,53 @@ export class VerificationComponent implements OnInit {
         if (status && status.documentBackUrl) {
           this.documentBackUrl = status.documentBackUrl;
         }
+        if (status && status.documentName) {
+          this.idFullName = status.documentName;
+          this.checkNameSimilarity();
+        }
       }
     });
+  }
+
+  checkNameSimilarity(): void {
+    if (!this.idFullName || !this.idFullName.trim()) {
+      this.nameMatchPass = false;
+      this.nameSimilarityNotice = '⚠️ Please enter your full name as printed on your ID.';
+      return;
+    }
+
+    if (!this.registeredUserName) {
+      this.nameMatchPass = true;
+      this.nameSimilarityNotice = '';
+      return;
+    }
+
+    const reg = this.registeredUserName.toLowerCase().trim();
+    const id = this.idFullName.toLowerCase().trim();
+
+    if (reg === id) {
+      this.nameMatchPass = true;
+      this.nameSimilarityNotice = '✓ ID Name exactly matches your registered account name (' + this.registeredUserName + ').';
+      return;
+    }
+
+    const regTokens = reg.split(/\s+/);
+    const idTokens = id.split(/\s+/);
+
+    // Ethiopian First Name check
+    const regFirst = regTokens[0] || '';
+    const idFirst = idTokens[0] || '';
+
+    const firstCharMatch = regFirst.slice(0, 3) === idFirst.slice(0, 3);
+    const hasOverlap = regTokens.some(rt => idTokens.some(it => it.includes(rt) || rt.includes(it)));
+
+    if (firstCharMatch || hasOverlap) {
+      this.nameMatchPass = true;
+      this.nameSimilarityNotice = '✓ Compatible Ethiopian name match with registered profile (' + this.registeredUserName + ').';
+    } else {
+      this.nameMatchPass = false;
+      this.nameSimilarityNotice = '⚠️ Potential Name Mismatch: "' + this.idFullName + '" differs significantly from your account name "' + this.registeredUserName + '". To pass, the ID must belong to you.';
+    }
   }
 
   onFileSelected(event: Event, side: 'front' | 'back'): void {
@@ -781,7 +875,7 @@ export class VerificationComponent implements OnInit {
   }
 
   canSubmit(): boolean {
-    return !!(this.idNumber.trim() && this.phoneNumber.trim() && this.agreedToChecks && this.documentUrl && this.documentBackUrl);
+    return !!(this.idNumber.trim() && this.idFullName.trim() && this.phoneNumber.trim() && this.agreedToChecks && this.documentUrl && this.documentBackUrl);
   }
 
   getAiVerdictClass(verdict?: string): string {
@@ -799,7 +893,15 @@ export class VerificationComponent implements OnInit {
     this.submitError = '';
     const fullPhone = '+251' + this.phoneNumber.replace(/\s+/g, '').replace(/^0/, '');
 
-    this.apiService.submitVerification(this.idType, this.idNumber.trim(), fullPhone, this.documentUrl, this.documentBackUrl).subscribe({
+    this.apiService.submitVerification(
+      this.idType,
+      this.idNumber.trim(),
+      fullPhone,
+      this.documentUrl,
+      this.documentBackUrl,
+      undefined,
+      this.idFullName.trim()
+    ).subscribe({
       next: (res) => {
         this.verifStatus = res;
         this.submitting = false;

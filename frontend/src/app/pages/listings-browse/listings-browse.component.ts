@@ -23,16 +23,23 @@ import { EthioMapComponent, MapMarkerItem } from '../../components/map/ethio-map
           <button
             type="button"
             class="btn-toggle-tab"
-            [class.active]="activeTab === 'listings'"
-            (click)="switchTab('listings')">
+            [class.active]="activeTab === 'listings' && !showMap"
+            (click)="selectMode('listings')">
             💼 {{ i18n.translate('Jobs & Opportunities', 'ስራዎች እና ፕሮጀክቶች') }}
           </button>
           <button
             type="button"
             class="btn-toggle-tab"
-            [class.active]="activeTab === 'talent'"
-            (click)="switchTab('talent')">
+            [class.active]="activeTab === 'talent' && !showMap"
+            (click)="selectMode('talent')">
             🧑‍💻 {{ i18n.translate('Find Talent & Providers', 'ባለሙያዎችን ያነጋግሩ') }}
+          </button>
+          <button
+            type="button"
+            class="btn-toggle-tab map-tab-btn"
+            [class.active]="showMap"
+            (click)="toggleMapTab()">
+            🗺️ {{ i18n.translate('Live Ethiopian Map', 'የቀጥታ ካርታ እይታ') }}
           </button>
         </div>
       </div>
@@ -484,6 +491,9 @@ export class ListingsBrowseComponent implements OnInit {
       if (params['type']) this.selectedType = params['type'];
       if (params['categoryId']) this.selectedCategory = params['categoryId'];
       if (params['q']) this.searchQuery = params['q'];
+      if (params['map'] === '1' || params['map'] === 'true') {
+        this.showMap = true;
+      }
       
       if (this.activeTab === 'talent') {
         this.fetchProviders();
@@ -491,6 +501,18 @@ export class ListingsBrowseComponent implements OnInit {
         this.fetchListings();
       }
     });
+  }
+
+  selectMode(tab: 'listings' | 'talent'): void {
+    this.showMap = false;
+    this.switchTab(tab);
+  }
+
+  toggleMapTab(): void {
+    this.showMap = !this.showMap;
+    if (this.showMap) {
+      this.rebuildMapMarkers();
+    }
   }
 
   switchTab(tab: 'listings' | 'talent'): void {
